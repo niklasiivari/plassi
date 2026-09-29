@@ -848,7 +848,7 @@ fn example_event_is_valid_and_solvable() {
 
 #[test]
 fn finnish_sample_header_is_recognised() {
-    let sheet = crate::import::parse_sheet("Nimi\tJärjestö\tAvec\tPöytätoive\tRuoka\tJuoma\tAllergiat\nX Y\tABC\t\t\tKala\tVesi\t\n").expect("sheet");
+    let sheet = crate::import::parse_sheet("Nimi\tJärjestö\tAvec\tPöytäseuratoive\tRuoka\tJuoma\tAllergiat\nX Y\tABC\t\t\tKala\tVesi\t\n").expect("sheet");
     assert!(!sheet.columns.contains(&crate::import::Column::Other), "{:?}", sheet.headers);
 }
 
@@ -960,4 +960,10 @@ fn exported_people_import_back_unchanged() {
     assert_eq!(again.attendees.len(), project.attendees.len());
     let template = crate::import::parse_sheet(&crate::import::template_csv()).expect("template");
     assert!(template.has_name() && template.rows.len() == 1);
+}
+
+#[test]
+fn older_finnish_wish_header_is_still_understood() {
+    let sheet = crate::import::parse_sheet("Nimi\tPöytätoive\nX Y\tZ W\n").expect("sheet");
+    assert_eq!((sheet.columns[1], sheet.matches[1]), (crate::import::Column::Wish, crate::import::Match::Guessed));
 }

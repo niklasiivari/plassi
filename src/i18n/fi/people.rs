@@ -64,7 +64,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Source text (optional)", "Lähdeteksti (valinnainen)"),
     ("Add wish", "Lisää toive"),
     ("Cancel", "Peruuta"),
-    ("Seating wish", "Istumatoive"),
+    ("Seating wish", "Pöytäseuratoive"),
     ("Avec (partner)", "Avec (seuralainen)"),
     ("Near", "Lähellä"),
     ("People", "Ihmisiä"),
@@ -109,7 +109,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
          name, organization, participant group, avec, seating wish, food, drinks, allergies; others are kept as extra info. \
          People are matched by name — rules, room and options are kept.",
         "Kopioi rivit (otsikkorivin kanssa) Excelistä tai Sheetsistä ja liitä ne tähän. Sarakkeet tunnistetaan nimestä: \
-         nimi, järjestö, osallistujaryhmä, avec, pöytätoive, ruoka, juoma, allergiat; muut säilyvät lisätietoina. \
+         nimi, järjestö, osallistujaryhmä, avec, pöytäseuratoive, ruoka, juoma, allergiat; muut säilyvät lisätietoina. \
          Ihmiset yhdistetään nimen perusteella — säännöt, tila ja vaihtoehdot säilyvät.",
     ),
     ("Paste spreadsheet rows here…", "Liitä taulukon rivit tähän…"),

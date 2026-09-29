@@ -85,7 +85,7 @@ impl Column {
             Column::Organization => ("Organization", "Järjestö"),
             Column::Group => ("Participant group", "Osallistujaryhmä"),
             Column::Avec => ("Avec", "Avec"),
-            Column::Wish => ("Seating wish", "Pöytätoive"),
+            Column::Wish => ("Seating wish", "Pöytäseuratoive"),
             Column::Food => ("Food", "Ruoka"),
             Column::Drink => ("Drinks", "Juoma"),
             Column::Allergies => ("Allergies", "Allergiat"),

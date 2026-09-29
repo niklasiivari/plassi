@@ -83,7 +83,7 @@ Plassi has a spreadsheet template. Keep your sign-ups in these columns (any orde
 | Organization | Järjestö | Organization or club |
 | Participant group | Osallistujaryhmä | Ticket type or participant group |
 | Avec | Avec | The avec's full name, as written |
-| Seating wish | Pöytätoive | Who they want to sit with, in their own words |
+| Seating wish | Pöytäseuratoive | Who they want to sit with, in their own words |
 | Food | Ruoka | Menu choice |
 | Drinks | Juoma | Drink choice |
 | Allergies | Allergiat | Allergies and diets |
