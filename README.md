@@ -75,7 +75,22 @@ Attendees with no enabled constraints are free attendees. The solver optimizes t
 
 ## Importing a spreadsheet
 
-On People & wishes, paste rows copied from Excel or Sheets (with the header row). Columns are recognised by header, in Finnish or English: name (or first + last name), organization, participant group, avec, seating wish, food, drinks, allergies. Other columns are kept per attendee as extra info. People are matched by name, so re-importing a sheet with more columns keeps rules, the room and options. New sign-up text becomes unreviewed notes.
+Plassi has a spreadsheet template. Keep your sign-ups in these columns (any order; English or Finnish headers; only the name is required):
+
+| English | Suomi | What goes in it |
+| --- | --- | --- |
+| Name | Nimi | Full name; people are matched by it |
+| Organization | Järjestö | Organization or club |
+| Participant group | Osallistujaryhmä | Ticket type or participant group |
+| Avec | Avec | The avec's full name, as written |
+| Seating wish | Pöytätoive | Who they want to sit with, in their own words |
+| Food | Ruoka | Menu choice |
+| Drinks | Juoma | Drink choice |
+| Allergies | Allergiat | Allergies and diets |
+
+On People & wishes, "Copy header row" puts the header on the clipboard for the first row of your sheet, "Download template" saves a .csv with the header and an example row, and "Export people" saves everyone in these columns to edit and import back.
+
+To import, paste the rows (header row included) or drop a .csv/.tsv file. Before anything changes, a preview lists each column with its first values and what it will be imported as: template headers are recognised exactly; other headers are guessed from their words and marked for checking; anything else is kept as extra info. Change any column from its menu, including "Ignore". People are matched by name, so importing again updates them and keeps rules, the room and options. New sign-up text becomes unreviewed notes.
 
 ## Suggested wishes
 

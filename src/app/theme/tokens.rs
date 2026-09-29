@@ -14,18 +14,18 @@ pub mod space {
 /// Type scale, in points.
 pub mod text {
     /// Hints, legends, uppercase section labels.
-    pub const CAPTION: f32 = 11.5;
+    pub const CAPTION: f32 = 12.0;
     /// Secondary lines and dense lists.
-    pub const SMALL: f32 = 12.5;
-    pub const BODY: f32 = 14.0;
+    pub const SMALL: f32 = 13.5;
+    pub const BODY: f32 = 15.0;
     /// Card titles and emphasised names.
-    pub const LEAD: f32 = 16.0;
+    pub const LEAD: f32 = 17.0;
     /// Panel titles.
-    pub const TITLE: f32 = 20.0;
+    pub const TITLE: f32 = 21.0;
     /// Page titles.
-    pub const PAGE: f32 = 26.0;
+    pub const PAGE: f32 = 28.0;
     /// Large numbers.
-    pub const DISPLAY: f32 = 34.0;
+    pub const DISPLAY: f32 = 36.0;
 }
 
 /// Corner radii: small parts, controls, cards and floating layers, pills.

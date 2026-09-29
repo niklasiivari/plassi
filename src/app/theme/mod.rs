@@ -208,23 +208,12 @@ fn visuals(p: Palette, dark: bool) -> Visuals {
     v
 }
 
-/// Uses a nicer system sans font when available; falls back to egui's bundled fonts.
+/// The interface font: Source Sans 3, the same family as the prints, bundled
+/// so the app looks the same on every system and in the browser.
 fn install_fonts(ctx: &egui::Context) {
-    const CANDIDATES: &[&str] = &[
-        "/usr/share/fonts/truetype/inter/Inter-Regular.ttf",
-        "/usr/share/fonts/inter/Inter-Regular.otf",
-        "/usr/share/fonts/TTF/Inter-Regular.ttf",
-        "/usr/share/fonts/truetype/NotoSans-Regular.ttf",
-        "/usr/share/fonts/noto/NotoSans-Regular.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
-    ];
-    let Some(bytes) = CANDIDATES.iter().find_map(|path| std::fs::read(path).ok()) else {
-        return;
-    };
+    const REGULAR: &[u8] = include_bytes!("../../../typeset/fonts/SourceSans3-Regular.otf");
     let mut fonts = FontDefinitions::default();
-    fonts
-        .font_data
-        .insert("ui".into(), FontData::from_owned(bytes).into());
+    fonts.font_data.insert("ui".into(), FontData::from_static(REGULAR).into());
     if let Some(family) = fonts.families.get_mut(&FontFamily::Proportional) {
         family.insert(0, "ui".into());
     }

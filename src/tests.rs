@@ -921,3 +921,43 @@ fn stopped_search_ends_early_with_a_seating() {
     assert!(started.elapsed() < web_time::Duration::from_secs(5));
     assert!(!search.finish().assignment.is_empty());
 }
+
+#[test]
+fn template_headers_are_recognised_exactly_in_both_languages() {
+    use crate::import::{Column, Match, parse_sheet};
+    for (en, fi) in Column::TEMPLATE.map(Column::headers) {
+        for header in [en, fi, &en.to_uppercase()] {
+            let sheet = parse_sheet(&format!("{header}\tNimi\nx\tX Y\n")).expect("sheet");
+            assert_eq!(sheet.matches[0], Match::Exact, "{header}");
+        }
+    }
+    let sheet = parse_sheet("Koko nimi\tLempiväri\nX Y\tsininen\n").expect("sheet");
+    assert_eq!((sheet.columns[0], sheet.matches[0]), (Column::Name, Match::Guessed));
+    assert_eq!((sheet.columns[1], sheet.matches[1]), (Column::Other, Match::Unknown));
+}
+
+#[test]
+fn ignored_columns_are_left_out_and_a_name_is_required() {
+    use crate::import::{Column, merge, parse_sheet};
+    let mut sheet = parse_sheet("Name\tNotes\nX Y\tsecret\n").expect("sheet");
+    sheet.columns[1] = Column::Ignore;
+    let mut project = Project::new();
+    merge(&mut project, &sheet).expect("merge");
+    assert!(project.attendees[0].extra.is_empty());
+    sheet.columns[0] = Column::Other;
+    assert!(merge(&mut Project::new(), &sheet).is_err());
+}
+
+#[test]
+fn exported_people_import_back_unchanged() {
+    let project = crate::example::project();
+    let csv = crate::import::export_csv(&project);
+    let sheet = crate::import::parse_sheet(&csv).expect("sheet");
+    assert!(sheet.matches.iter().all(|m| *m == crate::import::Match::Exact));
+    let mut again = project.clone();
+    let summary = crate::import::merge(&mut again, &sheet).expect("merge");
+    assert_eq!((summary.added, summary.updated, summary.new_notes), (0, project.attendees.len(), 0));
+    assert_eq!(again.attendees.len(), project.attendees.len());
+    let template = crate::import::parse_sheet(&crate::import::template_csv()).expect("template");
+    assert!(template.has_name() && template.rows.len() == 1);
+}

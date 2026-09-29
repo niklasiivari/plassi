@@ -2,6 +2,7 @@
 
 mod details;
 mod drop;
+mod import;
 mod draft;
 mod editor;
 mod list;
@@ -52,6 +53,8 @@ pub(in crate::app) struct PeopleState {
     pub(in crate::app) new_tag: String,
     /// Spreadsheet text pasted for import.
     pub(in crate::app) import_text: String,
+    /// Column meanings chosen for the pasted sheet.
+    pub(in crate::app) import_mapping: import::ImportMapping,
     /// A dropped sheet being read: its name and the read.
     pub(in crate::app) dropped: Option<(String, crate::platform::DroppedRead)>,
     /// Suggested wishes, keyed by project revision.

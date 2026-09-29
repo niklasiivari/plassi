@@ -27,14 +27,6 @@ impl PlassiApp {
     fn first_import(&mut self, ui: &mut egui::Ui, p: Palette) {
         crate::app::help::page_header(ui, p, crate::app::help::HelpPage::People, tr("Add your guests"), Some(tr("Paste your sign-up sheet to start. Everything else builds on the guest list.")));
         self.import_panel(ui, p);
-        ui.add_space(theme::space::M);
-        theme::hint(ui, p, tr("A header row like this works (any order, extra columns are kept):"));
-        // Headers the importer recognises, in the interface language.
-        let header = match crate::i18n::current() {
-            crate::i18n::Lang::Fi => "Nimi\tJärjestö\tAvec\tPöytätoive\tRuoka\tJuoma\tAllergiat",
-            crate::i18n::Lang::En => "Name\tOrganization\tAvec\tSeating wish\tFood\tDrinks\tAllergies",
-        };
-        ui.label(RichText::new(header).monospace().color(p.muted));
         ui.add_space(theme::space::L);
         ui.horizontal(|ui| {
             theme::hint(ui, p, tr("No sheet at hand?"));
@@ -152,81 +144,6 @@ impl PlassiApp {
             crate::suggest::SuggestedTarget::Organization(name) => {
                 fill("Sit with {} people", &[name])
             }
-        }
-    }
-
-    pub(super) fn import_panel(&mut self, ui: &mut egui::Ui, p: Palette) {
-        let hovering = Self::file_hovering(ui);
-        let frame = if hovering { theme::tinted_card(p, p.accent) } else { theme::card(p) };
-        let card = frame.show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.label(RichText::new(tr("Import or update from a spreadsheet")).size(theme::text::LEAD).strong());
-            ui.label(
-                RichText::new(tr(
-                    "Copy the rows (with the header row) from Excel or Sheets and paste them here. Columns are recognised by name: \
-                     name, organization, participant group, avec, seating wish, food, drinks, allergies; others are kept as extra info. \
-                     People are matched by name — rules, room and options are kept.",
-                ))
-                .size(theme::text::SMALL)
-                .color(p.muted),
-            );
-            ui.add(
-                theme::text_area(&mut self.people.import_text)
-                    .hint_text(tr("Paste spreadsheet rows here…"))
-                    .desired_rows(5)
-                    .desired_width(f32::INFINITY)
-                    .font(egui::TextStyle::Monospace),
-            );
-            if hovering {
-                ui.label(RichText::new(tr("Drop the file to load it here")).color(p.accent).strong());
-            } else {
-                theme::hint(ui, p, tr("Or drop a .csv/.tsv file here"));
-            }
-            if self.people.import_text.trim().is_empty() {
-                return;
-            }
-            match crate::import::parse_sheet(&self.people.import_text) {
-                Ok(sheet) => {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.label(RichText::new(fill("{} rows ·", &[&sheet.rows.len()])).color(p.muted));
-                        for (header, column) in sheet.headers.iter().zip(&sheet.columns) {
-                            let color = if *column == crate::import::Column::Other { p.muted } else { p.good };
-                            theme::status_pill(ui, p, format!("{header} → {}", column.label()), color);
-                        }
-                    });
-                    ui.horizontal(|ui| {
-                        if ui.add(theme::primary_button(tr("Update attendees"), p)).clicked() {
-                            match crate::import::merge(&mut self.project, &sheet) {
-                                Ok(summary) => {
-                                    self.people.import_text.clear();
-                                    let mut message = fill(
-                                        "Imported: {} updated, {} added, {} new notes, {} wishes matched",
-                                        &[&summary.updated, &summary.added, &summary.new_notes, &summary.new_rules],
-                                    );
-                                    if !summary.duplicate_names.is_empty() {
-                                        message += &fill(
-                                            " · same name on several rows, kept as separate people: {}",
-                                            &[&summary.duplicate_names.join(", ")],
-                                        );
-                                    }
-                                    self.commit(&message);
-                                }
-                                Err(error) => self.status = fill("Import failed: {}", &[&format!("{error:#}")]),
-                            }
-                        }
-                        if ui.button(tr("Clear")).clicked() {
-                            self.people.import_text.clear();
-                        }
-                    });
-                }
-                Err(error) => {
-                    ui.label(RichText::new(format!("{error:#}")).color(p.warn));
-                }
-            }
-        });
-        if hovering {
-            let stroke = egui::Stroke::new(2.0, p.accent);
-            ui.painter().rect_stroke(card.response.rect, theme::radius::LG, stroke, egui::StrokeKind::Inside);
         }
     }
 }
