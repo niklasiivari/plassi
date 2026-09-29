@@ -38,3 +38,7 @@ opt-level = "s"
 lto = true
 codegen-units = 1
 strip = true
+
+# Dependencies in the browser build are optimised for size too.
+[profile.web.package."*"]
+opt-level = "z"
