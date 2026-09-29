@@ -197,13 +197,17 @@ fn people_import_from_pasted_sheet() {
     assert_eq!(copied, Some(crate::import::header_row()));
 
     ui.click_text_box(); // hinted "Paste the rows here, header row included…"
-    ui.type_text("Full name\tOrganization\tNotes\nX Y\tABC\tFish\nZ W\tXYZ\tMeat\n");
-    assert!(ui.has("Recognised"), "{:?}", ui.dump());
-    assert!(ui.has("Guessed, please check"), "{:?}", ui.dump());
+    ui.type_text("Full name\tOrganization\nX Y\tABC\nZ W\tXYZ\n");
+    assert!(ui.has("Template column"), "{:?}", ui.dump());
+    assert!(ui.has("Not in the template: choose what it is"), "{:?}", ui.dump());
+
+    // No guessing: say which column holds the names.
+    ui.open_combo("Kept as extra info");
+    ui.choose("Name");
 
     // Leave the organization out.
     ui.open_combo("Organization");
-    ui.click("Ignore");
+    ui.choose("Ignore");
     assert!(ui.has("Set by you"), "{:?}", ui.dump());
     ui.h.run_steps(3);
     assert!(ui.has("Set by you"), "stays marked after the change");

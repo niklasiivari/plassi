@@ -34,6 +34,14 @@
         "title": ""
       }
     },
+    "import_columns": {
+      "description": "What spreadsheet columns outside the import template were imported as,\nby normalised header, so the next import of the same sheet maps them.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Column"
+      },
+      "default": {}
+    },
     "layout": {
       "$ref": "#/$defs/Layout"
     },
@@ -298,6 +306,35 @@
           "description": "No two at the same table.",
           "type": "string",
           "const": "Table"
+        }
+      ]
+    },
+    "Column": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Name",
+            "FirstName",
+            "LastName",
+            "Organization",
+            "Group",
+            "Avec",
+            "Wish",
+            "Food",
+            "Drink",
+            "Allergies"
+          ]
+        },
+        {
+          "description": "Kept per attendee as extra info.",
+          "type": "string",
+          "const": "Other"
+        },
+        {
+          "description": "Left out of the import.",
+          "type": "string",
+          "const": "Ignore"
         }
       ]
     },

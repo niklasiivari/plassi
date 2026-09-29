@@ -90,7 +90,7 @@ Plassi has a spreadsheet template. Keep your sign-ups in these columns (any orde
 
 On People & wishes, "Copy header row" puts the header on the clipboard for the first row of your sheet, "Download template" saves a .csv with the header and an example row, and "Export people" saves everyone in these columns to edit and import back.
 
-To import, paste the rows (header row included) or drop a .csv/.tsv file. Before anything changes, a preview lists each column with its first values and what it will be imported as: template headers are recognised exactly; other headers are guessed from their words and marked for checking; anything else is kept as extra info. Change any column from its menu, including "Ignore". People are matched by name, so importing again updates them and keeps rules, the room and options. New sign-up text becomes unreviewed notes.
+To import, paste the rows (header row included) or drop a .csv/.tsv file. Before anything changes, a preview lists each column with its first values and what it will be imported as. Template headers (English or Finnish, any case) are recognised exactly. Nothing else is guessed: any other column is kept as extra info until you choose what it is from its menu (or "Ignore"). Your choices are remembered in the project, so importing the same sheet again maps those columns the same way. The command-line `import` only understands template headers. People are matched by name, so importing again updates them and keeps rules, the room and options. New sign-up text becomes unreviewed notes.
 
 ## Suggested wishes
 

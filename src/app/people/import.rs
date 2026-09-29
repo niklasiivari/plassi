@@ -88,6 +88,7 @@ impl PlassiApp {
                 return;
             }
         };
+        sheet.remember(&self.project.import_columns);
         let detected = sheet.columns.clone();
         self.apply_mapping(&mut sheet);
         ui.add_space(theme::space::M);
@@ -169,12 +170,13 @@ fn column_rows(ui: &mut egui::Ui, p: Palette, sheet: &mut Sheet, detected: &[Col
     changed
 }
 
-/// Whether the column's meaning is certain, a guess, or unknown.
+/// Whether the column is a template column, was set on an earlier import,
+/// or still needs a decision.
 fn match_pill(ui: &mut egui::Ui, p: Palette, found: Match, set_by_you: bool) {
     let (label, color) = match found {
-        Match::Exact => (tr("Recognised"), p.good),
-        Match::Guessed => (tr("Guessed, please check"), p.warn),
-        Match::Unknown => (tr("Not recognised"), p.muted),
+        Match::Exact => (tr("Template column"), p.good),
+        Match::Remembered => (tr("Your earlier choice"), p.good),
+        Match::Unknown => (tr("Not in the template: choose what it is"), p.warn),
     };
     if set_by_you {
         theme::status_pill(ui, p, tr("Set by you"), p.accent);

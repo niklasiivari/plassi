@@ -229,10 +229,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Column in your sheet", "Sarake taulukossasi"),
     ("Imported as", "Tuodaan"),
     ("First values", "Ensimmäiset arvot"),
-    ("Recognised", "Tunnistettu"),
-    ("Guessed, please check", "Arvattu, tarkista"),
-    ("Not recognised", "Ei tunnistettu"),
     ("Set by you", "Itse asetettu"),
     ("required", "pakollinen"),
     ("optional", "valinnainen"),
+    ("Template column", "Pohjan sarake"),
+    ("Your earlier choice", "Aiempi valintasi"),
+    ("Not in the template: choose what it is", "Ei pohjassa: valitse, mikä se on"),
 ];

@@ -221,6 +221,16 @@ impl Ui {
         self.settle();
     }
 
+    /// Picks `label` in the open dropdown: its list is drawn last, so this is
+    /// the last widget with that label (the page may show the same word).
+    pub(super) fn choose(&mut self, label: &str) {
+        let found = self.h.query_all_by_label(label).last();
+        found.unwrap_or_else(|| panic!("no {label:?} in the open dropdown")).scroll_to_me();
+        self.settle();
+        self.h.query_all_by_label(label).last().expect("the option").click();
+        self.settle();
+    }
+
     /// Clicks `label` and returns the text the click copied, if any.
     pub(super) fn click_and_copied(&mut self, label: &str) -> Option<String> {
         self.node(label).click();

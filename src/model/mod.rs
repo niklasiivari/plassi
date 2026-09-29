@@ -112,6 +112,10 @@ pub struct Project {
     /// The planner's own seating preferences, separate from attendees' wishes.
     #[serde(default)]
     pub preferences: Vec<crate::preferences::Preference>,
+    /// What spreadsheet columns outside the import template were imported as,
+    /// by normalised header, so the next import of the same sheet maps them.
+    #[serde(default)]
+    pub import_columns: BTreeMap<String, crate::import::Column>,
 }
 
 /// Printed on exported charts and lists.
@@ -441,6 +445,7 @@ impl Project {
             event: EventInfo::default(),
             catalog: Default::default(),
             preferences: Vec::new(),
+            import_columns: BTreeMap::new(),
         }
     }
 

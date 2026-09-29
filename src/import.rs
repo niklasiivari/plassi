@@ -18,7 +18,7 @@ use crate::model::{
     Attendee, ImportField, ImportNote, Project, ProximityCosts, Rule, RuleKind, Target, WeightMode,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum Column {
     Name,
     FirstName,
@@ -41,9 +41,9 @@ pub enum Column {
 pub enum Match {
     /// The header is a template column name.
     Exact,
-    /// Guessed from words in the header.
-    Guessed,
-    /// Not recognised; kept as extra info.
+    /// Chosen by the person importing on an earlier import of this project.
+    Remembered,
+    /// Not a template column; kept as extra info unless the person chooses.
     Unknown,
 }
 
@@ -135,8 +135,8 @@ impl Column {
     }
 }
 
-/// A header's column and how it was found: template names first, in either
-/// language, then keywords.
+/// A header's column: a template name in either language (any case), else
+/// unknown until the person importing chooses. There is no guessing.
 pub fn recognise(header: &str) -> (Column, Match) {
     let h = header.trim().to_lowercase();
     let exact = Column::CHOICES.into_iter().find(|c| {
@@ -145,64 +145,7 @@ pub fn recognise(header: &str) -> (Column, Match) {
     });
     match exact {
         Some(column) => (column, Match::Exact),
-        None => match classify(header) {
-            Column::Other => (Column::Other, Match::Unknown),
-            column => (column, Match::Guessed),
-        },
-    }
-}
-
-/// Recognises a header by keywords (lower-case, in order of precedence).
-fn classify(header: &str) -> Column {
-    let h = header.trim().to_lowercase();
-    let has = |words: &[&str]| words.iter().any(|w| h.contains(w));
-    if has(&[
-        "allerg",
-        "erityisruokavalio",
-        "dietary",
-        "ruokarajoit",
-        "restriction",
-    ]) {
-        Column::Allergies
-    } else if has(&["plassi", "istumatoive", "seating", "pöytätoive", "pöytäseur", "wish"]) {
-        Column::Wish
-    } else if has(&["avec", "partner", "seuralainen"]) {
-        // Before names: "Avec's full name" is about the avec.
-        Column::Avec
-    } else if has(&["etu- ja suku", "full name", "koko nimi"]) || h == "nimi" || h == "name" {
-        Column::Name
-    } else if has(&["etunimi", "first name", "firstname"]) {
-        Column::FirstName
-    } else if has(&["sukunimi", "last name", "lastname", "surname"]) {
-        Column::LastName
-    } else if has(&[
-        "järjestö",
-        "jarjesto",
-        "organi",
-        "yhdistys",
-        "seura",
-        "club",
-    ]) {
-        Column::Organization
-    } else if has(&["osallistujaryhmä", "ryhmä", "group", "lippu", "ticket"]) {
-        Column::Group
-    } else if has(&[
-        "juoma", "drink", "alkoholi", "alcohol", "beverage", "viini", "wine",
-    ]) {
-        Column::Drink
-    } else if has(&[
-        "ruoka",
-        "food",
-        "menu",
-        "ateria",
-        "meal",
-        "diet",
-        "pääruoka",
-        "main course",
-    ]) {
-        Column::Food
-    } else {
-        Column::Other
+        None => (Column::Other, Match::Unknown),
     }
 }
 
@@ -216,6 +159,18 @@ pub struct Sheet {
 }
 
 impl Sheet {
+    /// Applies the column choices made on earlier imports into this project.
+    pub fn remember(&mut self, choices: &BTreeMap<String, Column>) {
+        for ((header, column), found) in self.headers.iter().zip(&mut self.columns).zip(&mut self.matches) {
+            if *found == Match::Unknown
+                && let Some(choice) = choices.get(&normalize(header))
+            {
+                *column = *choice;
+                *found = Match::Remembered;
+            }
+        }
+    }
+
     /// Whether the columns give each row a name.
     pub fn has_name(&self) -> bool {
         self.columns.contains(&Column::Name)
@@ -348,6 +303,12 @@ pub fn merge(project: &mut Project, sheet: &Sheet) -> Result<MergeSummary> {
             "no name column; set one column to “{}” (found: {})",
             &[&Column::Name.label(), &sheet.headers.join(", ")]
         ));
+    }
+    // Remember choices for columns outside the template, for the next import.
+    for ((header, column), found) in sheet.headers.iter().zip(&sheet.columns).zip(&sheet.matches) {
+        if *found != Match::Exact {
+            project.import_columns.insert(normalize(header), *column);
+        }
     }
     let rows = rows(sheet);
     if rows.is_empty() {

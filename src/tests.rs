@@ -829,8 +829,8 @@ fn suggests_names_written_surname_first() {
 }
 
 #[test]
-fn import_keeps_same_named_rows_apart_and_reads_avec_names() {
-    let sheet = crate::import::parse_sheet("Full name\tAvec full name\nX Y\tZ W\nX Y\t\n").expect("sheet");
+fn import_keeps_same_named_rows_apart() {
+    let sheet = crate::import::parse_sheet("Name\tAvec\nX Y\tZ W\nX Y\t\n").expect("sheet");
     let mut project = Project::new();
     let summary = crate::import::merge(&mut project, &sheet).expect("merge");
     assert_eq!(project.attendees.len(), 2);
@@ -931,9 +931,10 @@ fn template_headers_are_recognised_exactly_in_both_languages() {
             assert_eq!(sheet.matches[0], Match::Exact, "{header}");
         }
     }
+    // Anything else is left for the person to decide: no guessing.
     let sheet = parse_sheet("Koko nimi\tLempiväri\nX Y\tsininen\n").expect("sheet");
-    assert_eq!((sheet.columns[0], sheet.matches[0]), (Column::Name, Match::Guessed));
-    assert_eq!((sheet.columns[1], sheet.matches[1]), (Column::Other, Match::Unknown));
+    assert!(sheet.columns.iter().all(|c| *c == Column::Other));
+    assert!(sheet.matches.iter().all(|m| *m == Match::Unknown));
 }
 
 #[test]
@@ -963,7 +964,15 @@ fn exported_people_import_back_unchanged() {
 }
 
 #[test]
-fn older_finnish_wish_header_is_still_understood() {
-    let sheet = crate::import::parse_sheet("Nimi\tPöytätoive\nX Y\tZ W\n").expect("sheet");
-    assert_eq!((sheet.columns[1], sheet.matches[1]), (crate::import::Column::Wish, crate::import::Match::Guessed));
+fn column_choices_are_remembered_for_the_next_import() {
+    use crate::import::{Column, Match, merge, parse_sheet};
+    let text = "Koko nimi\tPöytätoive\tLempiväri\nX Y\tZ W\tsininen\n";
+    let mut project = Project::new();
+    let mut sheet = parse_sheet(text).expect("sheet");
+    sheet.columns = vec![Column::Name, Column::Wish, Column::Ignore];
+    merge(&mut project, &sheet).expect("merge");
+    let mut again = parse_sheet(text).expect("sheet");
+    again.remember(&project.import_columns);
+    assert_eq!(again.columns, [Column::Name, Column::Wish, Column::Ignore]);
+    assert!(again.matches.iter().all(|m| *m == Match::Remembered));
 }
