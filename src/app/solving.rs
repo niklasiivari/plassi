@@ -3,10 +3,11 @@
 
 use super::*;
 use crate::i18n::{fill, tr};
+use crate::model::SolverStatus;
 
 /// A search in progress and what to do with its result.
 pub(super) struct SolveJob {
-    runner: platform::SearchRunner,
+    pub(super) runner: platform::SearchRunner,
     /// Project revision it started from; a changed project discards the result.
     revision: u64,
     pub(super) started: Instant,
@@ -18,6 +19,8 @@ enum JobKind {
     New,
     /// Improving an option: its name and the people placed by hand.
     Improve { from: String, hand_placed: std::collections::BTreeSet<usize> },
+    /// Searching longer from an option: its name and (broken hard rules, score).
+    Continue { from: String, before: (usize, i64) },
 }
 
 impl PlassiApp {
@@ -57,6 +60,36 @@ impl PlassiApp {
         }
     }
 
+    /// Searches from the current option for another full solve time, keeping
+    /// only pins fixed. The result becomes a new option only if it is better.
+    pub(super) fn start_continue(&mut self) {
+        if self.solving.is_some() || self.file.external_invalid {
+            return;
+        }
+        let Some(current) = self.project.candidates.get(self.selected_candidate) else {
+            return;
+        };
+        let evaluation = score::evaluate(&self.project, &current.assignment);
+        let kind = JobKind::Continue {
+            from: current.name.clone(),
+            before: (evaluation.hard_violations, evaluation.penalty()),
+        };
+        match seating::improve_search(&self.project, &current.assignment, &Default::default(), seating::SOLVE_TIME) {
+            Ok(search) => {
+                self.start_job(search, seating::SOLVE_TIME, kind);
+                self.status = tr("Searching further…").into();
+            }
+            Err(error) => self.status = fill("Cannot search: {}", &[&format!("{error:#}")]),
+        }
+    }
+
+    /// Ends the running search early, keeping the best seating found so far.
+    pub(super) fn stop_search(&mut self) {
+        if let Some(job) = &self.solving {
+            job.runner.stop();
+        }
+    }
+
     fn start_job(&mut self, search: seating::Search, budget: Duration, kind: JobKind) {
         self.solving = Some(SolveJob {
             runner: platform::SearchRunner::start(search),
@@ -76,12 +109,23 @@ impl PlassiApp {
             self.status = tr("The project changed during the search; its result was discarded").into();
             return;
         }
-        let mut candidate = seating::candidate(&self.project, outcome, job.budget);
-        if let JobKind::Improve { from, hand_placed } = job.kind {
-            candidate.solver_status = fill("Improved from {}, keeping {} hand-placed people", &[&from, &hand_placed.len()]);
-            candidate.hand_placed = hand_placed;
-        }
+        let elapsed = job.started.elapsed().min(job.budget);
+        let mut candidate = seating::candidate(&self.project, outcome, elapsed);
         let evaluation = score::evaluate(&self.project, &candidate.assignment);
+        match job.kind {
+            JobKind::New => {}
+            JobKind::Improve { from, hand_placed } => {
+                candidate.solver_status = SolverStatus::Improved { from, hand_placed: hand_placed.len() };
+                candidate.hand_placed = hand_placed;
+            }
+            JobKind::Continue { from, before } => {
+                if (evaluation.hard_violations, evaluation.penalty()) >= before {
+                    self.status = fill("No better seating found in {} s", &[&elapsed.as_secs()]);
+                    return;
+                }
+                candidate.solver_status = SolverStatus::Continued { from, seconds: elapsed.as_secs() };
+            }
+        }
         self.project.candidates.push(candidate);
         self.selected_candidate = self.project.candidates.len() - 1;
         self.page = Page::Chart;

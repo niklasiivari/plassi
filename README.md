@@ -167,4 +167,8 @@ The Chart page shows the option's score (wish penalties plus seating-policy cost
 
 Manual edits may violate hard rules; the report shows them rather than silently moving people back.
 
-`plassi.json` is ignored by Git because it contains attendee names. Keep a separate backup if you need a revision history of seating drafts.
+`plassi.json` is ignored by Git because it contains attendee names.
+
+## Backups
+
+Earlier versions of each project are kept automatically: one every few minutes while editing, and one right before the project is deleted, replaced by an import or a loaded file, or overwritten by an external edit. On desktop they are in `backups/<project>/` in the data folder (the newest 20, plus one per day for two weeks); in the browser only the newest three per project are kept, and older backups make room if storage is full. The project menu's "Earlier versions…" lists them with Restore, which is an ordinary change that Undo can take back. "Deleted projects…" brings back a deleted project from its latest backup.

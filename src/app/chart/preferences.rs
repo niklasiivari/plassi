@@ -101,8 +101,7 @@ impl PlassiApp {
                     theme::hint(ui, p, &result.detail);
                 }
                 ui.horizontal(|ui| {
-                    egui::ComboBox::from_id_salt(("strength", preference.id))
-                        .selected_text(preference.strength.label())
+                    theme::combo(("strength", preference.id), preference.strength.label())
                         .show_ui(ui, |ui| {
                             for strength in Strength::ALL {
                                 action.changed |= ui.selectable_value(&mut preference.strength, strength, strength.label()).changed();

@@ -19,8 +19,7 @@ pub(super) fn person_picker(
     exclude: usize,
 ) -> Option<usize> {
     let mut picked = None;
-    egui::ComboBox::from_id_salt(salt)
-        .selected_text(tr("+ add person"))
+    theme::combo(salt, tr("+ add person"))
         .height(320.0)
         .show_ui(ui, |ui| {
             ui.add(
@@ -309,7 +308,7 @@ fn importance_editor(
         let slider = egui::Slider::new(weight, 0..=300)
             .logarithmic(true)
             .clamping(egui::SliderClamping::Never);
-        changed |= ui.add(slider).changed();
+        changed |= theme::slider(ui, slider).changed();
         for (label, value) in [("Low", 5), ("Normal", 10), ("High", 40), ("Critical", 150)] {
             if ui.add(theme::small_button(tr(label))).clicked() {
                 *weight = value;
@@ -339,8 +338,7 @@ fn limit_editor(ui: &mut egui::Ui, max_class: &mut Option<DistanceClass>) -> boo
     ui.horizontal(|ui| {
         ui.label(tr("Must be"));
         let mut changed = false;
-        egui::ComboBox::from_id_salt("max")
-            .selected_text(max_class.map(DistanceClass::limit_label).unwrap_or(tr("no hard limit")))
+        theme::combo("max", max_class.map(DistanceClass::limit_label).unwrap_or(tr("no hard limit")))
             .show_ui(ui, |ui| {
                 changed |= ui
                     .selectable_value(max_class, None, tr("no hard limit"))

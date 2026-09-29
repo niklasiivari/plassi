@@ -27,7 +27,7 @@ pub use breakdown::{Breakdown, Scorer, TermResult};
 pub use problem::{PolicyReport, Source};
 #[cfg(test)]
 pub(crate) use tabu::check_deltas;
-pub use search::{Options, Outcome, Search};
+pub use search::{Options, Outcome, Progress, Search};
 #[cfg(not(target_arch = "wasm32"))]
 pub use search::search;
 pub use tabu::move_deltas;

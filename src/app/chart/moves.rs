@@ -128,7 +128,7 @@ impl PlassiApp {
             let after = total_score(&scorer, &self.project, &polished).0;
             let candidate = &mut self.project.candidates[self.selected_candidate];
             candidate.assignment = polished;
-            candidate.solver_status = tr("Edited by hand").into();
+            candidate.solver_status = crate::model::SolverStatus::EditedByHand;
             candidate.hand_placed.extend(group.iter().copied());
             self.chart.last_change = Some((after - before, web_time::Instant::now()));
             self.chart.group_moves.clear();

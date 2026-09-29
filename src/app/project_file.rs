@@ -92,6 +92,7 @@ impl PlassiApp {
     pub(super) fn import_tsv(&mut self) {
         match import::import_tsv(Path::new(&self.room.import_input)) {
             Ok(project) => {
+                self.backup_now();
                 self.project = project;
                 self.commit(tr("Imported attendees; layout and previous edits replaced"));
             }
@@ -118,6 +119,7 @@ impl PlassiApp {
         self.file.upload = None;
         match result.map_err(anyhow::Error::msg).and_then(|bytes| io::parse(&bytes)) {
             Ok(project) => {
+                self.backup_now();
                 self.project = project;
                 self.selected_candidate = 0;
                 self.commit(tr("Loaded the project file"));
@@ -143,6 +145,7 @@ impl PlassiApp {
                 self.file.undo_stack.clear();
                 self.file.redo_stack.clear();
                 self.file.library.remember(name);
+                self.backups = Default::default();
                 self.selected_candidate = 0;
                 self.selected_person = None;
                 self.chart.view.fit_pending = true;
@@ -186,9 +189,10 @@ impl PlassiApp {
         }
     }
 
-    /// Deletes the open project for good and opens another (or a new one).
+    /// Deletes the open project, keeping a backup, and opens another (or a new one).
     pub(super) fn delete_project(&mut self) {
         let name = self.file.name.clone();
+        self.backup_now();
         if let Err(error) = self.file.library.delete(&name) {
             self.status = format!("{error:#}");
             return;
@@ -219,6 +223,9 @@ impl PlassiApp {
             .and_then(|project| project.validate().map(|()| project));
         match parsed {
             Ok(project) => {
+                if let Some(before) = &self.file.last_bytes {
+                    self.backup_bytes(&before.clone());
+                }
                 if let Some(before) = self.file.last_bytes.replace(bytes) {
                     self.push_undo(before, tr("Changes made outside the app").into());
                 }
@@ -291,6 +298,7 @@ impl PlassiApp {
             self.sync_external();
             return false;
         }
+        self.auto_backup();
         match io::encode(&self.project).and_then(|bytes| self.file.store.write(&bytes).map(|()| bytes)) {
             Ok(bytes) => {
                 self.file.last_bytes = Some(bytes);

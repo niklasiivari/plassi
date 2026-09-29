@@ -859,3 +859,65 @@ fn avatar_initials() {
     assert_eq!(initials("Xxxx Yyyy Zzzz"), "XZ");
     assert_eq!(initials("Xxxx"), "X");
 }
+
+#[test]
+fn solver_status_is_data_rendered_at_display_time() {
+    use crate::model::SolverStatus;
+    crate::i18n::set(crate::i18n::Lang::En);
+    let status = SolverStatus::BestFound { seconds: 30, runs_at_best: 2, runs: 8 };
+    assert_eq!(status.describe(), "Best found in 30 s · 2 of 8 runs reached this score");
+    let json = serde_json::to_value(&status).unwrap();
+    assert_eq!(json["kind"], "best_found");
+    assert_eq!(serde_json::from_value::<SolverStatus>(json).unwrap(), status);
+    let improved = SolverStatus::Improved { from: "Option 1".into(), hand_placed: 3 };
+    assert_eq!(improved.describe(), "Improved from Option 1, keeping 3 hand-placed people");
+    let continued = SolverStatus::Continued { from: "Option 2".into(), seconds: 30 };
+    assert_eq!(continued.describe(), "Searched 30 s more from Option 2");
+    assert_eq!(SolverStatus::EditedByHand.describe(), "Edited by hand");
+}
+
+#[test]
+fn print_language_resolves_explicit_choices() {
+    use crate::model::PrintLanguage;
+    assert_eq!(PrintLanguage::Finnish.code(), "fi");
+    assert_eq!(PrintLanguage::English.code(), "en");
+    assert_eq!(PrintLanguage::default(), PrintLanguage::SameAsApp);
+}
+
+fn quick_search(project: &Project, budget_ms: u64) -> crate::seating::Search {
+    crate::seating::Search::new(
+        project,
+        crate::seating::Options {
+            start: None,
+            fixed: Default::default(),
+            differ_from: None,
+            budget: web_time::Duration::from_millis(budget_ms),
+            runs: 2,
+            seed: Some(3),
+        },
+    )
+    .expect("search")
+}
+
+#[test]
+fn progress_reports_the_best_cost_found() {
+    let project = two_tables();
+    let mut search = quick_search(&project, 200);
+    let progress = search.progress();
+    assert!(progress.best().is_some(), "the starting seatings count as progress");
+    search.run_to_end();
+    let outcome = search.finish();
+    let (score, hard) = progress.best().unwrap();
+    assert_eq!(score + hard * 1_000_000, outcome.cost);
+}
+
+#[test]
+fn stopped_search_ends_early_with_a_seating() {
+    let project = two_tables();
+    let mut search = quick_search(&project, 60_000);
+    search.progress().stop();
+    let started = web_time::Instant::now();
+    search.run_to_end();
+    assert!(started.elapsed() < web_time::Duration::from_secs(5));
+    assert!(!search.finish().assignment.is_empty());
+}

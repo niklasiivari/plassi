@@ -9,11 +9,16 @@ use crate::score::Outcome;
 
 impl PlassiApp {
     pub(super) fn graph_panel(&mut self, ui: &mut egui::Ui, p: Palette) {
-        ui.label(
-            RichText::new(tr("Connections"))
-                .size(theme::text::TITLE)
-                .strong(),
-        );
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(tr("Connections"))
+                    .size(theme::text::TITLE)
+                    .strong(),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Graph);
+            });
+        });
         ui.label(
             RichText::new(tr(
                 "Who wished to sit with whom. Drag people around; click to select.",

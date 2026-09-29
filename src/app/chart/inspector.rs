@@ -181,7 +181,7 @@ impl PlassiApp {
             .project
             .candidates
             .get(self.selected_candidate)
-            .map(|c| c.solver_status.clone())
+            .map(|c| c.solver_status.describe())
             .unwrap_or_default();
         let policy_cost = evaluation.policy_penalty();
         theme::card(p)

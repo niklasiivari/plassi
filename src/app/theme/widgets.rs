@@ -5,9 +5,13 @@ use eframe::egui::{self, Color32, Margin, RichText, Stroke};
 use super::Palette;
 use super::tokens::{radius, space, text};
 
-/// A page title with an optional one-line description below it.
-pub fn page_header(ui: &mut egui::Ui, p: Palette, title: &str, subtitle: Option<&str>) {
-    ui.label(RichText::new(title).size(text::PAGE).strong());
+/// A page title with an optional one-line description below it, and
+/// `trailing` controls (e.g. a help button) at the right end of the title row.
+pub fn page_header(ui: &mut egui::Ui, p: Palette, title: &str, subtitle: Option<&str>, trailing: impl FnOnce(&mut egui::Ui)) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(title).size(text::PAGE).strong());
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), trailing);
+    });
     if let Some(subtitle) = subtitle {
         ui.add_space(space::XS);
         ui.label(RichText::new(subtitle).size(text::BODY).color(p.muted));
@@ -116,6 +120,31 @@ pub fn panel_frame(p: Palette) -> egui::Frame {
     egui::Frame::new()
         .fill(p.surface)
         .inner_margin(Margin::same(space::L as i8))
+}
+
+/// Background of a side panel whose content floats as a card: the page
+/// colour with a gutter around the card (see [`panel_card`]).
+pub fn floating_panel_frame(p: Palette) -> egui::Frame {
+    egui::Frame::new()
+        .fill(p.bg)
+        .inner_margin(Margin::same(space::M as i8))
+}
+
+/// The card that fills a [`floating_panel_frame`]; `padding` is the space
+/// inside it.
+pub fn panel_card<R>(
+    ui: &mut egui::Ui,
+    p: Palette,
+    padding: f32,
+    add: impl FnOnce(&mut egui::Ui) -> R,
+) -> R {
+    card(p)
+        .inner_margin(Margin::same(padding as i8))
+        .show(ui, |ui| {
+            ui.set_min_size(ui.available_size());
+            add(ui)
+        })
+        .inner
 }
 
 /// A recessed block inside a card or panel.
@@ -252,10 +281,7 @@ impl<'t> Field<'t> {
 impl egui::Widget for Field<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         ui.scope(|ui| {
-            let line = ui.visuals().widgets.noninteractive.bg_stroke;
-            let w = &mut ui.visuals_mut().widgets;
-            w.inactive.bg_stroke = line;
-            w.hovered.bg_stroke = Stroke::new(1.0, super::blend(line.color, w.hovered.fg_stroke.color, 0.25));
+            super::controls::field_visuals(ui);
             ui.add(self.0)
         })
         .inner

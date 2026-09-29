@@ -16,7 +16,7 @@ impl PlassiApp {
         if self.project.attendees.is_empty() {
             return self.first_import(ui, p);
         }
-        theme::page_header(ui, p, tr("Wishes overview"), Some(&summary));
+        crate::app::help::page_header(ui, p, crate::app::help::HelpPage::People, tr("Wishes overview"), Some(&summary));
         self.review_progress(ui, p);
         ui.add_space(theme::space::L);
         self.suggestions_card(ui, p);
@@ -25,7 +25,7 @@ impl PlassiApp {
 
     /// An empty project: how to get people in, or try the example.
     fn first_import(&mut self, ui: &mut egui::Ui, p: Palette) {
-        theme::page_header(ui, p, tr("Add your guests"), Some(tr("Paste your sign-up sheet to start. Everything else builds on the guest list.")));
+        crate::app::help::page_header(ui, p, crate::app::help::HelpPage::People, tr("Add your guests"), Some(tr("Paste your sign-up sheet to start. Everything else builds on the guest list.")));
         self.import_panel(ui, p);
         ui.add_space(theme::space::M);
         theme::hint(ui, p, tr("A header row like this works (any order, extra columns are kept):"));
@@ -156,7 +156,9 @@ impl PlassiApp {
     }
 
     pub(super) fn import_panel(&mut self, ui: &mut egui::Ui, p: Palette) {
-        theme::card(p).show(ui, |ui| {
+        let hovering = Self::file_hovering(ui);
+        let frame = if hovering { theme::tinted_card(p, p.accent) } else { theme::card(p) };
+        let card = frame.show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(RichText::new(tr("Import or update from a spreadsheet")).size(theme::text::LEAD).strong());
             ui.label(
@@ -175,6 +177,11 @@ impl PlassiApp {
                     .desired_width(f32::INFINITY)
                     .font(egui::TextStyle::Monospace),
             );
+            if hovering {
+                ui.label(RichText::new(tr("Drop the file to load it here")).color(p.accent).strong());
+            } else {
+                theme::hint(ui, p, tr("Or drop a .csv/.tsv file here"));
+            }
             if self.people.import_text.trim().is_empty() {
                 return;
             }
@@ -217,5 +224,9 @@ impl PlassiApp {
                 }
             }
         });
+        if hovering {
+            let stroke = egui::Stroke::new(2.0, p.accent);
+            ui.painter().rect_stroke(card.response.rect, theme::radius::LG, stroke, egui::StrokeKind::Inside);
+        }
     }
 }

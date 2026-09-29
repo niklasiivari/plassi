@@ -1,4 +1,4 @@
-use crate::i18n::tr;
+use crate::i18n::{fill, tr};
 use std::collections::{BTreeMap, HashSet};
 
 use schemars::JsonSchema;
@@ -121,8 +121,30 @@ pub struct EventInfo {
     pub title: String,
     /// E.g. date and venue.
     pub subtitle: String,
-    /// Print headings in Finnish instead of English.
-    pub finnish: bool,
+    /// Language of the prints.
+    pub print_language: PrintLanguage,
+}
+
+/// The language prints are made in.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PrintLanguage {
+    /// Whatever the app is showing when printing.
+    #[default]
+    SameAsApp,
+    Finnish,
+    English,
+}
+
+impl PrintLanguage {
+    /// The language code to print in, resolving "same as the app".
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::SameAsApp => crate::i18n::current().code(),
+            Self::Finnish => "fi",
+            Self::English => "en",
+        }
+    }
 }
 
 /// Global rules for everyone, mainly shaping where unconstrained attendees sit.
@@ -367,12 +389,44 @@ impl DistanceClass {
 pub struct Candidate {
     pub name: String,
     pub assignment: BTreeMap<usize, String>,
-    pub solver_status: String,
+    pub solver_status: SolverStatus,
     /// People placed by hand in this option; "Improve around my edits" keeps them.
     #[serde(default)]
     pub hand_placed: std::collections::BTreeSet<usize>,
 }
 
+/// How an option came about, stored as data and put into words in the
+/// current language when shown.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SolverStatus {
+    /// No seating can score better.
+    Optimal,
+    /// The best seating found within the time.
+    BestFound { seconds: u64, runs_at_best: usize, runs: usize },
+    /// Improved from another option, keeping people placed by hand.
+    Improved { from: String, hand_placed: usize },
+    /// A longer search continued from another option.
+    Continued { from: String, seconds: u64 },
+    EditedByHand,
+}
+
+impl SolverStatus {
+    /// The status as a sentence in the current language.
+    pub fn describe(&self) -> String {
+        match self {
+            Self::Optimal => tr("Optimal — no seating can score better").into(),
+            Self::BestFound { seconds, runs_at_best, runs } => {
+                fill("Best found in {} s · {} of {} runs reached this score", &[seconds, runs_at_best, runs])
+            }
+            Self::Improved { from, hand_placed } => {
+                fill("Improved from {}, keeping {} hand-placed people", &[from, hand_placed])
+            }
+            Self::Continued { from, seconds } => fill("Searched {} s more from {}", &[seconds, from]),
+            Self::EditedByHand => tr("Edited by hand").into(),
+        }
+    }
+}
 
 impl Project {
     pub fn new() -> Self {
@@ -405,7 +459,6 @@ impl Project {
 
     /// Human-readable seat name, e.g. "Table 2 · left 3".
     pub fn seat_label(&self, seat_id: &str) -> String {
-        use crate::i18n::fill;
         match self.seat_place(seat_id) {
             Some((table, Side::Left, row)) => fill("{} · left {}", &[&table, &row]),
             Some((table, Side::Right, row)) => fill("{} · right {}", &[&table, &row]),

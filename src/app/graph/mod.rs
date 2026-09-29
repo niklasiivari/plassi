@@ -153,13 +153,15 @@ impl PlassiApp {
         self.refresh_graph();
         egui::Panel::right("graph-panel")
             .resizable(false)
-            .exact_size(theme::PANEL_WIDTH)
+            .exact_size(theme::PANEL_WIDTH + 2.0 * theme::space::M)
             .show_separator_line(false)
-            .frame(theme::panel_frame(p))
+            .frame(theme::floating_panel_frame(p))
             .show(ui, |ui| {
-                egui::ScrollArea::vertical()
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| self.graph_panel(ui, p));
+                theme::panel_card(ui, p, theme::space::L, |ui| {
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| self.graph_panel(ui, p));
+                });
             });
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.canvas))

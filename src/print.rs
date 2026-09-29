@@ -85,7 +85,7 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
         "kind": kind.key(),
         "title": title,
         "subtitle": project.event.subtitle,
-        "lang": if project.event.finnish { "fi" } else { "en" },
+        "lang": project.event.print_language.code(),
         "rows": rows_json(project, &option.assignment),
         "people": people_json(project, &option.assignment),
         "max_rows": max_rows,

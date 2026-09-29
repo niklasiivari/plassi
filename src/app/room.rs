@@ -103,6 +103,9 @@ impl PlassiApp {
                 std::cmp::Ordering::Greater => (fill("{} spare", &[&(seats - people)]), p.muted),
             };
             theme::status_pill(ui, p, text, color);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Room);
+            });
         });
         ui.label(
             RichText::new(
@@ -298,8 +301,7 @@ impl PlassiApp {
         ui.horizontal_wrapped(|ui| {
             seat_picker(ui, "relation-a", &mut self.room.relation_a, seats);
             seat_picker(ui, "relation-b", &mut self.room.relation_b, seats);
-            egui::ComboBox::from_id_salt("relation-class")
-                .selected_text(self.room.relation_class.label())
+            theme::combo("relation-class", self.room.relation_class.label())
                 .show_ui(ui, |ui| {
                     for class in DistanceClass::ALL {
                         ui.selectable_value(&mut self.room.relation_class, class, class.label());
@@ -491,8 +493,7 @@ fn next_id<'a>(prefix: &str, existing: impl Iterator<Item = &'a str>) -> String 
 }
 
 fn seat_picker(ui: &mut egui::Ui, salt: &str, selected: &mut String, seats: &[Seat]) {
-    egui::ComboBox::from_id_salt(salt)
-        .selected_text(selected.as_str())
+    theme::combo(salt, selected.as_str())
         .height(300.0)
         .show_ui(ui, |ui| {
             for seat in seats {

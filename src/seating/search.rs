@@ -5,15 +5,17 @@
 //! exist.
 
 use std::collections::{BTreeMap, HashSet};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use web_time::{Duration, Instant};
 
 use crate::i18n::{fill, tr};
-use crate::model::Project;
+use crate::model::{Project, SolverStatus};
 
-use super::problem::{NONE, Problem};
+use super::problem::{HARD, NONE, Problem};
 use super::tabu::{Run, construct};
 
 pub struct Options<'a> {
@@ -45,15 +47,57 @@ impl Outcome {
         self.cost <= self.lower_bound
     }
 
-    pub fn status(&self, seconds: f64) -> String {
+    pub fn status(&self, seconds: f64) -> SolverStatus {
         if self.optimal() {
-            tr("Optimal — no seating can score better").into()
+            SolverStatus::Optimal
         } else {
-            fill(
-                "Best found in {} s · {} of {} runs reached this score",
-                &[&format!("{seconds:.0}"), &self.runs_at_best, &self.runs],
-            )
+            SolverStatus::BestFound { seconds: seconds.round() as u64, runs_at_best: self.runs_at_best, runs: self.runs }
         }
+    }
+}
+
+/// Shared between a running search and whoever watches it: the best cost so
+/// far (updated only when a run improves) and a request to stop early.
+#[derive(Clone)]
+pub struct Progress {
+    best: Arc<AtomicI64>,
+    stop: Arc<AtomicBool>,
+}
+
+impl Default for Progress {
+    fn default() -> Self {
+        Self { best: Arc::new(AtomicI64::new(i64::MAX)), stop: Arc::new(AtomicBool::new(false)) }
+    }
+}
+
+impl Progress {
+    /// Records a run's new best cost.
+    fn improved(&self, cost: i64) {
+        self.best.fetch_min(cost, Ordering::Relaxed);
+    }
+
+    /// The best (score, broken hard rules) so far, once a run has one.
+    pub fn best(&self) -> Option<(i64, i64)> {
+        let cost = self.best.load(Ordering::Relaxed);
+        (cost != i64::MAX).then_some((cost % HARD, cost / HARD))
+    }
+
+    /// Asks the search to finish now with what it has.
+    pub fn stop(&self) {
+        self.stop.store(true, Ordering::Relaxed);
+    }
+
+    pub fn stopped(&self) -> bool {
+        self.stop.load(Ordering::Relaxed)
+    }
+}
+
+/// One step of a run, reporting to `progress` only when its best improves.
+fn step(run: &mut Run, pr: &Problem, rng: &mut StdRng, progress: &Progress) {
+    let before = run.best.cost;
+    run.step(pr, rng);
+    if run.best.cost < before {
+        progress.improved(run.best.cost);
     }
 }
 
@@ -65,6 +109,7 @@ pub struct Search {
     lower_bound: i64,
     started: Instant,
     budget: Duration,
+    progress: Progress,
 }
 
 impl Search {
@@ -85,13 +130,22 @@ impl Search {
         }
         let start: Option<Vec<usize>> = options.start.map(|a| pr.state_of(a).0);
         let seed = options.seed.unwrap_or_else(rand::random);
-        let runs = (0..options.runs.max(1))
+        let progress = Progress::default();
+        let runs: Vec<(Run, StdRng)> = (0..options.runs.max(1))
             .map(|r| {
                 let mut rng = StdRng::seed_from_u64(seed.wrapping_add(r as u64));
                 (Run::new(&pr, construct(&pr, &mut rng, start.as_deref())), rng)
             })
             .collect();
-        Ok(Self { lower_bound: pr.lower_bound(), pr, runs, started: Instant::now(), budget: options.budget })
+        for (run, _) in &runs {
+            progress.improved(run.best.cost);
+        }
+        Ok(Self { lower_bound: pr.lower_bound(), pr, runs, started: Instant::now(), budget: options.budget, progress })
+    }
+
+    /// A handle for watching and stopping this search from elsewhere.
+    pub fn progress(&self) -> Progress {
+        self.progress.clone()
     }
 
     fn deadline(&self) -> Instant {
@@ -101,18 +155,18 @@ impl Search {
     /// Nothing left to do: out of time, or a run reached the lower bound.
     #[cfg(target_arch = "wasm32")]
     pub fn done(&self) -> bool {
-        Instant::now() >= self.deadline() || self.runs.iter().any(|(run, _)| run.best.cost <= self.lower_bound)
+        Instant::now() >= self.deadline() || self.progress.stopped() || self.runs.iter().any(|(run, _)| run.best.cost <= self.lower_bound)
     }
 
     /// Works on every run in turn until `until` (or the deadline).
     #[cfg(target_arch = "wasm32")]
     pub fn advance(&mut self, until: Instant) {
         let until = until.min(self.deadline());
-        let (pr, lower_bound) = (&self.pr, self.lower_bound);
-        while Instant::now() < until {
+        let (pr, lower_bound, progress) = (&self.pr, self.lower_bound, &self.progress);
+        while Instant::now() < until && !progress.stopped() {
             for (run, rng) in &mut self.runs {
                 if run.best.cost > lower_bound {
-                    run.step(pr, rng);
+                    step(run, pr, rng, progress);
                 }
             }
             if self.runs.iter().any(|(run, _)| run.best.cost <= lower_bound) {
@@ -125,12 +179,12 @@ impl Search {
     pub fn run_to_end(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let (pr, lower_bound, deadline) = (&self.pr, self.lower_bound, self.deadline());
+            let (pr, lower_bound, deadline, progress) = (&self.pr, self.lower_bound, self.deadline(), &self.progress);
             std::thread::scope(|scope| {
                 for (run, rng) in &mut self.runs {
                     scope.spawn(move || {
-                        while Instant::now() < deadline && run.best.cost > lower_bound {
-                            run.step(pr, rng);
+                        while Instant::now() < deadline && run.best.cost > lower_bound && !progress.stopped() {
+                            step(run, pr, rng, progress);
                         }
                     });
                 }

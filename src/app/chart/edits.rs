@@ -145,7 +145,7 @@ impl PlassiApp {
         let pinned = self.project.pinned_people();
         let candidate = &mut self.project.candidates[self.selected_candidate];
         candidate.assignment = next;
-        candidate.solver_status = tr("Edited by hand").into();
+        candidate.solver_status = crate::model::SolverStatus::EditedByHand;
         candidate.hand_placed.insert(person);
         if let Some(other) = other {
             candidate.hand_placed.insert(other);
@@ -206,7 +206,7 @@ impl PlassiApp {
         let (after, _) = total_score(&scorer, &self.project, &assignment);
         let candidate = &mut self.project.candidates[self.selected_candidate];
         candidate.assignment = assignment;
-        candidate.solver_status = tr("Edited by hand").into();
+        candidate.solver_status = crate::model::SolverStatus::EditedByHand;
         self.chart.last_change = Some((after - before, web_time::Instant::now()));
         self.commit(&fill(
             "Closed gaps · score {} → {} ({})",

@@ -26,6 +26,10 @@ impl PlassiApp {
             self.solve_buttons(ui, p);
             ui.add_space(theme::space::L);
             self.option_chips(ui, p);
+            ui.add_space(theme::space::S);
+            if crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Chart) {
+                self.tour.start();
+            }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 self.view_controls(ui, p);
                 ui.add_space(theme::space::M);
@@ -50,16 +54,6 @@ impl PlassiApp {
         {
             self.start_solve(false);
         }
-        if ui
-            .add_enabled(
-                can_solve && has_option,
-                theme::secondary_button(tr("Different option")),
-            )
-            .on_hover_text(tr("Solve again, moving about 10% of the people in wishes"))
-            .clicked()
-        {
-            self.start_solve(true);
-        }
         let hand_placed = self
             .project
             .candidates
@@ -75,6 +69,23 @@ impl PlassiApp {
         {
             self.start_improve();
         }
+        // Less frequent searches, in a menu to keep the toolbar short.
+        ui.add_enabled_ui(can_solve && has_option, |ui| {
+            ui.menu_button(tr("More"), |ui| {
+                if ui.button(tr("Different option")).on_hover_text(tr("Solve again, moving about 10% of the people in wishes")).clicked() {
+                    self.start_solve(true);
+                    ui.close();
+                }
+                let more = fill(
+                    "Search {} s more from this option, keeping only pinned people; saves a new option only if it is better",
+                    &[&crate::seating::SOLVE_TIME.as_secs()],
+                );
+                if ui.button(tr("Keep searching")).on_hover_text(more).clicked() {
+                    self.start_continue();
+                    ui.close();
+                }
+            });
+        });
         if self.solving.is_some() {
             ui.spinner();
         }
@@ -111,7 +122,7 @@ impl PlassiApp {
         let best = scores.iter().map(|s| (s.hard, s.score)).min();
         let mut selected = self.selected_candidate;
         let mut action = None;
-        egui::ScrollArea::horizontal()
+        let chips = egui::ScrollArea::horizontal()
             .id_salt("option-chips")
             .max_width((ui.available_width() - 600.0).max(120.0))
             .show(ui, |ui| {
@@ -144,7 +155,7 @@ impl PlassiApp {
                     );
                     let mut hover = format!(
                         "{}\n{}",
-                        candidate.solver_status,
+                        candidate.solver_status.describe(),
                         fill("{} of {} wishes fully met · score {} (lower is better)", &[&summary.met, &summary.wishes, &score]),
                     );
                     if hard > 0 {
@@ -186,6 +197,7 @@ impl PlassiApp {
                     });
                 }
             });
+        self.tour.anchors.options = (!self.project.candidates.is_empty()).then_some(chips.inner_rect);
         if selected != self.selected_candidate {
             self.selected_candidate = selected;
             if self.chart.compare_with == Some(selected) {

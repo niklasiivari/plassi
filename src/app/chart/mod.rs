@@ -126,6 +126,8 @@ impl PlassiApp {
             self.focus_person(id, &scene);
         }
 
+        // Where the tour points; recorded while drawing this frame.
+        self.tour.anchors = Default::default();
         egui::Panel::top("chart-toolbar")
             .frame(
                 theme::panel_frame(p).inner_margin(egui::Margin::symmetric(
@@ -135,25 +137,30 @@ impl PlassiApp {
             )
             .show(ui, |ui| self.chart_toolbar(ui, p, &scene));
         let mut open = !self.chart.hide_inspector;
-        egui::Panel::right("chart-inspector")
+        let inspector = egui::Panel::right("chart-inspector")
             .resizable(true)
-            .default_size(theme::PANEL_WIDTH)
-            .size_range(280.0..=520.0)
+            .default_size(theme::PANEL_WIDTH + 2.0 * theme::space::M)
+            .size_range(300.0..=540.0)
             .show_separator_line(false)
-            .frame(theme::panel_frame(p))
+            .frame(theme::floating_panel_frame(p))
             .show_collapsible(ui, &mut open, |ui| {
-                egui::ScrollArea::vertical()
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| self.inspector(ui, p, &scene));
+                theme::panel_card(ui, p, theme::space::L, |ui| {
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| self.inspector(ui, p, &scene));
+                });
             });
+        self.tour.anchors.panel = inspector.map(|r| r.response.rect);
         self.chart.hide_inspector = !open;
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.canvas))
             .show(ui, |ui| {
                 let rect = ui.max_rect();
+                self.tour.anchors.canvas = Some(rect);
                 self.canvas(ui, p, &scene);
                 theme::panel_edge_shadows(ui, p, rect);
             });
+        self.chart_tour(ui.ctx(), p);
     }
 
     /// Pans the canvas so the person's seat is centred on the next frame.

@@ -11,7 +11,7 @@ use super::{Pdfs, Saved};
 
 /// A result filled in later by browser callbacks.
 type Slot<T> = std::rc::Rc<std::cell::RefCell<Option<T>>>;
-use crate::seating::{Outcome, Search};
+use crate::seating::{Outcome, Progress, Search};
 
 /// The project, kept in the browser's local storage.
 #[derive(Clone)]
@@ -46,20 +46,33 @@ impl Store {
 }
 
 /// A seating search advanced a little every frame, so the page stays responsive.
-pub struct SearchRunner(Option<Search>);
+pub struct SearchRunner {
+    search: Option<Search>,
+    progress: Progress,
+}
 
 /// Search time per frame.
 const SLICE: Duration = Duration::from_millis(30);
 
 impl SearchRunner {
     pub fn start(search: Search) -> Self {
-        Self(Some(search))
+        Self { progress: search.progress(), search: Some(search) }
     }
 
     pub fn poll(&mut self) -> Option<Outcome> {
-        let search = self.0.as_mut()?;
+        let search = self.search.as_mut()?;
         search.advance(Instant::now() + SLICE);
-        if search.done() { self.0.take().map(Search::finish) } else { None }
+        if search.done() { self.search.take().map(Search::finish) } else { None }
+    }
+
+    /// The best (score, broken hard rules) found so far.
+    pub fn progress(&self) -> Option<(i64, i64)> {
+        self.progress.best()
+    }
+
+    /// Ends the search early; the next `poll` delivers the best found.
+    pub fn stop(&self) {
+        self.progress.stop();
     }
 }
 
@@ -169,6 +182,30 @@ impl<K: 'static> PdfJob<K> {
 pub struct Library;
 
 const PROJECT_PREFIX: &str = "plassi:project:";
+/// Backups: `plassi:backup:<project>:<time>`.
+const BACKUP_PREFIX: &str = "plassi:backup:";
+/// Local storage is small: only a few backups per project.
+const KEEP: super::Keep = super::Keep { recent: 3, days: 0 };
+
+fn storage_keys(storage: &web_sys::Storage) -> Vec<String> {
+    (0..storage.length().unwrap_or(0)).filter_map(|i| storage.key(i).ok()?).collect()
+}
+
+fn backup_key(name: &str, stamp: u64) -> String {
+    format!("{BACKUP_PREFIX}{name}:{}", super::backup_plan::stamp_name(stamp))
+}
+
+/// All backups as (project, time).
+fn all_backups() -> Vec<(String, u64)> {
+    let Some(storage) = local_storage() else { return Vec::new() };
+    storage_keys(&storage)
+        .iter()
+        .filter_map(|key| {
+            let (name, stamp) = key.strip_prefix(BACKUP_PREFIX)?.rsplit_once(':')?;
+            Some((name.to_string(), super::backup_plan::parse_stamp(stamp)?))
+        })
+        .collect()
+}
 
 impl Library {
     pub fn open() -> Self {
@@ -177,9 +214,8 @@ impl Library {
 
     pub fn projects(&self) -> Vec<String> {
         let Some(storage) = local_storage() else { return Vec::new() };
-        let count = storage.length().unwrap_or(0);
-        let mut names: Vec<String> = (0..count)
-            .filter_map(|i| storage.key(i).ok()?)
+        let mut names: Vec<String> = storage_keys(&storage)
+            .into_iter()
             .filter_map(|key| key.strip_prefix(PROJECT_PREFIX).map(str::to_string))
             .collect();
         names.sort_by_key(|n| n.to_lowercase());
@@ -193,7 +229,53 @@ impl Library {
     pub fn rename(&self, from: &str, to: &str) -> Result<()> {
         let bytes = self.store(from).read().ok_or_else(|| anyhow!("no project named {from}"))?;
         self.store(to).write(&bytes)?;
+        for stamp in self.backups(from) {
+            if let (Some(storage), Some(bytes)) = (local_storage(), self.read_backup(from, stamp)) {
+                let text = String::from_utf8_lossy(&bytes);
+                if storage.set_item(&backup_key(to, stamp), &text).is_ok() {
+                    let _ = storage.remove_item(&backup_key(from, stamp));
+                }
+            }
+        }
         self.delete(from)
+    }
+
+    /// Keeps `bytes` as an earlier version of `name`, and drops old ones. If
+    /// storage is full, the oldest backups of any project make room; if that
+    /// is not enough, no backup is taken.
+    pub fn backup(&self, name: &str, bytes: &[u8]) -> Result<()> {
+        let storage = local_storage().ok_or_else(|| anyhow!("this browser has no local storage"))?;
+        let text = std::str::from_utf8(bytes)?;
+        let now = super::now_stamp().max(self.backups(name).first().map_or(0, |s| s + 1));
+        let mut oldest = all_backups();
+        oldest.sort_by_key(|(_, stamp)| std::cmp::Reverse(*stamp));
+        while storage.set_item(&backup_key(name, now), text).is_err() {
+            let (old_name, old) = oldest.pop().ok_or_else(|| anyhow!("no room for a backup in this browser"))?;
+            let _ = storage.remove_item(&backup_key(&old_name, old));
+        }
+        for old in super::backup_plan::to_prune(&self.backups(name), now, KEEP) {
+            let _ = storage.remove_item(&backup_key(name, old));
+        }
+        Ok(())
+    }
+
+    /// The times of `name`'s backups, newest first.
+    pub fn backups(&self, name: &str) -> Vec<u64> {
+        let mut stamps: Vec<u64> = all_backups().into_iter().filter(|(n, _)| n == name).map(|(_, s)| s).collect();
+        stamps.sort_unstable_by(|a, b| b.cmp(a));
+        stamps
+    }
+
+    pub fn read_backup(&self, name: &str, stamp: u64) -> Option<Vec<u8>> {
+        local_storage()?.get_item(&backup_key(name, stamp)).ok()?.map(String::into_bytes)
+    }
+
+    /// Names that have backups, including deleted projects.
+    pub fn backed_up(&self) -> Vec<String> {
+        let mut names: Vec<String> = all_backups().into_iter().map(|(n, _)| n).collect();
+        names.sort_by_key(|n| n.to_lowercase());
+        names.dedup();
+        names
     }
 
     pub fn delete(&self, name: &str) -> Result<()> {
@@ -225,4 +307,29 @@ impl Library {
 /// The browser's language, e.g. "fi-FI".
 pub fn system_locale() -> Option<String> {
     web_sys::window()?.navigator().language()
+}
+
+/// Reads a file dropped onto the page, in the background (browsers read files asynchronously).
+pub struct DroppedRead(Slot<Result<Vec<u8>, String>>);
+
+impl DroppedRead {
+    pub fn start(file: eframe::egui::DroppedFileHandle) -> Self {
+        let slot: Slot<Result<Vec<u8>, String>> = std::rc::Rc::new(std::cell::RefCell::new(None));
+        let result = slot.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let read = file.bytes_async().await;
+            *result.borrow_mut() = Some(read);
+        });
+        Self(slot)
+    }
+
+    /// The file's bytes, once read.
+    pub fn poll(&self) -> Option<Result<Vec<u8>, String>> {
+        self.0.borrow_mut().take()
+    }
+}
+
+/// Minutes the browser's time zone is ahead of UTC at `stamp` (milliseconds since 1970).
+pub fn utc_offset_minutes(stamp: u64) -> i64 {
+    -(js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(stamp as f64)).get_timezone_offset() as i64)
 }

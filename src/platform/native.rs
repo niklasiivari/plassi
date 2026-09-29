@@ -7,7 +7,7 @@ use std::sync::mpsc::{self, Receiver};
 use anyhow::{Context, Result};
 
 use super::{Pdfs, Saved};
-use crate::seating::{Outcome, Search};
+use crate::seating::{Outcome, Progress, Search};
 
 /// The project file.
 #[derive(Clone)]
@@ -60,18 +60,33 @@ impl<T: Send + 'static> Task<T> {
 }
 
 /// A seating search on its own threads, one per run.
-pub struct SearchRunner(Task<Outcome>);
+pub struct SearchRunner {
+    task: Task<Outcome>,
+    progress: Progress,
+}
 
 impl SearchRunner {
     pub fn start(mut search: Search) -> Self {
-        Self(Task::spawn(move || {
+        let progress = search.progress();
+        let task = Task::spawn(move || {
             search.run_to_end();
             search.finish()
-        }))
+        });
+        Self { task, progress }
     }
 
     pub fn poll(&mut self) -> Option<Outcome> {
-        self.0.poll()
+        self.task.poll()
+    }
+
+    /// The best (score, broken hard rules) found so far.
+    pub fn progress(&self) -> Option<(i64, i64)> {
+        self.progress.best()
+    }
+
+    /// Ends the search early; `poll` then delivers the best found.
+    pub fn stop(&self) {
+        self.progress.stop();
     }
 }
 
@@ -121,7 +136,12 @@ impl<K: Send + 'static> PdfJob<K> {
 /// (`~/.local/share/plassi` on Linux).
 pub struct Library {
     folder: PathBuf,
+    /// Earlier versions: `backups/<project>/<time>.json`.
+    backups: PathBuf,
 }
+
+/// Backups kept per project on disk.
+const KEEP: super::Keep = super::Keep { recent: 20, days: 14 };
 
 fn data_folder() -> PathBuf {
     let env = |key: &str| std::env::var_os(key).map(PathBuf::from);
@@ -140,9 +160,14 @@ fn data_folder() -> PathBuf {
 
 impl Library {
     pub fn open() -> Self {
-        let folder = data_folder().join("projects");
+        Self::at(&data_folder())
+    }
+
+    /// A library in the data folder `data`.
+    pub fn at(data: &Path) -> Self {
+        let folder = data.join("projects");
         let _ = fs::create_dir_all(&folder);
-        Self { folder }
+        Self { folder, backups: data.join("backups") }
     }
 
     fn path(&self, name: &str) -> PathBuf {
@@ -172,7 +197,59 @@ impl Library {
     }
 
     pub fn rename(&self, from: &str, to: &str) -> Result<()> {
-        fs::rename(self.path(from), self.path(to)).with_context(|| format!("renaming {from} to {to}"))
+        fs::rename(self.path(from), self.path(to)).with_context(|| format!("renaming {from} to {to}"))?;
+        let _ = fs::rename(self.backups.join(from), self.backups.join(to));
+        Ok(())
+    }
+
+    /// Keeps `bytes` as an earlier version of `name`, and drops old ones.
+    pub fn backup(&self, name: &str, bytes: &[u8]) -> Result<()> {
+        let folder = self.backups.join(name);
+        fs::create_dir_all(&folder).with_context(|| format!("creating {}", folder.display()))?;
+        let now = super::now_stamp().max(self.backups(name).first().map_or(0, |s| s + 1));
+        let path = folder.join(format!("{}.json", super::backup_plan::stamp_name(now)));
+        fs::write(&path, bytes).with_context(|| format!("writing {}", path.display()))?;
+        for old in super::backup_plan::to_prune(&self.backups(name), now, KEEP) {
+            let _ = fs::remove_file(self.backup_path(name, old));
+        }
+        Ok(())
+    }
+
+    fn backup_path(&self, name: &str, stamp: u64) -> PathBuf {
+        self.backups.join(name).join(format!("{}.json", super::backup_plan::stamp_name(stamp)))
+    }
+
+    /// The times of `name`'s backups, newest first.
+    pub fn backups(&self, name: &str) -> Vec<u64> {
+        let mut stamps: Vec<u64> = fs::read_dir(self.backups.join(name))
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|entry| {
+                let path = entry.path();
+                (path.extension()? == "json").then_some(())?;
+                super::backup_plan::parse_stamp(&path.file_stem()?.to_string_lossy())
+            })
+            .collect();
+        stamps.sort_unstable_by(|a, b| b.cmp(a));
+        stamps
+    }
+
+    pub fn read_backup(&self, name: &str, stamp: u64) -> Option<Vec<u8>> {
+        fs::read(self.backup_path(name, stamp)).ok()
+    }
+
+    /// Names that have backups, including deleted projects.
+    pub fn backed_up(&self) -> Vec<String> {
+        let mut names: Vec<String> = fs::read_dir(&self.backups)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|entry| entry.path().is_dir())
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort_by_key(|n| n.to_lowercase());
+        names
     }
 
     pub fn delete(&self, name: &str) -> Result<()> {
@@ -206,4 +283,47 @@ impl Library {
 /// The system's language, e.g. "fi_FI.UTF-8".
 pub fn system_locale() -> Option<String> {
     ["LC_ALL", "LC_MESSAGES", "LANG"].iter().find_map(|key| std::env::var(key).ok().filter(|v| !v.is_empty()))
+}
+
+/// Reads a file dropped onto the window (at once on desktop).
+pub struct DroppedRead(std::cell::Cell<Option<Result<Vec<u8>, String>>>);
+
+impl DroppedRead {
+    pub fn start(file: eframe::egui::DroppedFileHandle) -> Self {
+        Self(std::cell::Cell::new(Some(file.bytes())))
+    }
+
+    /// The file's bytes, once read.
+    pub fn poll(&self) -> Option<Result<Vec<u8>, String>> {
+        self.0.take()
+    }
+}
+
+/// Minutes the local time zone is ahead of UTC at `stamp` (milliseconds since 1970).
+pub fn utc_offset_minutes(stamp: u64) -> i64 {
+    use chrono::{Local, Offset, TimeZone};
+    Local.timestamp_millis_opt(stamp as i64).single().map_or(0, |t| t.offset().fix().local_minus_utc() as i64 / 60)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn backups_survive_delete_and_follow_renames() {
+        let data = std::env::temp_dir().join(format!("plassi-test-{}-{}", std::process::id(), super::super::now_stamp()));
+        let library = Library::at(&data);
+        library.store("A").write(b"{}").unwrap();
+        library.backup("A", b"one").unwrap();
+        library.backup("A", b"two").unwrap();
+        let stamps = library.backups("A");
+        assert_eq!(stamps.len(), 2);
+        assert_eq!(library.read_backup("A", stamps[0]).as_deref(), Some(&b"two"[..]));
+        library.rename("A", "B").unwrap();
+        assert_eq!(library.backups("B").len(), 2);
+        library.delete("B").unwrap();
+        assert!(library.projects().is_empty());
+        assert_eq!(library.backed_up(), vec!["B".to_string()]);
+        let _ = fs::remove_dir_all(&data);
+    }
 }

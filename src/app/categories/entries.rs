@@ -101,8 +101,7 @@ fn add_spelling(
         return false;
     }
     let mut picked = None;
-    egui::ComboBox::from_id_salt("add-spelling")
-        .selected_text(tr("+ Add spelling"))
+    theme::combo("add-spelling", tr("+ Add spelling"))
         .show_ui(ui, |ui| {
             for spelling in options {
                 if ui.selectable_label(false, spelling).clicked() {

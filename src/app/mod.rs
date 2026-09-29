@@ -10,7 +10,10 @@ mod printing;
 mod room;
 
 // App infrastructure.
+mod backups;
 mod camera;
+mod help;
+mod tour;
 mod input;
 mod memo;
 mod search;
@@ -83,6 +86,8 @@ pub(super) struct PlassiApp {
     room: room::RoomState,
     printing: printing::PrintState,
     projects: projects::ProjectsState,
+    tour: tour::TourState,
+    backups: backups::BackupsState,
     /// Evaluation of the selected option, keyed by (revision, option).
     evaluation: memo::Memo<(u64, usize), Option<std::rc::Rc<crate::score::Evaluation>>>,
 }
@@ -131,24 +136,31 @@ impl eframe::App for PlassiApp {
                 self.undo(true);
             }
         }
-        let frame = theme::panel_frame(p);
-        let mut expanded = !self.sidebar_compact;
+        let frame = theme::floating_panel_frame(p);
+        let was_compact = self.sidebar_compact;
+        let mut expanded = !was_compact;
         egui::Panel::show_switched(
             ui,
             &mut expanded,
             egui::Panel::left("nav-compact")
                 .resizable(false)
-                .exact_size(64.0)
-                .show_separator_line(self.page == Page::People)
+                .exact_size(84.0)
+                .show_separator_line(false)
                 .frame(frame),
             egui::Panel::left("nav")
                 .resizable(false)
-                .exact_size(220.0)
-                .show_separator_line(self.page == Page::People)
+                .exact_size(244.0)
+                .show_separator_line(false)
                 .frame(frame),
-            |ui, _| self.sidebar(ui, p),
+            |ui, _| {
+                let padding = if self.sidebar_compact { theme::space::S } else { theme::space::M };
+                theme::panel_card(ui, p, padding, |ui| self.sidebar(ui, p));
+            },
         );
-        self.sidebar_compact = !expanded;
+        // The toggle inside the sidebar wins over the panel's own state.
+        if self.sidebar_compact == was_compact {
+            self.sidebar_compact = !expanded;
+        }
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg))
             .show(ui, |ui| match self.page {
@@ -165,6 +177,7 @@ impl eframe::App for PlassiApp {
         if self.status != previous_status {
             self.status_at = Instant::now();
         }
+        self.backups_window(ui.ctx(), p);
         self.toast(ui.ctx(), p);
         ui.ctx()
             .request_repaint_after(Duration::from_millis(if self.solving.is_some() {
@@ -267,6 +280,8 @@ impl PlassiApp {
             printing: Default::default(),
             evaluation: Default::default(),
             projects: Default::default(),
+            tour: Default::default(),
+            backups: Default::default(),
         }
     }
 }

@@ -29,7 +29,7 @@
     "event": {
       "$ref": "#/$defs/EventInfo",
       "default": {
-        "finnish": false,
+        "print_language": "same_as_app",
         "subtitle": "",
         "title": ""
       }
@@ -225,7 +225,7 @@
           "type": "string"
         },
         "solver_status": {
-          "type": "string"
+          "$ref": "#/$defs/SolverStatus"
         }
       },
       "required": [
@@ -338,10 +338,10 @@
       "description": "Printed on exported charts and lists.",
       "type": "object",
       "properties": {
-        "finnish": {
-          "description": "Print headings in Finnish instead of English.",
-          "type": "boolean",
-          "default": false
+        "print_language": {
+          "description": "Language of the prints.",
+          "$ref": "#/$defs/PrintLanguage",
+          "default": "same_as_app"
         },
         "subtitle": {
           "description": "E.g. date and venue.",
@@ -519,6 +519,23 @@
           "required": [
             "Apart"
           ]
+        }
+      ]
+    },
+    "PrintLanguage": {
+      "description": "The language prints are made in.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "finnish",
+            "english"
+          ]
+        },
+        {
+          "description": "Whatever the app is showing when printing.",
+          "type": "string",
+          "const": "same_as_app"
         }
       ]
     },
@@ -765,6 +782,113 @@
           "default": 10
         }
       }
+    },
+    "SolverStatus": {
+      "description": "How an option came about, stored as data and put into words in the\ncurrent language when shown.",
+      "oneOf": [
+        {
+          "description": "No seating can score better.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "optimal"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "The best seating found within the time.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "best_found"
+            },
+            "runs": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            },
+            "runs_at_best": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            },
+            "seconds": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seconds",
+            "runs_at_best",
+            "runs"
+          ]
+        },
+        {
+          "description": "Improved from another option, keeping people placed by hand.",
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "hand_placed": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "improved"
+            }
+          },
+          "required": [
+            "kind",
+            "from",
+            "hand_placed"
+          ]
+        },
+        {
+          "description": "A longer search continued from another option.",
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "continued"
+            },
+            "seconds": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "from",
+            "seconds"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "edited_by_hand"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      ]
     },
     "Strength": {
       "oneOf": [

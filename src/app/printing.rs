@@ -23,9 +23,7 @@ pub(super) struct PrintState {
 impl PlassiApp {
     pub(super) fn print_page(&mut self, ui: &mut egui::Ui, p: Palette) {
         self.poll_print();
-        theme::page_header(
-            ui,
-            p,
+        crate::app::help::page_header(ui, p, crate::app::help::HelpPage::Print,
             tr("Print"),
             Some(if cfg!(target_arch = "wasm32") {
                 tr("A4 PDFs, downloaded.")
@@ -93,12 +91,14 @@ impl PlassiApp {
                     }
                     ui.label(RichText::new(tr("Language")).color(p.muted));
                     ui.horizontal(|ui| {
-                        changed |= ui
-                            .selectable_value(&mut event.finnish, true, "Suomi")
-                            .changed();
-                        changed |= ui
-                            .selectable_value(&mut event.finnish, false, "English")
-                            .changed();
+                        use crate::model::PrintLanguage;
+                        for (value, label) in [
+                            (PrintLanguage::SameAsApp, tr("Same as the app")),
+                            (PrintLanguage::Finnish, "Suomi"),
+                            (PrintLanguage::English, "English"),
+                        ] {
+                            changed |= ui.selectable_value(&mut event.print_language, value, label).changed();
+                        }
                     });
                     ui.end_row();
                     ui.label(RichText::new(tr("Option")).color(p.muted));
@@ -120,8 +120,7 @@ impl PlassiApp {
         self.selected_candidate = self
             .selected_candidate
             .min(self.project.candidates.len() - 1);
-        egui::ComboBox::from_id_salt("print-option")
-            .selected_text(&self.project.candidates[self.selected_candidate].name)
+        theme::combo("print-option", &self.project.candidates[self.selected_candidate].name)
             .show_ui(ui, |ui| {
                 for (i, c) in self.project.candidates.iter().enumerate() {
                     ui.selectable_value(&mut self.selected_candidate, i, &c.name);

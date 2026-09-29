@@ -1,6 +1,7 @@
 //! The People & wishes page: attendee list, per-person editor, review of sign-up text and spreadsheet import.
 
 mod details;
+mod drop;
 mod draft;
 mod editor;
 mod list;
@@ -51,6 +52,8 @@ pub(in crate::app) struct PeopleState {
     pub(in crate::app) new_tag: String,
     /// Spreadsheet text pasted for import.
     pub(in crate::app) import_text: String,
+    /// A dropped sheet being read: its name and the read.
+    pub(in crate::app) dropped: Option<(String, crate::platform::DroppedRead)>,
     /// Suggested wishes, keyed by project revision.
     pub(in crate::app) suggest_cache: crate::app::memo::Memo<u64, Vec<crate::suggest::Suggestion>>,
     /// An add, replace or remove being prepared.
@@ -87,13 +90,14 @@ pub(in crate::app) struct WishDraft {
 
 impl PlassiApp {
     pub(in crate::app) fn people_page(&mut self, ui: &mut egui::Ui, p: Palette) {
+        self.take_dropped_sheet(ui);
         egui::Panel::left("people-list")
             .resizable(true)
-            .default_size(theme::PANEL_WIDTH)
-            .size_range(260.0..=480.0)
+            .default_size(theme::PANEL_WIDTH + 2.0 * theme::space::M)
+            .size_range(280.0..=500.0)
             .show_separator_line(false)
-            .frame(theme::panel_frame(p))
-            .show(ui, |ui| self.people_list(ui, p));
+            .frame(theme::floating_panel_frame(p))
+            .show(ui, |ui| theme::panel_card(ui, p, theme::space::L, |ui| self.people_list(ui, p)));
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg))
             .show(ui, |ui| {

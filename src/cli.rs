@@ -69,7 +69,7 @@ fn validate(path: &str) -> Result<()> {
             evaluation.wish_penalty,
             evaluation.hard_violations,
             evaluation.assignment_errors.len(),
-            candidate.solver_status
+            candidate.solver_status.describe()
         );
     }
     Ok(())
@@ -82,7 +82,7 @@ fn solve(path: &str) -> Result<()> {
     let evaluation = score::evaluate(&project, &candidate.assignment);
     println!(
         "{}: wish penalty {}, {} hard violations",
-        candidate.solver_status, evaluation.wish_penalty, evaluation.hard_violations
+        candidate.solver_status.describe(), evaluation.wish_penalty, evaluation.hard_violations
     );
     project.candidates.push(candidate);
     io::save(Path::new(path), &project)

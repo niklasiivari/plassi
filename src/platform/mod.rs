@@ -2,7 +2,11 @@
 //! kept, how work runs in the background, and how files reach the user.
 //!
 //! Both sides offer the same items: `Store`, `SearchRunner`, `PdfJob`,
-//! `save_file`, `open_location` and `save_folder`.
+//! `save_file`, `open_location`, `save_folder`, `DroppedRead`, and a `Library` of projects
+//! with their backups.
+
+mod backup_plan;
+pub use backup_plan::{Keep, now_stamp};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native;

@@ -274,6 +274,7 @@ impl PlassiApp {
                         ui.set_max_width(420.0);
                         let color = p.surface;
                         ui.visuals_mut().override_text_color = Some(color);
+                        let mut stop = false;
                         if let Some(job) = &self.solving {
                             let (started, budget) = (job.started, job.budget);
                             let done = started.elapsed().as_secs_f32() / budget.as_secs_f32().max(1.0);
@@ -282,6 +283,18 @@ impl PlassiApp {
                                 &[&started.elapsed().as_secs().min(budget.as_secs()), &budget.as_secs()],
                             ));
                             ui.add(egui::ProgressBar::new(done.min(1.0)).desired_height(6.0));
+                            ui.horizontal(|ui| {
+                                if let Some((score, hard)) = job.runner.progress() {
+                                    let best = if hard > 0 {
+                                        fill("Best so far: score {} · {} hard rules broken", &[&score, &hard])
+                                    } else {
+                                        fill("Best so far: score {}", &[&score])
+                                    };
+                                    ui.label(best);
+                                }
+                                let button = egui::Button::new(RichText::new(tr("Stop")).color(color).strong()).frame(false);
+                                stop = ui.add(button).on_hover_text(tr("Stop now and keep the best seating found so far")).clicked();
+                            });
                         } else {
                             ui.horizontal(|ui| {
                                 if self.file.external_invalid {
@@ -295,6 +308,9 @@ impl PlassiApp {
                                     self.undo(false);
                                 }
                             });
+                        }
+                        if stop {
+                            self.stop_search();
                         }
                     });
             });

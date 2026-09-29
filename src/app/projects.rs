@@ -43,9 +43,10 @@ impl PlassiApp {
                 }
             });
             self.file_actions(ui);
+            self.backup_menu_items(ui);
             ui.separator();
             if self.projects.confirm_delete {
-                ui.label(RichText::new(fill("Delete {} for good? This can't be undone.", &[&current])).color(p.bad));
+                ui.label(RichText::new(fill("Delete {}? A backup stays under Deleted projects.", &[&current])).color(p.bad));
                 ui.horizontal(|ui| {
                     if ui.add(theme::danger_button(tr("Delete"), p)).clicked() {
                         self.projects.confirm_delete = false;

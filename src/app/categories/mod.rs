@@ -27,9 +27,7 @@ impl Default for CategoriesState {
 
 impl PlassiApp {
     pub(in crate::app) fn categories_page(&mut self, ui: &mut egui::Ui, p: Palette) {
-        theme::page_header(
-            ui,
-            p,
+        crate::app::help::page_header(ui, p, crate::app::help::HelpPage::Categories,
             tr("Categories"),
             Some(tr(
                 "What people wrote, mapped to one category each, so different spellings of the same thing count as one.",

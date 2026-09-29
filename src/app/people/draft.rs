@@ -197,8 +197,7 @@ fn choice(ui: &mut egui::Ui, label: &str, value: &mut String, options: &[String]
         } else {
             value.as_str()
         };
-        egui::ComboBox::from_id_salt(("draft-choice", label))
-            .selected_text(shown)
+        theme::combo(("draft-choice", label), shown)
             .show_ui(ui, |ui| {
                 for option in options {
                     ui.selectable_value(value, option.clone(), option);

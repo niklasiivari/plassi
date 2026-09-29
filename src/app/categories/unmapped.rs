@@ -147,8 +147,7 @@ fn unmapped_row(
         ui.set_min_height(theme::CONTROL_HEIGHT);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if !names.is_empty() {
-                egui::ComboBox::from_id_salt(("map", spelling))
-                    .selected_text(tr("Add to…"))
+                theme::combo(("map", spelling), tr("Add to…"))
                     .width(110.0)
                     .show_ui(ui, |ui| {
                         for (i, name) in names.iter().enumerate() {
