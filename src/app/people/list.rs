@@ -189,6 +189,7 @@ impl PlassiApp {
 fn person_row(ui: &mut egui::Ui, p: Palette, person: &Attendee, info: &RowInfo) -> egui::Response {
     let (rect, response) =
         ui.allocate_exact_size(egui::vec2(ui.available_width(), 48.0), Sense::click());
+    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, info.selected, &person.name));
     let painter = ui.painter();
     let fill = match () {
         _ if info.selected => p.accent_soft,

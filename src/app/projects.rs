@@ -15,7 +15,10 @@ impl PlassiApp {
     pub(super) fn project_switcher(&mut self, ui: &mut egui::Ui, p: Palette) {
         let current = self.file.name.clone();
         let label = RichText::new(&current).strong().size(theme::text::BODY);
-        let response = ui.menu_button(label, |ui| {
+        // Clicks inside keep the menu open (the name field, the delete
+        // confirmation); every action closes it itself.
+        let config = egui::containers::menu::MenuConfig::new().close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside);
+        let (button, _) = egui::containers::menu::MenuButton::new(label).config(config).ui(ui, |ui| {
             ui.set_min_width(240.0);
             theme::section_title(ui, p, tr("Projects"));
             for name in self.file.library.projects() {
@@ -61,12 +64,12 @@ impl PlassiApp {
                 self.projects.confirm_delete = true;
             }
         });
-        let chevron = response.response.rect.right_center() + egui::vec2(theme::space::M, 0.0);
+        let chevron = button.rect.right_center() + egui::vec2(theme::space::M, 0.0);
         theme::paint_icon(ui.painter(), theme::Icon::ChevronDown, chevron, p.muted);
-        if response.response.clicked() {
+        if button.clicked() {
             self.projects.rename = current;
         }
-        response.response.on_hover_text(tr("Switch between events, or start a new one"));
+        button.on_hover_text(tr("Switch between events, or start a new one"));
     }
 
     /// Where the project files are (desktop), or moving projects in and out (browser).

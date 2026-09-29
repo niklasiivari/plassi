@@ -44,8 +44,7 @@ pub(super) fn project_name(text: &str) -> String {
 
 impl ProjectFile {
     /// Opens the project used last time, or starts a new one.
-    pub(super) fn open_default() -> (Self, Project, String) {
-        let library = platform::Library::open();
+    pub(super) fn open_default(library: platform::Library) -> (Self, Project, String) {
         let projects = library.projects();
         let name = library.last().filter(|n| projects.contains(n)).or_else(|| projects.first().cloned());
         let name = name.unwrap_or_else(|| {

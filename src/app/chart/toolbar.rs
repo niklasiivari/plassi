@@ -78,7 +78,7 @@ impl PlassiApp {
                 }
                 let more = fill(
                     "Search {} s more from this option, keeping only pinned people; saves a new option only if it is better",
-                    &[&crate::seating::SOLVE_TIME.as_secs()],
+                    &[&self.solve_time.as_secs()],
                 );
                 if ui.button(tr("Keep searching")).on_hover_text(more).clicked() {
                     self.start_continue();

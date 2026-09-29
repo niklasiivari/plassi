@@ -174,3 +174,13 @@ impl PlassiApp {
         }
     }
 }
+
+#[cfg(test)]
+impl PlassiApp {
+    /// Where a seat's card was on screen in the last frame, for UI tests.
+    pub(in crate::app) fn seat_card_on_screen(&self, seat_id: &str) -> Option<Rect> {
+        let canvas = self.tour.anchors.canvas?;
+        let seat = self.project.layout.seats().into_iter().find(|s| s.id == seat_id)?;
+        Some(self.chart.view.camera.viewport(canvas).rect(card_rect(&seat)))
+    }
+}

@@ -30,9 +30,9 @@ impl PlassiApp {
         }
         let prior = alternative.then(|| self.project.candidates.get(self.selected_candidate)).flatten();
         let min_changed = if prior.is_some() { (self.project.active_people().len() / 10).max(1) } else { 0 };
-        match seating::solve_search(&self.project, prior, min_changed, seating::SOLVE_TIME) {
+        match seating::solve_search(&self.project, prior, min_changed, self.solve_time) {
             Ok(search) => {
-                self.start_job(search, seating::SOLVE_TIME, JobKind::New);
+                self.start_job(search, self.solve_time, JobKind::New);
                 self.status = tr("Solving…").into();
             }
             Err(error) => self.status = fill("Cannot solve: {}", &[&format!("{error:#}")]),
@@ -51,9 +51,9 @@ impl PlassiApp {
         let mut fixed = self.project.pinned_people();
         fixed.extend(current.hand_placed.iter().copied());
         let kind = JobKind::Improve { from: current.name.clone(), hand_placed: current.hand_placed.clone() };
-        match seating::improve_search(&self.project, &current.assignment, &fixed, seating::IMPROVE_TIME) {
+        match seating::improve_search(&self.project, &current.assignment, &fixed, self.improve_time) {
             Ok(search) => {
-                self.start_job(search, seating::IMPROVE_TIME, kind);
+                self.start_job(search, self.improve_time, kind);
                 self.status = tr("Improving around your edits…").into();
             }
             Err(error) => self.status = fill("Cannot improve: {}", &[&format!("{error:#}")]),
@@ -74,9 +74,9 @@ impl PlassiApp {
             from: current.name.clone(),
             before: (evaluation.hard_violations, evaluation.penalty()),
         };
-        match seating::improve_search(&self.project, &current.assignment, &Default::default(), seating::SOLVE_TIME) {
+        match seating::improve_search(&self.project, &current.assignment, &Default::default(), self.solve_time) {
             Ok(search) => {
-                self.start_job(search, seating::SOLVE_TIME, kind);
+                self.start_job(search, self.solve_time, kind);
                 self.status = tr("Searching further…").into();
             }
             Err(error) => self.status = fill("Cannot search: {}", &[&format!("{error:#}")]),

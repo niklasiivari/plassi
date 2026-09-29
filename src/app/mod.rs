@@ -22,6 +22,8 @@ mod projects;
 mod shell;
 mod solving;
 mod theme;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod ui_tests;
 #[cfg(test)]
 pub(crate) use theme::initials as theme_initials;
 
@@ -78,6 +80,9 @@ pub(super) struct PlassiApp {
     selected_person: Option<usize>,
     /// The search in progress, if any.
     solving: Option<solving::SolveJob>,
+    /// Search time for a solve or a longer search, and for an improvement.
+    solve_time: Duration,
+    improve_time: Duration,
     policy_dirty: bool,
     chart: chart::ChartState,
     graph: graph::GraphState,
@@ -257,7 +262,12 @@ pub fn start_web() {
 
 impl PlassiApp {
     pub(super) fn new() -> Self {
-        let (file, project, status) = project_file::ProjectFile::open_default();
+        Self::with_library(platform::Library::open())
+    }
+
+    /// The app on the projects in `library`.
+    pub(super) fn with_library(library: platform::Library) -> Self {
+        let (file, project, status) = project_file::ProjectFile::open_default(library);
         let saved = file.library.setting("language");
         let lang = saved.or_else(platform::system_locale).and_then(|l| crate::i18n::Lang::from_locale(&l));
         crate::i18n::set(lang.unwrap_or(crate::i18n::Lang::En));
@@ -271,6 +281,8 @@ impl PlassiApp {
             selected_candidate: 0,
             selected_person: None,
             solving: None,
+            solve_time: seating::SOLVE_TIME,
+            improve_time: seating::IMPROVE_TIME,
             policy_dirty: false,
             chart: Default::default(),
             graph: Default::default(),

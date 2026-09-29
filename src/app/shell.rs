@@ -203,10 +203,10 @@ impl PlassiApp {
         ];
         for (page, icon, label, badge) in pages {
             let shown = (!self.sidebar_compact).then_some(label);
-            if nav_item(ui, p, self.page == page, icon, shown, badge)
-                .on_hover_text(label)
-                .clicked()
-            {
+            let item = nav_item(ui, p, self.page == page, icon, shown, badge);
+            // Named for screen readers (and UI tests), also when only the icon shows.
+            item.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, self.page == page, label));
+            if item.on_hover_text(label).clicked() {
                 self.page = page;
             }
         }
