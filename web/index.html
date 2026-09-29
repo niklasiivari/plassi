@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plassi</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #f6f5f2; }
+    @media (prefers-color-scheme: dark) { html, body { background: #17181a; } }
+    canvas#plassi { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <canvas id="plassi"></canvas>
+  <script type="module">
+    import init from "./plassi.js";
+
+    // Printing lives in its own module, loaded the first time someone prints.
+    let typesetter;
+    window.plassiTypeset = async (data) => {
+      typesetter ??= import("./typeset/plassi_typeset.js").then(async (module) => {
+        await module.default();
+        return module;
+      });
+      return (await typesetter).typeset(data);
+    };
+
+    init();
+  </script>
+</body>
+</html>

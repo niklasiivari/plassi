@@ -1,0 +1,40 @@
+[workspace]
+members = [".", "typeset"]
+
+[package]
+name = "plassi"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1"
+csv = "1.4"
+eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "glow", "x11", "wayland"] }
+rand = "0.9"
+schemars = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+web-time = "1.1.0"
+
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+plassi-typeset = { path = "typeset" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+log = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Document", "Location", "Navigator", "Storage", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlCanvasElement", "Element", "console", "HtmlInputElement", "FileList", "File"] }
+
+[profile.dev]
+opt-level = 1
+
+# The browser build: small rather than fast (see scripts/build-web.sh).
+[profile.web]
+inherits = "release"
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
