@@ -44,9 +44,11 @@ Tag the released commit: `git tag v0.1.0 && git push --tags`.
 
 ## CI
 
-The "CI" workflow runs on every push and pull request: tests (including
-the UI click-through tests) and clippy for the desktop and browser
-builds, with warnings as errors.
+The "CI" workflow runs tests (including the UI click-through tests) and
+clippy for the desktop and browser builds, with warnings as errors. Like
+the deploy it only runs when started by hand (Actions → CI → Run
+workflow, or `gh workflow run ci.yml`), to save the private repository's
+Actions minutes; run it locally with `cargo test` and `cargo clippy`.
 
 ## Keep in mind
 
