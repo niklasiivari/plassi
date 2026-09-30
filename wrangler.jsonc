@@ -1,0 +1,10 @@
+// Cloudflare deploy settings for the browser version: a static site served
+// from dist/ (built by scripts/cf-build.sh). No server-side code.
+{
+  "name": "plassi",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

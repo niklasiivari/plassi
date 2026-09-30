@@ -20,24 +20,25 @@ A checklist for publishing the browser version and tagging a release.
 
 ## Publish
 
-The "Deploy web" GitHub Actions workflow builds the browser version and
-deploys it to Cloudflare Pages. It only runs when started by hand:
-Actions → Deploy web → Run workflow, or `gh workflow run deploy-web.yml`.
+Cloudflare builds and serves the browser version straight from this
+GitHub repository (Workers Builds), so no GitHub Actions minutes are used.
+`wrangler.jsonc` tells Cloudflare to serve `dist/` as a static site, and
+`scripts/cf-build.sh` installs Rust, wasm-bindgen (the version in
+`Cargo.lock`) and binaryen on the build machine before running
+`scripts/build-web.sh`.
 
-One-time Cloudflare setup:
+One-time setup in the Cloudflare dashboard (Workers & Pages → Create →
+Import a repository → `niklasiivari/plassi`):
 
-1. In the Cloudflare dashboard, create a Pages project for direct uploads
-   (Workers & Pages → Create → Pages → Upload assets) named `plassi`, or
-   let the first deploy create it. A different name goes in the
-   repository variable `CLOUDFLARE_PAGES_PROJECT`.
-2. Create an API token (My Profile → API Tokens → Create Token) with the
-   permission Account → Cloudflare Pages → Edit.
-3. Add repository secrets in GitHub (Settings → Secrets and variables →
-   Actions): `CLOUDFLARE_API_TOKEN` (the token) and
-   `CLOUDFLARE_ACCOUNT_ID` (shown on the Workers & Pages overview).
-   With the CLI: `gh secret set CLOUDFLARE_API_TOKEN` and
-   `gh secret set CLOUDFLARE_ACCOUNT_ID`.
-4. Optionally attach your own domain to the Pages project.
+- Project name: `plassi`
+- Build command: `./scripts/cf-build.sh`
+- Deploy command: `npx wrangler deploy`
+- Enable preview builds: off, unless you want a build for every branch.
+
+Every push to `main` then builds and deploys, unless automatic builds are
+turned off in the project's build settings. Builds count against
+Cloudflare's free build minutes and take several minutes, because the
+whole app is compiled for WebAssembly.
 
 The site is static: no server-side code, headers or cookies are needed.
 Tag the released commit: `git tag v0.1.0 && git push --tags`.
