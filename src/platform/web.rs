@@ -41,8 +41,44 @@ impl Store {
         local_storage()
             .ok_or_else(|| anyhow!("this browser has no local storage"))?
             .set_item(&self.key, text)
-            .map_err(|_| anyhow!("the browser refused to store the project (storage full?)"))
+            .map_err(|error| anyhow!(refusal(&error)))
     }
+}
+
+/// Why the browser refused to store something, in words the user can act on.
+fn refusal(error: &wasm_bindgen::JsValue) -> &'static str {
+    let name = js_sys::Reflect::get(error, &"name".into()).ok().and_then(|n| n.as_string()).unwrap_or_default();
+    if name.contains("Quota") {
+        crate::i18n::tr("this browser's storage is full. Download a copy of this project, then delete old projects or backups")
+    } else {
+        crate::i18n::tr("the browser refused to store the project")
+    }
+}
+
+thread_local! {
+    /// Whether the browser promised to keep local storage; `None` until it answers.
+    static PERSISTED: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Asks the browser not to clear this site's storage when space runs low.
+pub fn request_persistence() {
+    let Some(storage) = web_sys::window().map(|w| w.navigator().storage()) else { return };
+    wasm_bindgen_futures::spawn_local(async move {
+        let ask = |promise: Result<js_sys::Promise, wasm_bindgen::JsValue>| async move {
+            let answer = wasm_bindgen_futures::JsFuture::from(promise.ok()?).await.ok()?;
+            answer.as_bool()
+        };
+        let persisted = match ask(storage.persisted()).await {
+            Some(true) => Some(true),
+            _ => ask(storage.persist()).await,
+        };
+        PERSISTED.with(|p| p.set(Some(persisted.unwrap_or(false))));
+    });
+}
+
+/// Whether the browser keeps local storage until the user clears it.
+pub fn storage_persisted() -> Option<bool> {
+    PERSISTED.with(std::cell::Cell::get)
 }
 
 /// A seating search advanced a little every frame, so the page stays responsive.

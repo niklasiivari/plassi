@@ -104,7 +104,10 @@ impl PlassiApp {
     pub(super) fn download_project(&mut self) {
         let result = io::encode(&self.project).and_then(|bytes| platform::save_file(&self.file.store, "plassi.json", &bytes));
         self.status = match result {
-            Ok(saved) => fill("Saved the project: {}", &[&saved.description]),
+            Ok(saved) => {
+                self.downloaded_copy();
+                fill("Saved the project: {}", &[&saved.description])
+            }
             Err(error) => format!("{error:#}"),
         };
     }

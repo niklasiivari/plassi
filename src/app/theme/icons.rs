@@ -29,6 +29,7 @@ pub enum Icon {
     Shuffle,
     ChevronDown,
     Help,
+    Info,
 }
 
 /// Draws `icon` centred on `c`, about 16 points across.
@@ -189,6 +190,11 @@ pub fn paint(painter: &egui::Painter, icon: Icon, c: Pos2, color: Color32) {
             let hook_end = c + vec2(0.0, -2.2) + vec2(0.9_f32.cos(), 0.9_f32.sin()) * 2.6;
             painter.line_segment([hook_end, c + vec2(0.0, 2.0)], stroke);
             painter.circle_filled(c + vec2(0.0, 4.6), 1.1, color);
+        }
+        Icon::Info => {
+            painter.circle_stroke(c, 7.5, stroke);
+            painter.circle_filled(c + vec2(0.0, -3.6), 1.1, color);
+            line(vec2(0.0, -0.8), vec2(0.0, 4.2));
         }
         Icon::Shuffle => {
             line(vec2(-7.0, -4.0), vec2(-3.0, -4.0));

@@ -134,6 +134,7 @@ impl PlassiApp {
                 self.collapse_toggle(ui, p);
                 theme_toggle(ui, p);
                 language_toggle(self, ui);
+                super::about::button(ui, p);
                 ui.add_space(theme::space::S);
                 self.sync_dot(ui, p).on_hover_text(self.sync_text());
                 return;
@@ -142,6 +143,7 @@ impl PlassiApp {
                 self.collapse_toggle(ui, p);
                 theme_toggle(ui, p);
                 language_toggle(self, ui);
+                super::about::button(ui, p);
             });
             ui.add_space(theme::space::M);
             self.file_controls(ui, p);
@@ -220,6 +222,8 @@ impl PlassiApp {
         })
         .response
         .on_hover_text(self.file.store.location());
+        #[cfg(target_arch = "wasm32")]
+        self.browser_storage(ui, p);
         let (people, seats) = (self.project.attendees.len(), self.project.layout.seat_count());
         let size = match seats.cmp(&people) {
             _ if people == 0 => fill("No people yet · {} seats", &[&seats]),

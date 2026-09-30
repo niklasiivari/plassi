@@ -5,6 +5,11 @@ members = [".", "typeset"]
 name = "plassi"
 version = "0.1.0"
 edition = "2024"
+description = "Seating planner for events: import sign-ups, seat guests by their wishes, print place lists."
+authors = ["Niklas Iivari <niklas@niklasiivari.fi>"]
+license-file = "LICENSE"
+readme = "README.md"
+publish = false
 
 [dependencies]
 anyhow = "1"
@@ -30,7 +35,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 log = "0.4"
-web-sys = { version = "0.3", features = ["Window", "Document", "Location", "Navigator", "Storage", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlCanvasElement", "Element", "console", "HtmlInputElement", "FileList", "File"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "Location", "Navigator", "Storage", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlCanvasElement", "Element", "console", "HtmlInputElement", "FileList", "File", "StorageManager", "HtmlElement", "DomTokenList"] }
 
 [profile.dev]
 opt-level = 1

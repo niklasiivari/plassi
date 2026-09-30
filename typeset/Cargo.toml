@@ -2,6 +2,9 @@
 name = "plassi-typeset"
 version = "0.1.0"
 edition = "2024"
+authors = ["Niklas Iivari <niklas@niklasiivari.fi>"]
+license-file = "../LICENSE"
+publish = false
 description = "Plassi's A4 prints: JSON data in, PDF out, typeset with Typst."
 
 [lib]

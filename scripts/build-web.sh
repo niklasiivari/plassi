@@ -24,6 +24,7 @@ if command -v wasm-opt >/dev/null; then
       --enable-mutable-globals --enable-reference-types --enable-multivalue --disable-compact-imports "$wasm" -o "$wasm"
   done
 fi
-cp web/index.html dist/
+cp web/index.html web/favicon.svg dist/
+cp THIRD_PARTY_NOTICES.md dist/
 ls -l dist/*.wasm dist/typeset/*.wasm
 echo "Built dist/. Try it: python3 -m http.server -d dist 8080"

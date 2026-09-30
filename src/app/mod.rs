@@ -12,6 +12,8 @@ mod room;
 // App infrastructure.
 mod backups;
 mod camera;
+mod copy_reminder;
+mod about;
 mod help;
 mod tour;
 mod input;
@@ -93,6 +95,8 @@ pub(super) struct PlassiApp {
     projects: projects::ProjectsState,
     tour: tour::TourState,
     backups: backups::BackupsState,
+    #[cfg(target_arch = "wasm32")]
+    copy_reminder: copy_reminder::CopyReminder,
     /// Evaluation of the selected option, keyed by (revision, option).
     evaluation: memo::Memo<(u64, usize), Option<std::rc::Rc<crate::score::Evaluation>>>,
 }
@@ -244,6 +248,7 @@ pub fn start_web() {
                 eframe::WebOptions::default(),
                 Box::new(|cc| {
                     theme::install(&cc.egui_ctx);
+                    platform::request_persistence();
                     let mut app = PlassiApp::new();
                     // A start page from the address, e.g. ".../#people".
                     let hash = web_sys::window().and_then(|w| w.location().hash().ok()).unwrap_or_default();
@@ -254,8 +259,20 @@ pub fn start_web() {
                 }),
             )
             .await;
-        if let Err(error) = started {
-            web_sys::console::error_1(&format!("Plassi failed to start: {error:?}").into());
+        let document = web_sys::window().and_then(|w| w.document());
+        match started {
+            // The page's loading screen gives way to the app.
+            Ok(()) => {
+                if let Some(loading) = document.and_then(|d| d.get_element_by_id("loading")) {
+                    loading.remove();
+                }
+            }
+            Err(error) => {
+                web_sys::console::error_1(&format!("Plassi failed to start: {error:?}").into());
+                if let Some(body) = document.and_then(|d| d.body()) {
+                    let _ = body.class_list().add_1("failed");
+                }
+            }
         }
     });
 }
@@ -294,6 +311,8 @@ impl PlassiApp {
             projects: Default::default(),
             tour: Default::default(),
             backups: Default::default(),
+            #[cfg(target_arch = "wasm32")]
+            copy_reminder: Default::default(),
         }
     }
 }
