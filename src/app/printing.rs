@@ -182,7 +182,9 @@ impl PlassiApp {
                 if ui.add_enabled(ready, theme::primary_button(tr("Save PDF"), p)).clicked() {
                     request = Some(false);
                 }
-                if ui.add_enabled(ready, theme::secondary_button(tr("Save and open"))).clicked() {
+                if !cfg!(target_arch = "wasm32")
+                    && ui.add_enabled(ready, theme::secondary_button(tr("Save and open"))).clicked()
+                {
                     request = Some(true);
                 }
             });
