@@ -213,6 +213,37 @@ fn people_filters_and_bulk_group() {
 }
 
 #[test]
+fn invalid_late_change_keeps_the_form_and_entered_details() {
+    let mut ui = Ui::with_example();
+    ui.go_to("People & wishes");
+    ui.app_mut().people.roster = Some(crate::app::people::RosterEdit::Add(
+        crate::roster::NewAttendee {
+            name: "Guest 01".into(),
+            food: "Vegetarian".into(),
+            ..Default::default()
+        },
+    ));
+    ui.settle();
+    ui.click("Add");
+    let Some(crate::app::people::RosterEdit::Add(person)) = &ui.app().people.roster else {
+        panic!("the invalid add form should stay open");
+    };
+    assert_eq!(person.name, "Guest 01");
+    assert_eq!(person.food, "Vegetarian");
+    assert!(ui.app().status.contains("already on the list"));
+}
+
+#[test]
+fn opening_advanced_room_editor_does_not_create_empty_seat_tags() {
+    let mut ui = Ui::with_example();
+    ui.go_to("Room layout");
+    ui.click("Advanced: seat tags and seat relationships");
+    ui.settle();
+
+    assert!(ui.app().project.layout.seat_tags.is_empty());
+}
+
+#[test]
 fn people_import_from_pasted_sheet() {
     let mut ui = Ui::open();
     ui.go_to("People & wishes");

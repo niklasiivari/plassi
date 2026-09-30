@@ -5,6 +5,7 @@ use crate::i18n::{fill, tr};
 use crate::roster::{self, NewAttendee};
 
 /// A roster change being prepared in the People page.
+#[derive(Clone)]
 pub(in crate::app) enum RosterEdit {
     Add(NewAttendee),
     /// Replace this attendee with a new one in the same seat.
@@ -65,6 +66,7 @@ impl PlassiApp {
         let Some(edit) = self.people.roster.take() else {
             return;
         };
+        let retry = edit.clone();
         let result = match edit {
             RosterEdit::Add(person) => {
                 let name = person.name.clone();
@@ -82,7 +84,10 @@ impl PlassiApp {
                 self.selected_person = Some(id);
                 self.commit(&message);
             }
-            Err(error) => self.status = format!("{error:#}"),
+            Err(error) => {
+                self.people.roster = Some(retry);
+                self.status = format!("{error:#}");
+            }
         }
     }
 }
