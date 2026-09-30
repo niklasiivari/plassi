@@ -97,8 +97,23 @@ impl Camera {
     /// Glide to a zoom level around the canvas centre (for zoom buttons).
     pub(super) fn zoom_by(&mut self, factor: f32) {
         let (zoom, pan) = self.goal.unwrap_or((self.zoom, self.pan));
-        let new_zoom = (zoom * factor).clamp(self.min_zoom, self.max_zoom);
-        self.goal = Some((new_zoom, pan * (new_zoom / zoom)));
+        self.zoom_to_with_pan(zoom * factor, zoom, pan);
+    }
+
+    /// The zoom level the view is currently moving toward, or displaying.
+    pub(super) fn zoom_target(&self) -> f32 {
+        self.goal.map_or(self.zoom, |(zoom, _)| zoom)
+    }
+
+    /// Glide to an explicit zoom level, preserving the view around the canvas centre.
+    pub(super) fn zoom_to(&mut self, zoom: f32) {
+        let (current, pan) = self.goal.unwrap_or((self.zoom, self.pan));
+        self.zoom_to_with_pan(zoom, current, pan);
+    }
+
+    fn zoom_to_with_pan(&mut self, zoom: f32, current: f32, pan: Vec2) {
+        let new_zoom = zoom.clamp(self.min_zoom, self.max_zoom);
+        self.goal = Some((new_zoom, pan * (new_zoom / current)));
     }
 
     /// Dragging `background` pans (when `can_pan`); the scroll wheel zooms around

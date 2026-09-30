@@ -146,13 +146,9 @@ fn panel(ui: &mut egui::Ui, p: Palette, page: HelpPage) -> bool {
         ui.add_space(theme::space::M);
         theme::section_title(ui, p, tr("Keys"));
         theme::text_rows(ui, |ui| {
-            egui::Grid::new("help-keys").num_columns(2).spacing([theme::space::M, theme::space::XS]).show(ui, |ui| {
-                for (keys, what) in shortcuts {
-                    ui.label(RichText::new(*keys).monospace().size(theme::text::SMALL));
-                    theme::hint(ui, p, tr(what));
-                    ui.end_row();
-                }
-            });
+            for (keys, what) in shortcuts {
+                theme::key_hint(ui, p, keys, tr(what));
+            }
         });
     }
     page == HelpPage::Chart && {

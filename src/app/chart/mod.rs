@@ -55,6 +55,8 @@ impl Default for ChartView {
 pub(in crate::app) struct ChartState {
     pub(in crate::app) view: ChartView,
     pub(in crate::app) search: String,
+    /// Text currently being edited in the zoom control.
+    pub(in crate::app) zoom_entry: String,
     /// Highlighted row in the search matches.
     pub(in crate::app) search_pick: usize,
     /// Where the search matches were drawn last frame.

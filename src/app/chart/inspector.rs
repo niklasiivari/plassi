@@ -145,7 +145,14 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
         }
     });
     ui.add_space(theme::space::S);
-    theme::hint(ui, p, tr("Drag a card to move or swap. Ctrl-click several people to group them (G) or keep them apart. Right-click for more. Keys: F fits the room, P pins the selected person, Ctrl+F finds someone."));
+    theme::hint(ui, p, tr("Drag to move or swap. Ctrl-click to select people; right-click for more actions."));
+    ui.add_space(theme::space::M);
+    theme::section_title(ui, p, tr("Keys"));
+    theme::text_rows(ui, |ui| {
+        for (keys, action) in crate::app::help::HelpPage::Chart.shortcuts() {
+            theme::key_hint(ui, p, keys, tr(action));
+        }
+    });
 }
 
 impl PlassiApp {

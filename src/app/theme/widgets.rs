@@ -254,6 +254,25 @@ pub fn hint(ui: &mut egui::Ui, p: Palette, label: impl Into<String>) {
     ui.label(RichText::new(label.into()).size(text::SMALL).color(p.muted));
 }
 
+/// A keyboard shortcut and its action, laid out as a compact, reusable row.
+pub fn key_hint(ui: &mut egui::Ui, p: Palette, keys: &str, action: &str) {
+    ui.horizontal_wrapped(|ui| {
+        for (index, key) in keys.split(" / ").enumerate() {
+            if index > 0 {
+                hint(ui, p, "/");
+            }
+            egui::Frame::new()
+                .fill(p.surface_hi)
+                .corner_radius(radius::SM)
+                .inner_margin(Margin::symmetric(5, 2))
+                .show(ui, |ui| {
+                    ui.label(RichText::new(key).monospace().size(text::CAPTION).color(p.text));
+                });
+        }
+        hint(ui, p, action);
+    });
+}
+
 /// A text field with a hairline outline (the one place outlines stay).
 pub struct Field<'t>(egui::TextEdit<'t>);
 
@@ -268,6 +287,10 @@ impl<'t> Field<'t> {
 
     pub fn desired_rows(self, rows: usize) -> Self {
         Self(self.0.desired_rows(rows))
+    }
+
+    pub fn horizontal_align(self, align: egui::Align) -> Self {
+        Self(self.0.horizontal_align(align))
     }
 
     pub fn font(self, font: impl Into<egui::FontSelection>) -> Self {

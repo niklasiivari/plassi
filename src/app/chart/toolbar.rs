@@ -54,37 +54,35 @@ impl PlassiApp {
         {
             self.start_solve(false);
         }
-        let hand_placed = self
-            .project
-            .candidates
-            .get(self.selected_candidate)
-            .map_or(0, |c| c.hand_placed.len());
         if ui
             .add_enabled(can_solve && has_option, theme::secondary_button(tr("Improve")))
-            .on_hover_text(fill(
-                "Re-optimize this option as a new one, keeping pinned people and the {} people you moved by hand",
-                &[&hand_placed],
-            ))
-            .clicked()
+            .on_hover_text(fill("Search for {} s, keeping pinned people and those moved by hand in place. Saves the result as a new option.", &[&self.improve_time.as_secs()]))
+        .clicked()
         {
             self.start_improve();
         }
-        // Less frequent searches, in a menu to keep the toolbar short.
-        ui.add_enabled_ui(can_solve && has_option, |ui| {
-            ui.menu_button(tr("More"), |ui| {
-                if ui.button(tr("Different option")).on_hover_text(tr("Solve again, moving about 10% of the people in wishes")).clicked() {
+        // Less frequent searches, grouped under the add-option action.
+        let button = theme::icon_button_enabled(
+            ui,
+            p,
+            theme::Icon::Plus,
+            tr("Create another seating option"),
+            false,
+            can_solve && has_option,
+        );
+        egui::Popup::menu(&button).show(|ui| {
+                if ui.button(tr("Find a different option")).on_hover_text(tr("Search again, moving at least about 10% of people who made wishes")).clicked() {
                     self.start_solve(true);
                     ui.close();
                 }
                 let more = fill(
-                    "Search {} s more from this option, keeping only pinned people; saves a new option only if it is better",
+                    "Continue for {} s from this seating. Only pinned people stay fixed, and a new option is saved only if its score improves.",
                     &[&self.solve_time.as_secs()],
                 );
-                if ui.button(tr("Keep searching")).on_hover_text(more).clicked() {
+                if ui.button(tr("Search this option further")).on_hover_text(more).clicked() {
                     self.start_continue();
                     ui.close();
                 }
-            });
         });
         if self.solving.is_some() {
             ui.spinner();
@@ -230,20 +228,33 @@ impl PlassiApp {
         if theme::icon_button(ui, p, theme::Icon::SidePanel, tip, open).clicked() {
             self.chart.hide_inspector = open;
         }
-        let view = &mut self.chart.view;
         if theme::icon_button(ui, p, theme::Icon::Fit, tr("Fit the room to the window (F)"), false)
             .clicked()
         {
-            view.fit_pending = true;
+            self.chart.view.fit_pending = true;
         }
         if theme::icon_button(ui, p, theme::Icon::ZoomIn, tr("Zoom in (scroll wheel)"), false).clicked()
         {
-            view.camera.zoom_by(1.25);
+            self.chart.view.camera.zoom_by(1.25);
         }
-        let percent = RichText::new(format!("{:.0}%", view.camera.zoom * 100.0))
-            .size(theme::text::SMALL)
-            .color(p.muted);
-        ui.add_sized([44.0, theme::CONTROL_HEIGHT], egui::Label::new(percent));
+        let zoom = ui
+            .add(
+                theme::field(&mut self.chart.zoom_entry)
+                    .desired_width(42.0)
+                    .horizontal_align(egui::Align::Center),
+            )
+            .on_hover_text(tr("Zoom percentage (20–300)"));
+        if zoom.lost_focus()
+            && let Ok(percent) = self.chart.zoom_entry.trim().parse::<f32>()
+            && percent.is_finite()
+            && percent > 0.0
+        {
+            self.chart.view.camera.zoom_to(percent / 100.0);
+        }
+        if !zoom.has_focus() {
+            self.chart.zoom_entry = format!("{:.0}", self.chart.view.camera.zoom_target() * 100.0);
+        }
+        ui.label(RichText::new("%").size(theme::text::SMALL).color(p.muted));
         if theme::icon_button(
             ui,
             p,
@@ -253,7 +264,7 @@ impl PlassiApp {
         )
         .clicked()
         {
-            view.camera.zoom_by(0.8);
+            self.chart.view.camera.zoom_by(0.8);
         }
     }
 
