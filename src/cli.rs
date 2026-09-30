@@ -90,6 +90,12 @@ fn solve(path: &str) -> Result<()> {
 
 /// Runs the search five times and reports each result, for tuning.
 fn bench(path: &str, seconds: f64, runs: usize) -> Result<()> {
+    if !seconds.is_finite() || seconds <= 0.0 {
+        bail!("SECONDS must be a finite number greater than zero");
+    }
+    if runs == 0 {
+        bail!("RUNS must be greater than zero");
+    }
     let project = io::load(Path::new(path))?;
     for trial in 1..=bench_trials() {
         let outcome = seating::search(
@@ -160,4 +166,19 @@ fn export(path: &str, number: Option<usize>) -> Result<()> {
 /// Trials per bench, from `PLASSI_TRIALS` (default 5).
 fn bench_trials() -> u64 {
     std::env::var("PLASSI_TRIALS").ok().and_then(|t| t.parse().ok()).unwrap_or(5)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::bench;
+
+    #[test]
+    fn bench_rejects_invalid_search_limits_before_loading_a_project() {
+        for seconds in [f64::NAN, f64::INFINITY, 0.0, -1.0] {
+            let error = bench("missing.json", seconds, 1).unwrap_err();
+            assert!(error.to_string().contains("SECONDS"));
+        }
+        let error = bench("missing.json", 1.0, 0).unwrap_err();
+        assert!(error.to_string().contains("RUNS"));
+    }
 }
