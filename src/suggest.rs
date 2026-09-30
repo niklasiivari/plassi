@@ -231,7 +231,8 @@ fn name_match(name: &str, text: &NoteText, counts: &NameCounts) -> Option<(Confi
     // matching initial, or just the first name (optionally with an initial).
     let fuzzy_pair = |seg: &Vec<String>| {
         seg.windows(2).any(|w| {
-            (close(first, &w[0]) && close(last, &w[1])) || (close(last, &w[0]) && close(first, &w[1]))
+            (close(first, &w[0]) && close(last, &w[1]))
+                || (close(last, &w[0]) && close(first, &w[1]))
         })
     };
     let is_initial = |t: &String| t.chars().next() == initial && t.chars().count() <= 2;
@@ -256,12 +257,18 @@ fn name_match(name: &str, text: &NoteText, counts: &NameCounts) -> Option<(Confi
         && counts.last.get(last) == Some(&1)
         && segments.iter().any(surname_only)
     {
-        Some((Confidence::Medium, tr("only person with this surname").into()))
+        Some((
+            Confidence::Medium,
+            tr("only person with this surname").into(),
+        ))
     } else if first.chars().count() >= 3
         && counts.first.get(first) == Some(&1)
         && segments.iter().any(first_only)
     {
-        Some((Confidence::Low, tr("only person with this first name").into()))
+        Some((
+            Confidence::Low,
+            tr("only person with this first name").into(),
+        ))
     } else {
         None
     }

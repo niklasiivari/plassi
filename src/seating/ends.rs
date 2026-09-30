@@ -103,13 +103,18 @@ impl Ends {
             .iter()
             .map(|term| {
                 let seat = seat_of[term.person];
-                let level = (seat != NONE).then(|| end_level(seat, &self.beside, &|s| occupant[s] != NONE));
+                let level =
+                    (seat != NONE).then(|| end_level(seat, &self.beside, &|s| occupant[s] != NONE));
                 let penalty = match level {
                     Some(2) => term.end,
                     Some(1) => term.near,
                     _ => 0,
                 };
-                EndResult { rule_id: term.rule_id, level, penalty }
+                EndResult {
+                    rule_id: term.rule_id,
+                    level,
+                    penalty,
+                }
             })
             .collect()
     }

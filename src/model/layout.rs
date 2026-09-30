@@ -17,9 +17,21 @@ impl Layout {
     /// One row of `tables` tables with `per_side` seats on each side.
     pub fn simple(tables: usize, per_side: usize) -> Self {
         let tables = (1..=tables)
-            .map(|i| TableSpec { id: format!("table-{i}"), label: crate::i18n::fill("Table {}", &[&i]), left: per_side, right: per_side })
+            .map(|i| TableSpec {
+                id: format!("table-{i}"),
+                label: crate::i18n::fill("Table {}", &[&i]),
+                left: per_side,
+                right: per_side,
+            })
             .collect();
-        Self { rows: vec![RowSpec { id: "row-1".into(), label: crate::i18n::fill("Row {}", &[&1]), tables }], ..Default::default() }
+        Self {
+            rows: vec![RowSpec {
+                id: "row-1".into(),
+                label: crate::i18n::fill("Row {}", &[&1]),
+                tables,
+            }],
+            ..Default::default()
+        }
     }
 
     /// A room for `people`: tables of up to 10 seats per side, as few as fit.
@@ -79,7 +91,11 @@ impl Layout {
     }
 
     pub fn seat_count(&self) -> usize {
-        self.rows.iter().flat_map(|r| &r.tables).map(|t| t.left + t.right).sum()
+        self.rows
+            .iter()
+            .flat_map(|r| &r.tables)
+            .map(|t| t.left + t.right)
+            .sum()
     }
 }
 
@@ -144,13 +160,19 @@ pub fn gaps<'a>(seats: &'a [Seat], assignment: &BTreeMap<usize, String>) -> Vec<
     let taken: HashSet<&str> = assignment.values().map(String::as_str).collect();
     let mut deepest: HashMap<(&str, Side), usize> = HashMap::new();
     for seat in seats.iter().filter(|s| taken.contains(s.id.as_str())) {
-        let depth = deepest.entry((seat.table_id.as_str(), seat.side)).or_default();
+        let depth = deepest
+            .entry((seat.table_id.as_str(), seat.side))
+            .or_default();
         *depth = (*depth).max(seat.index + 1);
     }
     seats
         .iter()
         .filter(|s| !taken.contains(s.id.as_str()))
-        .filter(|s| deepest.get(&(s.table_id.as_str(), s.side)).is_some_and(|d| s.index + 1 < *d))
+        .filter(|s| {
+            deepest
+                .get(&(s.table_id.as_str(), s.side))
+                .is_some_and(|d| s.index + 1 < *d)
+        })
         .collect()
 }
 

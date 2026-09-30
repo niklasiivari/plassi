@@ -42,9 +42,20 @@ fn card_radius(zoom: f32) -> u8 {
 
 /// A dashed outline along the edges of `rect`.
 fn dashed_outline(painter: &egui::Painter, rect: Rect, zoom: f32, color: Color32) {
-    let corners = [rect.left_top(), rect.right_top(), rect.right_bottom(), rect.left_bottom(), rect.left_top()];
+    let corners = [
+        rect.left_top(),
+        rect.right_top(),
+        rect.right_bottom(),
+        rect.left_bottom(),
+        rect.left_top(),
+    ];
     let dash = (4.0 * zoom).max(2.0);
-    painter.extend(egui::Shape::dashed_line(&corners, Stroke::new(1.0, color), dash, dash * 0.75));
+    painter.extend(egui::Shape::dashed_line(
+        &corners,
+        Stroke::new(1.0, color),
+        dash,
+        dash * 0.75,
+    ));
 }
 
 /// A spare seat (outlined), or a gap mid-table (red) that should be closed.
@@ -58,7 +69,12 @@ pub(super) fn paint_empty_seat(painter: &egui::Painter, p: Palette, rect: Rect, 
             tr("gap — close it"),
             p.bad,
         ),
-        _ => (Color32::TRANSPARENT, theme::blend(p.border, p.muted, 0.35), tr("spare seat"), p.muted),
+        _ => (
+            Color32::TRANSPARENT,
+            theme::blend(p.border, p.muted, 0.35),
+            tr("spare seat"),
+            p.muted,
+        ),
     };
     painter.rect_filled(rect, card_radius(zoom), fill);
     dashed_outline(painter, rect.shrink(0.5), zoom, stroke);
@@ -100,12 +116,30 @@ pub(super) fn paint_person_card(
     // painted in the status colour, then covered except for a thin strip.
     let stripe = look.status.map_or(0.0, |_| 3.0 * zoom.max(0.67));
     if let Some(status) = look.status {
-        painter.rect_filled(rect, radius, theme::outcome_color(p, Some(status)).gamma_multiply(alpha));
+        painter.rect_filled(
+            rect,
+            radius,
+            theme::outcome_color(p, Some(status)).gamma_multiply(alpha),
+        );
     }
     let body = Rect::from_min_max(Pos2::new(rect.min.x + stripe, rect.min.y), rect.max);
-    let body_radius = if stripe > 0.0 { CornerRadius { nw: 0, sw: 0, ne: radius, se: radius } } else { CornerRadius::same(radius) };
+    let body_radius = if stripe > 0.0 {
+        CornerRadius {
+            nw: 0,
+            sw: 0,
+            ne: radius,
+            se: radius,
+        }
+    } else {
+        CornerRadius::same(radius)
+    };
     painter.rect_filled(body, body_radius, fill);
-    painter.rect_stroke(rect, radius, Stroke::new(stroke.width, stroke.color.gamma_multiply(alpha)), StrokeKind::Inside);
+    painter.rect_stroke(
+        rect,
+        radius,
+        Stroke::new(stroke.width, stroke.color.gamma_multiply(alpha)),
+        StrokeKind::Inside,
+    );
     let text_x = paint_avatar(painter, p, rect, person, alpha);
     if rect.height() > 14.0 {
         paint_card_text(painter, p, rect, text_x, person, alpha);
@@ -227,7 +261,10 @@ pub(super) fn badge(painter: &egui::Painter, at: Pos2, text: &str, color: Color3
         FontId::proportional(theme::text::SMALL),
         color,
     );
-    let rect = Rect::from_center_size(at, galley.size() + Vec2::new(theme::space::XL, theme::space::M));
+    let rect = Rect::from_center_size(
+        at,
+        galley.size() + Vec2::new(theme::space::XL, theme::space::M),
+    );
     let radius = theme::radius::PILL;
     painter.add(theme::shadow_lg(p).as_shape(rect, radius));
     painter.rect_filled(rect, radius, theme::blend(p.surface, color, 0.12));

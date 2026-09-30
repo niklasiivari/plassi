@@ -11,8 +11,6 @@ pub(super) const CARD_H: f32 = 44.0;
 /// so the card lies just outside the table edge.
 pub(super) const CARD_OFFSET: f32 = CARD_W / 2.0 + 6.0;
 
-
-
 /// What the user did with seat cards this frame.
 #[derive(Default)]
 pub(super) struct SeatActions {
@@ -120,7 +118,10 @@ impl PlassiApp {
             );
             painter.rect(
                 view.rect(body),
-                CornerRadius::same((theme::radius::SM as f32 * view.zoom).clamp(2.0, theme::radius::SM as f32) as u8),
+                CornerRadius::same(
+                    (theme::radius::SM as f32 * view.zoom).clamp(2.0, theme::radius::SM as f32)
+                        as u8,
+                ),
                 p.table,
                 Stroke::NONE,
                 StrokeKind::Inside,
@@ -214,13 +215,23 @@ impl PlassiApp {
                 .get(&seat.id)
                 .is_some_and(|p| group.contains(p));
             let occupant = scene.occupant.get(&seat.id);
-            let previewed = self.chart.group_preview.as_ref().is_some_and(|s| s.contains(&seat.id))
+            let previewed = self
+                .chart
+                .group_preview
+                .as_ref()
+                .is_some_and(|s| s.contains(&seat.id))
                 || occupant.is_some_and(|p| preview.contains(p));
             let picked = occupant.is_some_and(|p| self.chart.multi.contains(p));
             if !in_group && !previewed && !picked {
                 continue;
             }
-            let color = if picked { p.accent } else if previewed { p.good } else { p.accent.gamma_multiply(0.6) };
+            let color = if picked {
+                p.accent
+            } else if previewed {
+                p.good
+            } else {
+                p.accent.gamma_multiply(0.6)
+            };
             painter.rect(
                 view.rect(card_rect(seat)).expand(4.0 * view.zoom.max(0.5)),
                 CornerRadius::same((12.0 * view.zoom).clamp(3.0, 14.0) as u8),
@@ -307,7 +318,11 @@ impl PlassiApp {
             let pinned = scene.pinned.contains(&id);
             response.context_menu(|ui| {
                 if ui
-                    .button(if pinned { tr("Unpin (P)") } else { tr("Pin to this seat (P)") })
+                    .button(if pinned {
+                        tr("Unpin (P)")
+                    } else {
+                        tr("Pin to this seat (P)")
+                    })
                     .clicked()
                 {
                     actions.pin = Some((id, (!pinned).then(|| seat.id.clone())));
@@ -316,8 +331,18 @@ impl PlassiApp {
                     actions.start_swap = Some(id);
                 }
                 let picked = self.chart.multi.contains(&id);
-                let pick = if picked { tr("Remove from selection") } else { tr("Add to selection") };
-                if ui.button(pick).on_hover_text(tr("Or Ctrl-click. Select two or more to group them or keep them apart.")).clicked() {
+                let pick = if picked {
+                    tr("Remove from selection")
+                } else {
+                    tr("Add to selection")
+                };
+                if ui
+                    .button(pick)
+                    .on_hover_text(tr(
+                        "Or Ctrl-click. Select two or more to group them or keep them apart.",
+                    ))
+                    .clicked()
+                {
                     actions.pick = Some(id);
                 }
                 if ui.button(tr("Show details")).clicked() {
@@ -373,9 +398,18 @@ impl PlassiApp {
         self.paint_card(&top, p, ghost, Some(person), look);
         ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
         let Some(target) = target else { return };
-        let key = (self.file.revision, self.selected_candidate, person, target.to_string());
+        let key = (
+            self.file.revision,
+            self.selected_candidate,
+            person,
+            target.to_string(),
+        );
         let (project, candidate) = (&self.project, self.selected_candidate);
-        if let Some(preview) = self.chart.drop_preview.get(key, || preview_move(project, candidate, person, target)) {
+        if let Some(preview) = self
+            .chart
+            .drop_preview
+            .get(key, || preview_move(project, candidate, person, target))
+        {
             let (text, color) = preview_text(preview, p);
             badge(
                 &top,
@@ -402,7 +436,10 @@ impl PlassiApp {
             self.page = crate::app::Page::People;
         }
         if let Some(person) = actions.pick {
-            let seed = self.chart.multi.is_empty()
+            let seed = self
+                .chart
+                .multi
+                .is_empty()
                 .then_some(self.selected_person)
                 .flatten()
                 .filter(|id| self.project.person(*id).is_some());
@@ -460,9 +497,7 @@ impl PlassiApp {
     fn paint_status_badge(&self, ui: &egui::Ui, painter: &egui::Painter, rect: Rect, p: Palette) {
         let at = Pos2::new(rect.center().x, rect.min.y + 28.0);
         if let Some(from) = self.chart.swap_from {
-            let name = self
-                .project
-                .person_name(from);
+            let name = self.project.person_name(from);
             badge(
                 painter,
                 at,

@@ -12,9 +12,9 @@
 
 mod app;
 mod catalog;
-mod example;
 #[cfg(not(target_arch = "wasm32"))]
 mod cli;
+mod example;
 mod groups;
 mod i18n;
 mod import;

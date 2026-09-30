@@ -15,13 +15,22 @@ pub(in crate::app) struct DropPreview {
 
 impl DropPreview {
     fn blocked(reason: String) -> Self {
-        Self { delta: 0, hard_delta: 0, met_delta: 0, blocked: Some(reason) }
+        Self {
+            delta: 0,
+            hard_delta: 0,
+            met_delta: 0,
+            blocked: Some(reason),
+        }
     }
 }
 
 /// Wishes fully met in an evaluation.
 fn wishes_met(project: &Project, evaluation: &Evaluation) -> i64 {
-    evaluation.results.iter().filter(|r| project.is_wish(r.rule_id) && r.outcome() == Outcome::Met).count() as i64
+    evaluation
+        .results
+        .iter()
+        .filter(|r| project.is_wish(r.rule_id) && r.outcome() == Outcome::Met)
+        .count() as i64
 }
 
 /// An improving move: (seat, its current occupant, score delta).
@@ -60,13 +69,14 @@ pub(super) fn preview_move(
     if let Some(other) = other
         && project.pinned_people().contains(&other)
     {
-        let name = project
-            .person_name(other);
+        let name = project.person_name(other);
         return Some(DropPreview::blocked(fill("{} is pinned here", &[&name])));
     }
     let seats = project.layout.seats();
     if gaps(&seats, &next).len() > gaps(&seats, assignment).len() {
-        return Some(DropPreview::blocked(tr("Would leave an empty seat mid-table; swap with someone instead").into()));
+        return Some(DropPreview::blocked(
+            tr("Would leave an empty seat mid-table; swap with someone instead").into(),
+        ));
     }
     let scorer = crate::seating::Scorer::new(project);
     let before = score::evaluate_with(&scorer, project, assignment);
@@ -102,7 +112,8 @@ pub(super) fn best_moves(project: &Project, candidate: usize, person: usize) -> 
         .take_while(|(_, delta)| *delta < 0)
         .filter_map(|(seat, _)| {
             let (next, other) = apply_move(assignment, person, &seat)?;
-            let blocked = other.is_some_and(|o| pinned.contains(&o)) || gaps(&seats, &next).len() > gaps_now;
+            let blocked =
+                other.is_some_and(|o| pinned.contains(&o)) || gaps(&seats, &next).len() > gaps_now;
             (!blocked).then_some((seat, next, other))
         })
         .take(SUGGESTION_CANDIDATES)
@@ -153,10 +164,7 @@ impl PlassiApp {
         if pinned.contains(&person) {
             self.project.pin(person, target);
         }
-        let name = |id: usize| {
-            self.project
-                .person_name(id).to_string()
-        };
+        let name = |id: usize| self.project.person_name(id).to_string();
         let what = match other {
             Some(other) => fill("Swapped {} ↔ {}", &[&name(person), &name(other)]),
             None => fill("Moved {}", &[&name(person)]),
@@ -219,9 +227,7 @@ impl PlassiApp {
         if self.file.external_invalid {
             return;
         }
-        let name = self
-            .project
-            .person_name(person).to_string();
+        let name = self.project.person_name(person).to_string();
         match seat {
             Some(seat) => {
                 self.project.pin(person, seat);
@@ -275,7 +281,12 @@ impl PlassiApp {
             && let Some(person) = self.selected_person
         {
             let pinned = self.project.pinned_people().contains(&person);
-            let seat = self.project.candidates.get(self.selected_candidate).and_then(|c| c.assignment.get(&person)).cloned();
+            let seat = self
+                .project
+                .candidates
+                .get(self.selected_candidate)
+                .and_then(|c| c.assignment.get(&person))
+                .cloned();
             match (pinned, seat) {
                 (true, _) => self.set_pin(person, None),
                 (false, Some(seat)) => self.set_pin(person, Some(&seat)),
@@ -284,7 +295,10 @@ impl PlassiApp {
         }
         if key(egui::Key::G) && self.chart.multi.len() >= 2 {
             let people = std::mem::take(&mut self.chart.multi).into_iter().collect();
-            self.project.add_preference(crate::preferences::PreferenceKind::together(people), crate::preferences::Strength::Important);
+            self.project.add_preference(
+                crate::preferences::PreferenceKind::together(people),
+                crate::preferences::Strength::Important,
+            );
             self.commit(tr("Added your preference; solve or improve to apply it"));
         }
     }

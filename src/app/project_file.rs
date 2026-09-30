@@ -38,15 +38,32 @@ pub(super) struct Step {
 
 /// A name that works as a file name: no path separators or reserved characters.
 pub(super) fn project_name(text: &str) -> String {
-    let name: String = text.trim().chars().map(|c| if "/\\:*?\"<>|".contains(c) || c.is_control() { '-' } else { c }).collect();
-    if name.is_empty() { tr(NEW_PROJECT).to_string() } else { name }
+    let name: String = text
+        .trim()
+        .chars()
+        .map(|c| {
+            if "/\\:*?\"<>|".contains(c) || c.is_control() {
+                '-'
+            } else {
+                c
+            }
+        })
+        .collect();
+    if name.is_empty() {
+        tr(NEW_PROJECT).to_string()
+    } else {
+        name
+    }
 }
 
 impl ProjectFile {
     /// Opens the project used last time, or starts a new one.
     pub(super) fn open_default(library: platform::Library) -> (Self, Project, String) {
         let projects = library.projects();
-        let name = library.last().filter(|n| projects.contains(n)).or_else(|| projects.first().cloned());
+        let name = library
+            .last()
+            .filter(|n| projects.contains(n))
+            .or_else(|| projects.first().cloned());
         let name = name.unwrap_or_else(|| {
             let name = tr(NEW_PROJECT).to_string();
             let _ = io::encode(&Project::new()).and_then(|b| library.store(&name).write(&b));
@@ -56,7 +73,10 @@ impl ProjectFile {
         let stored = store.read();
         let (project, status) = match stored.as_deref().map(io::parse) {
             Some(Ok(project)) => (project, fill("Opened {}", &[&name])),
-            Some(Err(error)) => (Project::new(), fill("{} needs repair: {}", &[&name, &format!("{error:#}")])),
+            Some(Err(error)) => (
+                Project::new(),
+                fill("{} needs repair: {}", &[&name, &format!("{error:#}")]),
+            ),
             None => (Project::new(), String::new()),
         };
         library.remember(&name);
@@ -102,7 +122,8 @@ impl PlassiApp {
     /// Offers the project as a JSON file.
     #[cfg(target_arch = "wasm32")]
     pub(super) fn download_project(&mut self) {
-        let result = io::encode(&self.project).and_then(|bytes| platform::save_file(&self.file.store, "plassi.json", &bytes));
+        let result = io::encode(&self.project)
+            .and_then(|bytes| platform::save_file(&self.file.store, "plassi.json", &bytes));
         self.status = match result {
             Ok(saved) => {
                 self.downloaded_copy();
@@ -119,14 +140,19 @@ impl PlassiApp {
             return;
         };
         self.file.upload = None;
-        match result.map_err(anyhow::Error::msg).and_then(|bytes| io::parse(&bytes)) {
+        match result
+            .map_err(anyhow::Error::msg)
+            .and_then(|bytes| io::parse(&bytes))
+        {
             Ok(project) => {
                 self.backup_now();
                 self.project = project;
                 self.selected_candidate = 0;
                 self.commit(tr("Loaded the project file"));
             }
-            Err(error) => self.status = fill("Could not load that file: {}", &[&format!("{error:#}")]),
+            Err(error) => {
+                self.status = fill("Could not load that file: {}", &[&format!("{error:#}")])
+            }
         }
     }
 
@@ -138,7 +164,11 @@ impl PlassiApp {
     /// Switches to another project in the library.
     pub(super) fn switch_project(&mut self, name: &str) {
         let store = self.file.library.store(name);
-        match store.read().ok_or_else(|| anyhow::anyhow!("{name} is empty")).and_then(|b| io::parse(&b).map(|p| (p, b))) {
+        match store
+            .read()
+            .ok_or_else(|| anyhow::anyhow!("{name} is empty"))
+            .and_then(|b| io::parse(&b).map(|p| (p, b)))
+        {
             Ok((project, bytes)) => {
                 self.file.name = name.to_string();
                 self.file.store = store;
@@ -154,7 +184,9 @@ impl PlassiApp {
                 self.replace_project(project);
                 self.status = fill("Opened {}", &[&name]);
             }
-            Err(error) => self.status = fill("Could not open {}: {}", &[&name, &format!("{error:#}")]),
+            Err(error) => {
+                self.status = fill("Could not open {}: {}", &[&name, &format!("{error:#}")])
+            }
         }
     }
 
@@ -163,7 +195,9 @@ impl PlassiApp {
         let name = self.file.free_name(name);
         match io::encode(&project).and_then(|bytes| self.file.library.store(&name).write(&bytes)) {
             Ok(()) => self.switch_project(&name),
-            Err(error) => self.status = fill("Could not create {}: {}", &[&name, &format!("{error:#}")]),
+            Err(error) => {
+                self.status = fill("Could not create {}: {}", &[&name, &format!("{error:#}")])
+            }
         }
     }
 
@@ -234,11 +268,17 @@ impl PlassiApp {
                 self.file.redo_stack.clear();
                 self.file.external_invalid = false;
                 self.replace_project(project);
-                self.status = fill("Reloaded external changes from {}", &[&self.file.store.location()]);
+                self.status = fill(
+                    "Reloaded external changes from {}",
+                    &[&self.file.store.location()],
+                );
             }
             Err(error) => {
                 self.file.external_invalid = true;
-                self.status = fill("External JSON is invalid; showing last valid state: {}", &[&format!("{error:#}")]);
+                self.status = fill(
+                    "External JSON is invalid; showing last valid state: {}",
+                    &[&format!("{error:#}")],
+                );
             }
         }
     }
@@ -264,7 +304,11 @@ impl PlassiApp {
 
     /// Restores the previous (`redo == false`) or next saved state.
     pub(super) fn undo(&mut self, redo: bool) {
-        let from = if redo { &self.file.redo_stack } else { &self.file.undo_stack };
+        let from = if redo {
+            &self.file.redo_stack
+        } else {
+            &self.file.undo_stack
+        };
         let Some(step) = from.last() else { return };
         let Ok(project) = serde_json::from_slice::<Project>(&step.bytes) else {
             return;
@@ -272,7 +316,11 @@ impl PlassiApp {
         let change = step.change.clone();
         let current = self.file.last_bytes.clone();
         self.project = project;
-        let message = if redo { fill("Redid: {}", &[&change]) } else { fill("Undid: {}", &[&change]) };
+        let message = if redo {
+            fill("Redid: {}", &[&change])
+        } else {
+            fill("Undid: {}", &[&change])
+        };
         if !self.save(&message) {
             return;
         }
@@ -289,19 +337,25 @@ impl PlassiApp {
     /// project goes back to the last saved state.
     pub(super) fn save(&mut self, message: &str) -> bool {
         if self.file.external_invalid {
-            self.revert(tr("Cannot save while the project file is invalid; repair it first"));
+            self.revert(tr(
+                "Cannot save while the project file is invalid; repair it first",
+            ));
             return false;
         }
         let disk_bytes = self.file.store.read();
         // A missing file is simply written again; any other difference is an external edit.
         if disk_bytes.is_some() && disk_bytes.as_deref() != self.file.last_bytes.as_deref() {
-            self.revert(tr("The project file changed outside the app; reloading it instead of overwriting"));
+            self.revert(tr(
+                "The project file changed outside the app; reloading it instead of overwriting",
+            ));
             self.file.last_check = Instant::now() - Duration::from_secs(1);
             self.sync_external();
             return false;
         }
         self.auto_backup();
-        match io::encode(&self.project).and_then(|bytes| self.file.store.write(&bytes).map(|()| bytes)) {
+        match io::encode(&self.project)
+            .and_then(|bytes| self.file.store.write(&bytes).map(|()| bytes))
+        {
             Ok(bytes) => {
                 self.file.last_bytes = Some(bytes);
                 self.after_change();
@@ -309,7 +363,10 @@ impl PlassiApp {
                 true
             }
             Err(error) => {
-                self.revert(&fill("Save failed; restored last saved state: {}", &[&format!("{error:#}")]));
+                self.revert(&fill(
+                    "Save failed; restored last saved state: {}",
+                    &[&format!("{error:#}")],
+                ));
                 false
             }
         }
@@ -317,7 +374,11 @@ impl PlassiApp {
 
     /// Discards unsaved edits: back to the last saved state.
     fn revert(&mut self, message: &str) {
-        let saved = self.file.last_bytes.as_deref().and_then(|b| serde_json::from_slice::<Project>(b).ok());
+        let saved = self
+            .file
+            .last_bytes
+            .as_deref()
+            .and_then(|b| serde_json::from_slice::<Project>(b).ok());
         if let Some(project) = saved {
             self.replace_project(project);
         }
@@ -334,20 +395,29 @@ impl PlassiApp {
     /// options that are gone.
     fn after_change(&mut self) {
         self.file.revision += 1;
-        self.selected_candidate = self.selected_candidate.min(self.project.candidates.len().saturating_sub(1));
+        self.selected_candidate = self
+            .selected_candidate
+            .min(self.project.candidates.len().saturating_sub(1));
         let exists = |id: &usize| self.project.person(*id).is_some();
         if !self.selected_person.as_ref().is_none_or(exists) {
             self.selected_person = None;
         }
         self.chart.forget_people(&exists);
         self.people.picked.retain(exists);
-        if self.people.wish_draft.as_ref().is_some_and(|d| !exists(&d.person)) {
+        if self
+            .people
+            .wish_draft
+            .as_ref()
+            .is_some_and(|d| !exists(&d.person))
+        {
             self.people.wish_draft = None;
         }
         // A draft's note is an index; drop it if it now points at someone else's note.
         let notes = &self.project.notes;
         if let Some(draft) = &mut self.people.wish_draft
-            && draft.note.is_some_and(|i| notes.get(i).is_none_or(|n| n.person != draft.person))
+            && draft
+                .note
+                .is_some_and(|i| notes.get(i).is_none_or(|n| n.person != draft.person))
         {
             draft.note = None;
         }

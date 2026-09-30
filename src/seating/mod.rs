@@ -25,11 +25,11 @@ use crate::model::{Candidate, Project};
 
 pub use breakdown::{Breakdown, Scorer, TermResult};
 pub use problem::{PolicyReport, Source};
-#[cfg(test)]
-pub(crate) use tabu::check_deltas;
-pub use search::{Options, Outcome, Progress, Search};
 #[cfg(not(target_arch = "wasm32"))]
 pub use search::search;
+pub use search::{Options, Outcome, Progress, Search};
+#[cfg(test)]
+pub(crate) use tabu::check_deltas;
 pub use tabu::move_deltas;
 
 /// Search time for a new option. Quality matters more than waiting: longer
@@ -49,7 +49,12 @@ fn runs() -> usize {
 
 /// The search for a new option. With `prior`, at least `min_changed` people
 /// with wishes must sit somewhere else than in that option.
-pub fn solve_search(project: &Project, prior: Option<&Candidate>, min_changed: usize, budget: Duration) -> Result<Search> {
+pub fn solve_search(
+    project: &Project,
+    prior: Option<&Candidate>,
+    min_changed: usize,
+    budget: Duration,
+) -> Result<Search> {
     project.validate()?;
     Search::new(
         project,
@@ -73,7 +78,14 @@ pub fn improve_search(
 ) -> Result<Search> {
     Search::new(
         project,
-        Options { start: Some(assignment), fixed: fixed.clone(), differ_from: None, budget, runs: runs(), seed: None },
+        Options {
+            start: Some(assignment),
+            fixed: fixed.clone(),
+            differ_from: None,
+            budget,
+            runs: runs(),
+            seed: None,
+        },
     )
 }
 
@@ -89,7 +101,12 @@ pub fn candidate(project: &Project, outcome: Outcome, budget: Duration) -> Candi
 
 #[cfg(not(target_arch = "wasm32"))]
 /// Solves from scratch, running the search to its end.
-pub fn solve(project: &Project, prior: Option<&Candidate>, min_changed: usize, budget: Duration) -> Result<Candidate> {
+pub fn solve(
+    project: &Project,
+    prior: Option<&Candidate>,
+    min_changed: usize,
+    budget: Duration,
+) -> Result<Candidate> {
     let mut search = solve_search(project, prior, min_changed, budget)?;
     search.run_to_end();
     Ok(candidate(project, search.finish(), budget))

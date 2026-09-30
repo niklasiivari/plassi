@@ -53,7 +53,6 @@ impl Candidate {
         }
         Ok(())
     }
-
 }
 
 /// Row, table and seat IDs of a validated layout, for checking rule references.
@@ -81,7 +80,10 @@ impl Layout {
                     bail!("table ID {} may not contain ':'", table.id);
                 }
                 if table.left.max(table.right) > MAX_SIDE_SEATS {
-                    bail!("table {} has more than {MAX_SIDE_SEATS} seats on a side", table.id);
+                    bail!(
+                        "table {} has more than {MAX_SIDE_SEATS} seats on a side",
+                        table.id
+                    );
                 }
             }
         }
@@ -176,7 +178,11 @@ impl Rule {
                 if !people.contains(requester) {
                     bail!("rule {} refers to unknown requester", self.id);
                 }
-                if !(0..=MAX_WEIGHT).contains(weight) || !costs.is_ordered() || costs.0[0] < 0 || costs.0[CLASSES - 1] > MAX_COST {
+                if !(0..=MAX_WEIGHT).contains(weight)
+                    || !costs.is_ordered()
+                    || costs.0[0] < 0
+                    || costs.0[CLASSES - 1] > MAX_COST
+                {
                     bail!("rule {} has invalid proximity costs", self.id);
                 }
                 self.validate_target(target, *requester, people)

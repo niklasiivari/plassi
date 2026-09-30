@@ -17,7 +17,9 @@ pub struct Keep {
 
 /// Milliseconds since 1970, now.
 pub fn now_stamp() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64)
 }
 
 /// A backup's name without extension, e.g. `001727000000000`.
@@ -26,7 +28,9 @@ pub fn stamp_name(stamp: u64) -> String {
 }
 
 pub fn parse_stamp(name: &str) -> Option<u64> {
-    (name.len() == 15 && name.bytes().all(|b| b.is_ascii_digit())).then(|| name.parse().ok()).flatten()
+    (name.len() == 15 && name.bytes().all(|b| b.is_ascii_digit()))
+        .then(|| name.parse().ok())
+        .flatten()
 }
 
 /// The backups to delete from `stamps`, as of `now`.
@@ -72,8 +76,19 @@ mod tests {
         let now = 100 * DAY_MS;
         // Hourly backups over the last 20 days.
         let stamps: Vec<u64> = (0..20 * 24).map(|h| now - h * DAY_MS / 24).collect();
-        let pruned = to_prune(&stamps, now, Keep { recent: 5, days: 14 });
-        let kept: Vec<u64> = stamps.iter().copied().filter(|s| !pruned.contains(s)).collect();
+        let pruned = to_prune(
+            &stamps,
+            now,
+            Keep {
+                recent: 5,
+                days: 14,
+            },
+        );
+        let kept: Vec<u64> = stamps
+            .iter()
+            .copied()
+            .filter(|s| !pruned.contains(s))
+            .collect();
         assert!(stamps[..5].iter().all(|s| kept.contains(s)));
         // Older than 14 days: all gone.
         assert!(kept.iter().all(|&s| now - s < 14 * DAY_MS));

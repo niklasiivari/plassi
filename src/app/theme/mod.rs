@@ -213,7 +213,9 @@ fn visuals(p: Palette, dark: bool) -> Visuals {
 fn install_fonts(ctx: &egui::Context) {
     const REGULAR: &[u8] = include_bytes!("../../../typeset/fonts/SourceSans3-Regular.otf");
     let mut fonts = FontDefinitions::default();
-    fonts.font_data.insert("ui".into(), FontData::from_static(REGULAR).into());
+    fonts
+        .font_data
+        .insert("ui".into(), FontData::from_static(REGULAR).into());
     if let Some(family) = fonts.families.get_mut(&FontFamily::Proportional) {
         family.insert(0, "ui".into());
     }

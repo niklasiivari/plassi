@@ -19,7 +19,12 @@ pub enum PrintKind {
 }
 
 impl PrintKind {
-    pub const ALL: [PrintKind; 4] = [PrintKind::Chart, PrintKind::Kitchen, PrintKind::Bar, PrintKind::Door];
+    pub const ALL: [PrintKind; 4] = [
+        PrintKind::Chart,
+        PrintKind::Kitchen,
+        PrintKind::Bar,
+        PrintKind::Door,
+    ];
 
     pub fn key(self) -> &'static str {
         match self {
@@ -41,10 +46,14 @@ impl PrintKind {
 
     pub fn description(self) -> &'static str {
         match self {
-            PrintKind::Chart => tr("For the wall: every table with names, plus an alphabetical index to find your seat."),
+            PrintKind::Chart => tr(
+                "For the wall: every table with names, plus an alphabetical index to find your seat.",
+            ),
             PrintKind::Kitchen => tr("Food choices and allergies per table and seat, with totals."),
             PrintKind::Bar => tr("Drink choices per table and seat, with totals."),
-            PrintKind::Door => tr("Alphabetical ticket check with price category, table and a tick box."),
+            PrintKind::Door => {
+                tr("Alphabetical ticket check with price category, table and a tick box.")
+            }
         }
     }
 }
@@ -191,7 +200,8 @@ fn totals_json(project: &Project, kind: Kind) -> Vec<Value> {
 /// A print as PDF (on the desktop; the browser typesets through its own module).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn render(project: &Project, candidate: usize, kind: PrintKind) -> Result<Vec<u8>> {
-    plassi_typeset::pdf(&data(project, candidate, kind)?.to_string()).map_err(|error| anyhow!(error))
+    plassi_typeset::pdf(&data(project, candidate, kind)?.to_string())
+        .map_err(|error| anyhow!(error))
 }
 
 /// File name of a print, e.g. "plassi-kitchen.pdf".
@@ -201,9 +211,17 @@ pub fn file_name(kind: PrintKind) -> String {
 
 #[cfg(not(target_arch = "wasm32"))]
 /// Writes the PDF next to the project file and returns its path.
-pub fn export(project: &Project, project_path: &std::path::Path, candidate: usize, kind: PrintKind) -> Result<std::path::PathBuf> {
+pub fn export(
+    project: &Project,
+    project_path: &std::path::Path,
+    candidate: usize,
+    kind: PrintKind,
+) -> Result<std::path::PathBuf> {
     let pdf = render(project, candidate, kind)?;
-    let dir = project_path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(std::path::Path::new("."));
+    let dir = project_path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(std::path::Path::new("."));
     let path = dir.join(file_name(kind));
     std::fs::write(&path, pdf)?;
     Ok(path)

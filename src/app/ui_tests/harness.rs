@@ -49,11 +49,19 @@ pub(super) struct Ui {
 impl Ui {
     /// The app on an empty library, in English.
     pub(super) fn open() -> Self {
-        let serial = SERIAL.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let serial = SERIAL
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let dir = TempDir::new();
         let library = platform::Library::at(dir.path());
-        let h = Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_eframe(move |cc| build(cc, library));
-        let mut ui = Self { h, dir, _serial: serial };
+        let h = Harness::builder()
+            .with_size(egui::vec2(1440.0, 900.0))
+            .build_eframe(move |cc| build(cc, library));
+        let mut ui = Self {
+            h,
+            dir,
+            _serial: serial,
+        };
         ui.settle();
         ui
     }
@@ -89,7 +97,11 @@ impl Ui {
     /// Widgets and text showing exactly `text` (buttons carry it as a
     /// label, plain text as a value).
     pub(super) fn count(&self, text: &str) -> usize {
-        self.h.query_all_by(|n| n.label().as_deref() == Some(text) || n.value().as_deref() == Some(text)).count()
+        self.h
+            .query_all_by(|n| {
+                n.label().as_deref() == Some(text) || n.value().as_deref() == Some(text)
+            })
+            .count()
     }
 
     pub(super) fn has(&self, label: &str) -> bool {
@@ -119,7 +131,10 @@ impl Ui {
     pub(super) fn wait_until(&mut self, seconds: u64, mut done: impl FnMut(&PlassiApp) -> bool) {
         let until = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
         while !done(self.app()) {
-            assert!(std::time::Instant::now() < until, "timed out after {seconds} s");
+            assert!(
+                std::time::Instant::now() < until,
+                "timed out after {seconds} s"
+            );
             self.h.step();
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
@@ -130,7 +145,9 @@ impl Ui {
     pub(super) fn solve(&mut self) {
         let before = self.app().project.candidates.len();
         self.click("Solve");
-        self.wait_until(20, |app| app.solving.is_none() && app.project.candidates.len() > before);
+        self.wait_until(20, |app| {
+            app.solving.is_none() && app.project.candidates.len() > before
+        });
     }
 
     /// Builds the app again on the same library, as after a restart.
@@ -138,7 +155,9 @@ impl Ui {
         let Self { h, dir, _serial } = self;
         drop(h);
         let library = platform::Library::at(dir.path());
-        let h = Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_eframe(move |cc| build(cc, library));
+        let h = Harness::builder()
+            .with_size(egui::vec2(1440.0, 900.0))
+            .build_eframe(move |cc| build(cc, library));
         let mut ui = Self { h, dir, _serial };
         ui.settle();
         ui
@@ -157,9 +176,16 @@ impl Ui {
         let pinned = app.project.pinned_people();
         let seated = &app.project.candidates[app.selected_candidate].assignment;
         let mut people = app.project.layout.seats().into_iter().filter_map(|seat| {
-            seated.iter().find(|(_, s)| **s == seat.id).map(|(&p, _)| p).filter(|p| !pinned.contains(p))
+            seated
+                .iter()
+                .find(|(_, s)| **s == seat.id)
+                .map(|(&p, _)| p)
+                .filter(|p| !pinned.contains(p))
         });
-        [people.next().expect("a person"), people.next().expect("another person")]
+        [
+            people.next().expect("a person"),
+            people.next().expect("another person"),
+        ]
     }
 
     /// The seat of `person` in the shown option.
@@ -169,11 +195,21 @@ impl Ui {
     }
 
     /// Presses and releases a mouse button at `pos`.
-    pub(super) fn click_at(&mut self, pos: egui::Pos2, button: egui::PointerButton, modifiers: egui::Modifiers) {
+    pub(super) fn click_at(
+        &mut self,
+        pos: egui::Pos2,
+        button: egui::PointerButton,
+        modifiers: egui::Modifiers,
+    ) {
         self.h.hover_at(pos);
         self.h.step();
         for pressed in [true, false] {
-            self.h.event(egui::Event::PointerButton { pos, button, pressed, modifiers });
+            self.h.event(egui::Event::PointerButton {
+                pos,
+                button,
+                pressed,
+                modifiers,
+            });
             self.h.step();
         }
         self.settle();
@@ -202,11 +238,21 @@ impl Ui {
 
     /// Opens the dropdown currently showing `shown`.
     pub(super) fn open_combo(&mut self, shown: &str) {
-        let found = self.h.query_all_by(|n| n.role() == egui::accesskit::Role::ComboBox && n.value().as_deref() == Some(shown)).next();
+        let found = self
+            .h
+            .query_all_by(|n| {
+                n.role() == egui::accesskit::Role::ComboBox && n.value().as_deref() == Some(shown)
+            })
+            .next();
         let found = found.unwrap_or_else(|| panic!("no dropdown showing {shown:?}"));
         found.scroll_to_me();
         self.settle();
-        let found = self.h.query_all_by(|n| n.role() == egui::accesskit::Role::ComboBox && n.value().as_deref() == Some(shown)).next();
+        let found = self
+            .h
+            .query_all_by(|n| {
+                n.role() == egui::accesskit::Role::ComboBox && n.value().as_deref() == Some(shown)
+            })
+            .next();
         let found = found.expect("the dropdown");
         found.click();
         self.settle();
@@ -216,9 +262,15 @@ impl Ui {
     /// the last widget with that label (the page may show the same word).
     pub(super) fn choose(&mut self, label: &str) {
         let found = self.h.query_all_by_label(label).last();
-        found.unwrap_or_else(|| panic!("no {label:?} in the open dropdown")).scroll_to_me();
+        found
+            .unwrap_or_else(|| panic!("no {label:?} in the open dropdown"))
+            .scroll_to_me();
         self.settle();
-        self.h.query_all_by_label(label).last().expect("the option").click();
+        self.h
+            .query_all_by_label(label)
+            .last()
+            .expect("the option")
+            .click();
         self.settle();
     }
 
@@ -229,10 +281,15 @@ impl Ui {
         for _ in 0..3 {
             self.h.step();
             copied = copied.or_else(|| {
-                self.h.output().platform_output.commands.iter().find_map(|c| match c {
-                    egui::OutputCommand::CopyText(text) => Some(text.clone()),
-                    _ => None,
-                })
+                self.h
+                    .output()
+                    .platform_output
+                    .commands
+                    .iter()
+                    .find_map(|c| match c {
+                        egui::OutputCommand::CopyText(text) => Some(text.clone()),
+                        _ => None,
+                    })
             });
         }
         self.settle();
@@ -243,7 +300,9 @@ impl Ui {
     /// expose hint texts to AccessKit).
     pub(super) fn click_text_box(&mut self) {
         {
-            let mut found = self.h.query_all_by(|n| n.role() == egui::accesskit::Role::MultilineTextInput);
+            let mut found = self
+                .h
+                .query_all_by(|n| n.role() == egui::accesskit::Role::MultilineTextInput);
             let field = found.next().expect("a text box");
             assert!(found.next().is_none(), "one text box");
             field.click();
@@ -264,10 +323,13 @@ impl Ui {
 
     /// Every text in the accessibility tree, for asserts and failure messages.
     pub(super) fn dump(&self) -> Vec<String> {
-        self.h.query_all_by(|n| n.label().is_some() || n.value().is_some()).filter_map(|n| {
-            let n = n.accesskit_node();
-            n.label().or_else(|| n.value())
-        }).collect()
+        self.h
+            .query_all_by(|n| n.label().is_some() || n.value().is_some())
+            .filter_map(|n| {
+                let n = n.accesskit_node();
+                n.label().or_else(|| n.value())
+            })
+            .collect()
     }
 }
 

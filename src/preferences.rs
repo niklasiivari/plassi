@@ -31,7 +31,10 @@ pub enum PreferenceKind {
         costs: ProximityCosts,
     },
     /// These people don't sit within `closeness` of each other.
-    Apart { people: Vec<usize>, closeness: Closeness },
+    Apart {
+        people: Vec<usize>,
+        closeness: Closeness,
+    },
 }
 
 fn wish_costs() -> ProximityCosts {
@@ -91,18 +94,25 @@ impl Closeness {
 impl PreferenceKind {
     pub fn people(&self) -> &[usize] {
         match self {
-            PreferenceKind::Together { people, .. } | PreferenceKind::Apart { people, .. } => people,
+            PreferenceKind::Together { people, .. } | PreferenceKind::Apart { people, .. } => {
+                people
+            }
         }
     }
 
     /// Everyone together, with ordinary wish costs.
     pub fn together(people: Vec<usize>) -> Self {
-        PreferenceKind::Together { people, costs: ProximityCosts::WISH }
+        PreferenceKind::Together {
+            people,
+            costs: ProximityCosts::WISH,
+        }
     }
 
     pub fn people_mut(&mut self) -> &mut Vec<usize> {
         match self {
-            PreferenceKind::Together { people, .. } | PreferenceKind::Apart { people, .. } => people,
+            PreferenceKind::Together { people, .. } | PreferenceKind::Apart { people, .. } => {
+                people
+            }
         }
     }
 }
@@ -131,12 +141,26 @@ impl Preference {
             ),
             PreferenceKind::Apart { closeness, .. } => {
                 let close = DistanceClass::ALL.map(|c| c <= closeness.limit());
-                (close.map(|c| if c { ProximityCosts::WISH[DistanceClass::Far] * weight } else { 0 }), close.map(|c| must && c))
+                (
+                    close.map(|c| {
+                        if c {
+                            ProximityCosts::WISH[DistanceClass::Far] * weight
+                        } else {
+                            0
+                        }
+                    }),
+                    close.map(|c| must && c),
+                )
             }
         };
         let people = self.kind.people();
         people.iter().enumerate().flat_map(move |(i, &a)| {
-            people[i + 1..].iter().map(move |&b| PairTerm { a, b, costs, forbidden })
+            people[i + 1..].iter().map(move |&b| PairTerm {
+                a,
+                b,
+                costs,
+                forbidden,
+            })
         })
     }
 }
@@ -175,7 +199,8 @@ impl Project {
 
     /// Preferences in force that include `person`.
     pub fn preferences_of(&self, person: usize) -> impl Iterator<Item = &Preference> {
-        self.active_preferences().filter(move |p| p.kind.people().contains(&person))
+        self.active_preferences()
+            .filter(move |p| p.kind.people().contains(&person))
     }
 
     /// Takes a person out of every preference; drops preferences left with fewer than two.
@@ -195,7 +220,10 @@ impl Project {
             let members = preference.kind.people();
             let distinct: HashSet<_> = members.iter().collect();
             if members.len() < 2 || distinct.len() != members.len() {
-                bail!("preference {} needs two or more different people", preference.id);
+                bail!(
+                    "preference {} needs two or more different people",
+                    preference.id
+                );
             }
             if members.iter().any(|p| !people.contains(p)) {
                 bail!("preference {} refers to an unknown person", preference.id);

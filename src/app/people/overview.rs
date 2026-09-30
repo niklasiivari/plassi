@@ -16,7 +16,13 @@ impl PlassiApp {
         if self.project.attendees.is_empty() {
             return self.first_import(ui, p);
         }
-        crate::app::help::page_header(ui, p, crate::app::help::HelpPage::People, tr("Wishes overview"), Some(&summary));
+        crate::app::help::page_header(
+            ui,
+            p,
+            crate::app::help::HelpPage::People,
+            tr("Wishes overview"),
+            Some(&summary),
+        );
         self.review_progress(ui, p);
         ui.add_space(theme::space::L);
         self.suggestions_card(ui, p);
@@ -25,12 +31,26 @@ impl PlassiApp {
 
     /// An empty project: how to get people in, or try the example.
     fn first_import(&mut self, ui: &mut egui::Ui, p: Palette) {
-        crate::app::help::page_header(ui, p, crate::app::help::HelpPage::People, tr("Add your guests"), Some(tr("Paste your sign-up sheet to start. Everything else builds on the guest list.")));
+        crate::app::help::page_header(
+            ui,
+            p,
+            crate::app::help::HelpPage::People,
+            tr("Add your guests"),
+            Some(tr(
+                "Paste your sign-up sheet to start. Everything else builds on the guest list.",
+            )),
+        );
         self.import_panel(ui, p);
         ui.add_space(theme::space::L);
         ui.horizontal(|ui| {
             theme::hint(ui, p, tr("No sheet at hand?"));
-            if ui.button(tr("Try with example data")).on_hover_text(tr("48 made-up guests with wishes and a room, to see how everything works")).clicked() {
+            if ui
+                .button(tr("Try with example data"))
+                .on_hover_text(tr(
+                    "48 made-up guests with wishes and a room, to see how everything works",
+                ))
+                .clicked()
+            {
                 self.load_example();
             }
         });

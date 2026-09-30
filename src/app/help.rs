@@ -86,16 +86,24 @@ impl HelpPage {
                 ("Esc", "Cancel or clear the selection"),
                 ("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"),
             ],
-            HelpPage::Graph | HelpPage::People | HelpPage::Categories | HelpPage::Policy | HelpPage::Room => {
-                &[("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo")]
-            }
+            HelpPage::Graph
+            | HelpPage::People
+            | HelpPage::Categories
+            | HelpPage::Policy
+            | HelpPage::Room => &[("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo")],
             HelpPage::Print => &[],
         }
     }
 }
 
 /// A page title (with optional subtitle) with the help button on its right.
-pub(super) fn page_header(ui: &mut egui::Ui, p: Palette, page: HelpPage, title: &str, subtitle: Option<&str>) {
+pub(super) fn page_header(
+    ui: &mut egui::Ui,
+    p: Palette,
+    page: HelpPage,
+    title: &str,
+    subtitle: Option<&str>,
+) {
     theme::page_header(ui, p, title, subtitle, |ui| {
         help_button(ui, p, page);
     });
@@ -124,7 +132,9 @@ pub(super) fn help_button(ui: &mut egui::Ui, p: Palette, page: HelpPage) -> bool
             });
         let clicked_outside = ui.input(|i| i.pointer.any_click())
             && !button.clicked()
-            && !ui.input(|i| i.pointer.interact_pos()).is_some_and(|pos| area.response.rect.contains(pos));
+            && !ui
+                .input(|i| i.pointer.interact_pos())
+                .is_some_and(|pos| area.response.rect.contains(pos));
         if tour || clicked_outside || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
             open = false;
         }

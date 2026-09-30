@@ -25,7 +25,9 @@ fn local_storage() -> Option<web_sys::Storage> {
 
 impl Store {
     pub fn new(location: &str) -> Self {
-        Self { key: format!("plassi:{location}") }
+        Self {
+            key: format!("plassi:{location}"),
+        }
     }
 
     pub fn location(&self) -> String {
@@ -33,7 +35,10 @@ impl Store {
     }
 
     pub fn read(&self) -> Option<Vec<u8>> {
-        local_storage()?.get_item(&self.key).ok()?.map(String::into_bytes)
+        local_storage()?
+            .get_item(&self.key)
+            .ok()?
+            .map(String::into_bytes)
     }
 
     pub fn write(&self, bytes: &[u8]) -> Result<()> {
@@ -47,9 +52,14 @@ impl Store {
 
 /// Why the browser refused to store something, in words the user can act on.
 fn refusal(error: &wasm_bindgen::JsValue) -> &'static str {
-    let name = js_sys::Reflect::get(error, &"name".into()).ok().and_then(|n| n.as_string()).unwrap_or_default();
+    let name = js_sys::Reflect::get(error, &"name".into())
+        .ok()
+        .and_then(|n| n.as_string())
+        .unwrap_or_default();
     if name.contains("Quota") {
-        crate::i18n::tr("this browser's storage is full. Download a copy of this project, then delete old projects or backups")
+        crate::i18n::tr(
+            "this browser's storage is full. Download a copy of this project, then delete old projects or backups",
+        )
     } else {
         crate::i18n::tr("the browser refused to store the project")
     }
@@ -62,10 +72,14 @@ thread_local! {
 
 /// Asks the browser not to clear this site's storage when space runs low.
 pub fn request_persistence() {
-    let Some(storage) = web_sys::window().map(|w| w.navigator().storage()) else { return };
+    let Some(storage) = web_sys::window().map(|w| w.navigator().storage()) else {
+        return;
+    };
     wasm_bindgen_futures::spawn_local(async move {
         let ask = |promise: Result<js_sys::Promise, wasm_bindgen::JsValue>| async move {
-            let answer = wasm_bindgen_futures::JsFuture::from(promise.ok()?).await.ok()?;
+            let answer = wasm_bindgen_futures::JsFuture::from(promise.ok()?)
+                .await
+                .ok()?;
             answer.as_bool()
         };
         let persisted = match ask(storage.persisted()).await {
@@ -92,13 +106,20 @@ const SLICE: Duration = Duration::from_millis(30);
 
 impl SearchRunner {
     pub fn start(search: Search) -> Self {
-        Self { progress: search.progress(), search: Some(search) }
+        Self {
+            progress: search.progress(),
+            search: Some(search),
+        }
     }
 
     pub fn poll(&mut self) -> Option<Outcome> {
         let search = self.search.as_mut()?;
         search.advance(Instant::now() + SLICE);
-        if search.done() { self.search.take().map(Search::finish) } else { None }
+        if search.done() {
+            self.search.take().map(Search::finish)
+        } else {
+            None
+        }
     }
 
     /// The best (score, broken hard rules) found so far.
@@ -118,16 +139,30 @@ pub fn save_file(_store: &Store, name: &str, bytes: &[u8]) -> Result<Saved> {
     let array = js_sys::Uint8Array::from(bytes);
     let parts = js_sys::Array::of1(&array);
     let options = web_sys::BlobPropertyBag::new();
-    options.set_type(if name.ends_with(".pdf") { "application/pdf" } else { "application/json" });
-    let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &options).map_err(fail)?;
+    options.set_type(if name.ends_with(".pdf") {
+        "application/pdf"
+    } else {
+        "application/json"
+    });
+    let blob =
+        web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &options).map_err(fail)?;
     let url = web_sys::Url::create_object_url_with_blob(&blob).map_err(fail)?;
-    let document = web_sys::window().and_then(|w| w.document()).ok_or_else(|| anyhow!("no document"))?;
-    let anchor: web_sys::HtmlAnchorElement = document.create_element("a").map_err(fail)?.dyn_into().map_err(|_| anyhow!("no anchor"))?;
+    let document = web_sys::window()
+        .and_then(|w| w.document())
+        .ok_or_else(|| anyhow!("no document"))?;
+    let anchor: web_sys::HtmlAnchorElement = document
+        .create_element("a")
+        .map_err(fail)?
+        .dyn_into()
+        .map_err(|_| anyhow!("no anchor"))?;
     anchor.set_href(&url);
     anchor.set_download(name);
     anchor.click();
     let _ = web_sys::Url::revoke_object_url(&url);
-    Ok(Saved { description: format!("downloaded {name}"), location: None })
+    Ok(Saved {
+        description: format!("downloaded {name}"),
+        location: None,
+    })
 }
 
 pub fn open_location(_path: &Path) -> Result<()> {
@@ -146,17 +181,21 @@ impl FilePick {
     pub fn open(accept: &str) -> Option<Self> {
         use wasm_bindgen::closure::Closure;
         let document = web_sys::window()?.document()?;
-        let input: web_sys::HtmlInputElement = document.create_element("input").ok()?.dyn_into().ok()?;
+        let input: web_sys::HtmlInputElement =
+            document.create_element("input").ok()?.dyn_into().ok()?;
         input.set_type("file");
         input.set_accept(accept);
         let slot = std::rc::Rc::new(std::cell::RefCell::new(None));
         let (target, result) = (input.clone(), slot.clone());
         let on_change = Closure::once_into_js(move || {
-            let Some(file) = target.files().and_then(|files| files.get(0)) else { return };
+            let Some(file) = target.files().and_then(|files| files.get(0)) else {
+                return;
+            };
             wasm_bindgen_futures::spawn_local(async move {
                 let read = wasm_bindgen_futures::JsFuture::from(file.array_buffer()).await;
                 *result.borrow_mut() = Some(
-                    read.map(|buffer| js_sys::Uint8Array::new(&buffer).to_vec()).map_err(|_| "could not read the file".to_string()),
+                    read.map(|buffer| js_sys::Uint8Array::new(&buffer).to_vec())
+                        .map_err(|_| "could not read the file".to_string()),
                 );
             });
         });
@@ -180,10 +219,15 @@ extern "C" {
 }
 
 async fn typeset(data: &str) -> Result<Vec<u8>, String> {
-    let promise = plassi_typeset(data).map_err(|_| "printing is not available on this page".to_string())?;
+    let promise =
+        plassi_typeset(data).map_err(|_| "printing is not available on this page".to_string())?;
     let pdf = wasm_bindgen_futures::JsFuture::from(promise)
         .await
-        .map_err(|error| error.as_string().unwrap_or_else(|| "typesetting failed".into()))?;
+        .map_err(|error| {
+            error
+                .as_string()
+                .unwrap_or_else(|| "typesetting failed".into())
+        })?;
     Ok(js_sys::Uint8Array::new(&pdf).to_vec())
 }
 
@@ -224,16 +268,23 @@ const BACKUP_PREFIX: &str = "plassi:backup:";
 const KEEP: super::Keep = super::Keep { recent: 3, days: 0 };
 
 fn storage_keys(storage: &web_sys::Storage) -> Vec<String> {
-    (0..storage.length().unwrap_or(0)).filter_map(|i| storage.key(i).ok()?).collect()
+    (0..storage.length().unwrap_or(0))
+        .filter_map(|i| storage.key(i).ok()?)
+        .collect()
 }
 
 fn backup_key(name: &str, stamp: u64) -> String {
-    format!("{BACKUP_PREFIX}{name}:{}", super::backup_plan::stamp_name(stamp))
+    format!(
+        "{BACKUP_PREFIX}{name}:{}",
+        super::backup_plan::stamp_name(stamp)
+    )
 }
 
 /// All backups as (project, time).
 fn all_backups() -> Vec<(String, u64)> {
-    let Some(storage) = local_storage() else { return Vec::new() };
+    let Some(storage) = local_storage() else {
+        return Vec::new();
+    };
     storage_keys(&storage)
         .iter()
         .filter_map(|key| {
@@ -249,7 +300,9 @@ impl Library {
     }
 
     pub fn projects(&self) -> Vec<String> {
-        let Some(storage) = local_storage() else { return Vec::new() };
+        let Some(storage) = local_storage() else {
+            return Vec::new();
+        };
         let mut names: Vec<String> = storage_keys(&storage)
             .into_iter()
             .filter_map(|key| key.strip_prefix(PROJECT_PREFIX).map(str::to_string))
@@ -263,7 +316,10 @@ impl Library {
     }
 
     pub fn rename(&self, from: &str, to: &str) -> Result<()> {
-        let bytes = self.store(from).read().ok_or_else(|| anyhow!("no project named {from}"))?;
+        let bytes = self
+            .store(from)
+            .read()
+            .ok_or_else(|| anyhow!("no project named {from}"))?;
         self.store(to).write(&bytes)?;
         for stamp in self.backups(from) {
             if let (Some(storage), Some(bytes)) = (local_storage(), self.read_backup(from, stamp)) {
@@ -280,13 +336,16 @@ impl Library {
     /// storage is full, the oldest backups of any project make room; if that
     /// is not enough, no backup is taken.
     pub fn backup(&self, name: &str, bytes: &[u8]) -> Result<()> {
-        let storage = local_storage().ok_or_else(|| anyhow!("this browser has no local storage"))?;
+        let storage =
+            local_storage().ok_or_else(|| anyhow!("this browser has no local storage"))?;
         let text = std::str::from_utf8(bytes)?;
         let now = super::now_stamp().max(self.backups(name).first().map_or(0, |s| s + 1));
         let mut oldest = all_backups();
         oldest.sort_by_key(|(_, stamp)| std::cmp::Reverse(*stamp));
         while storage.set_item(&backup_key(name, now), text).is_err() {
-            let (old_name, old) = oldest.pop().ok_or_else(|| anyhow!("no room for a backup in this browser"))?;
+            let (old_name, old) = oldest
+                .pop()
+                .ok_or_else(|| anyhow!("no room for a backup in this browser"))?;
             let _ = storage.remove_item(&backup_key(&old_name, old));
         }
         for old in super::backup_plan::to_prune(&self.backups(name), now, KEEP) {
@@ -297,13 +356,20 @@ impl Library {
 
     /// The times of `name`'s backups, newest first.
     pub fn backups(&self, name: &str) -> Vec<u64> {
-        let mut stamps: Vec<u64> = all_backups().into_iter().filter(|(n, _)| n == name).map(|(_, s)| s).collect();
+        let mut stamps: Vec<u64> = all_backups()
+            .into_iter()
+            .filter(|(n, _)| n == name)
+            .map(|(_, s)| s)
+            .collect();
         stamps.sort_unstable_by(|a, b| b.cmp(a));
         stamps
     }
 
     pub fn read_backup(&self, name: &str, stamp: u64) -> Option<Vec<u8>> {
-        local_storage()?.get_item(&backup_key(name, stamp)).ok()?.map(String::into_bytes)
+        local_storage()?
+            .get_item(&backup_key(name, stamp))
+            .ok()?
+            .map(String::into_bytes)
     }
 
     /// Names that have backups, including deleted projects.
@@ -367,5 +433,6 @@ impl DroppedRead {
 
 /// Minutes the browser's time zone is ahead of UTC at `stamp` (milliseconds since 1970).
 pub fn utc_offset_minutes(stamp: u64) -> i64 {
-    -(js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(stamp as f64)).get_timezone_offset() as i64)
+    -(js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(stamp as f64)).get_timezone_offset()
+        as i64)
 }

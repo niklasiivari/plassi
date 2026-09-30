@@ -17,10 +17,18 @@ pub(in crate::app) struct ImportMapping {
 impl PlassiApp {
     pub(super) fn import_panel(&mut self, ui: &mut egui::Ui, p: Palette) {
         let hovering = Self::file_hovering(ui);
-        let frame = if hovering { theme::tinted_card(p, p.accent) } else { theme::card(p) };
+        let frame = if hovering {
+            theme::tinted_card(p, p.accent)
+        } else {
+            theme::card(p)
+        };
         let card = frame.show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.label(RichText::new(tr("Import or update from a spreadsheet")).size(theme::text::LEAD).strong());
+            ui.label(
+                RichText::new(tr("Import or update from a spreadsheet"))
+                    .size(theme::text::LEAD)
+                    .strong(),
+            );
             ui.add_space(theme::space::XS);
             self.template_bar(ui, p);
             ui.add_space(theme::space::M);
@@ -32,7 +40,11 @@ impl PlassiApp {
                     .font(egui::TextStyle::Monospace),
             );
             if hovering {
-                ui.label(RichText::new(tr("Drop the file to load it here")).color(p.accent).strong());
+                ui.label(
+                    RichText::new(tr("Drop the file to load it here"))
+                        .color(p.accent)
+                        .strong(),
+                );
             } else {
                 theme::hint(ui, p, tr("Or drop a .csv/.tsv file here"));
             }
@@ -42,7 +54,12 @@ impl PlassiApp {
         });
         if hovering {
             let stroke = egui::Stroke::new(2.0, p.accent);
-            ui.painter().rect_stroke(card.response.rect, theme::radius::LG, stroke, egui::StrokeKind::Inside);
+            ui.painter().rect_stroke(
+                card.response.rect,
+                theme::radius::LG,
+                stroke,
+                egui::StrokeKind::Inside,
+            );
         }
     }
 
@@ -51,23 +68,41 @@ impl PlassiApp {
         theme::hint(
             ui,
             p,
-            tr("Use these columns, in any order. Only the name is required; other columns are kept as extra info. People are matched by name, so importing again updates them and keeps rules, room and options."),
+            tr(
+                "Use these columns, in any order. Only the name is required; other columns are kept as extra info. People are matched by name, so importing again updates them and keeps rules, room and options.",
+            ),
         );
         ui.add_space(theme::space::S);
         template_table(ui, p);
         ui.add_space(theme::space::S);
         ui.horizontal_wrapped(|ui| {
-            if ui.add(theme::secondary_button(tr("Copy header row"))).on_hover_text(tr("Paste it into the first row of your spreadsheet")).clicked() {
+            if ui
+                .add(theme::secondary_button(tr("Copy header row")))
+                .on_hover_text(tr("Paste it into the first row of your spreadsheet"))
+                .clicked()
+            {
                 ui.ctx().copy_text(crate::import::header_row());
                 self.status = tr("Copied the header row; paste it into your spreadsheet").into();
             }
-            if ui.add(theme::secondary_button(tr("Download template"))).on_hover_text(tr("A .csv file with the columns and one example row")).clicked() {
+            if ui
+                .add(theme::secondary_button(tr("Download template")))
+                .on_hover_text(tr("A .csv file with the columns and one example row"))
+                .clicked()
+            {
                 self.save_sheet_file(tr("plassi-template.csv"), crate::import::template_csv());
             }
             let has_people = !self.project.attendees.is_empty();
             let export = ui.add_enabled(has_people, theme::secondary_button(tr("Export people")));
-            if export.on_hover_text(tr("Everyone in these columns, to edit in a spreadsheet and import back")).clicked() {
-                self.save_sheet_file(tr("plassi-people.csv"), crate::import::export_csv(&self.project));
+            if export
+                .on_hover_text(tr(
+                    "Everyone in these columns, to edit in a spreadsheet and import back",
+                ))
+                .clicked()
+            {
+                self.save_sheet_file(
+                    tr("plassi-people.csv"),
+                    crate::import::export_csv(&self.project),
+                );
             }
         });
     }
@@ -92,17 +127,33 @@ impl PlassiApp {
         let detected = sheet.columns.clone();
         self.apply_mapping(&mut sheet);
         ui.add_space(theme::space::M);
-        theme::section_title(ui, p, &fill("{} rows · check what each column becomes", &[&sheet.rows.len()]));
+        theme::section_title(
+            ui,
+            p,
+            &fill(
+                "{} rows · check what each column becomes",
+                &[&sheet.rows.len()],
+            ),
+        );
         let changed = column_rows(ui, p, &mut sheet, &detected);
         if changed {
             self.people.import_mapping.columns = sheet.columns.clone();
         }
         ui.add_space(theme::space::M);
         if !sheet.has_name() {
-            ui.label(RichText::new(fill("Set one column to “{}” to import.", &[&Column::Name.label()])).color(p.warn));
+            ui.label(
+                RichText::new(fill(
+                    "Set one column to “{}” to import.",
+                    &[&Column::Name.label()],
+                ))
+                .color(p.warn),
+            );
         }
         ui.horizontal(|ui| {
-            let apply = ui.add_enabled(sheet.has_name(), theme::primary_button(tr("Update attendees"), p));
+            let apply = ui.add_enabled(
+                sheet.has_name(),
+                theme::primary_button(tr("Update attendees"), p),
+            );
             if apply.clicked() {
                 self.merge_sheet(&sheet);
             }
@@ -117,7 +168,10 @@ impl PlassiApp {
         let header_line = sheet.headers.join("\t");
         let mapping = &mut self.people.import_mapping;
         if mapping.header_line != header_line || mapping.columns.len() != sheet.columns.len() {
-            *mapping = ImportMapping { header_line, columns: sheet.columns.clone() };
+            *mapping = ImportMapping {
+                header_line,
+                columns: sheet.columns.clone(),
+            };
         }
         sheet.columns = mapping.columns.clone();
     }
@@ -128,7 +182,12 @@ impl PlassiApp {
                 self.people.import_text.clear();
                 let mut message = fill(
                     "Imported: {} updated, {} added, {} new notes, {} wishes matched",
-                    &[&summary.updated, &summary.added, &summary.new_notes, &summary.new_rules],
+                    &[
+                        &summary.updated,
+                        &summary.added,
+                        &summary.new_notes,
+                        &summary.new_rules,
+                    ],
                 );
                 if !summary.duplicate_names.is_empty() {
                     message += &fill(
@@ -147,26 +206,46 @@ impl PlassiApp {
 /// sample values. Returns whether a choice changed.
 fn column_rows(ui: &mut egui::Ui, p: Palette, sheet: &mut Sheet, detected: &[Column]) -> bool {
     let mut changed = false;
-    egui::Grid::new("import-columns").num_columns(4).spacing([theme::space::M, theme::space::S]).show(ui, |ui| {
-        for header in [tr("Column in your sheet"), tr("Imported as"), "", tr("First values")] {
-            ui.label(RichText::new(header).size(theme::text::CAPTION).color(p.muted));
-        }
-        ui.end_row();
-        for i in 0..sheet.headers.len() {
-            ui.label(RichText::new(&sheet.headers[i]).strong());
-            let column = &mut sheet.columns[i];
-            theme::combo(("import-column", i), column.label()).width(180.0).show_ui(ui, |ui| {
-                for choice in Column::CHOICES {
-                    changed |= ui.selectable_value(column, choice, choice.label()).changed();
-                }
-            });
-            // Set by the person: differs from what was found in the header.
-            let set_by_you = detected.get(i) != Some(&sheet.columns[i]);
-            match_pill(ui, p, sheet.matches[i], set_by_you);
-            ui.label(RichText::new(samples(sheet, i)).size(theme::text::SMALL).color(p.muted));
+    egui::Grid::new("import-columns")
+        .num_columns(4)
+        .spacing([theme::space::M, theme::space::S])
+        .show(ui, |ui| {
+            for header in [
+                tr("Column in your sheet"),
+                tr("Imported as"),
+                "",
+                tr("First values"),
+            ] {
+                ui.label(
+                    RichText::new(header)
+                        .size(theme::text::CAPTION)
+                        .color(p.muted),
+                );
+            }
             ui.end_row();
-        }
-    });
+            for i in 0..sheet.headers.len() {
+                ui.label(RichText::new(&sheet.headers[i]).strong());
+                let column = &mut sheet.columns[i];
+                theme::combo(("import-column", i), column.label())
+                    .width(180.0)
+                    .show_ui(ui, |ui| {
+                        for choice in Column::CHOICES {
+                            changed |= ui
+                                .selectable_value(column, choice, choice.label())
+                                .changed();
+                        }
+                    });
+                // Set by the person: differs from what was found in the header.
+                let set_by_you = detected.get(i) != Some(&sheet.columns[i]);
+                match_pill(ui, p, sheet.matches[i], set_by_you);
+                ui.label(
+                    RichText::new(samples(sheet, i))
+                        .size(theme::text::SMALL)
+                        .color(p.muted),
+                );
+                ui.end_row();
+            }
+        });
     changed
 }
 
@@ -202,15 +281,26 @@ fn template_table(ui: &mut egui::Ui, p: Palette) {
     theme::inset(p).show(ui, |ui| {
         ui.set_width(ui.available_width());
         theme::text_rows(ui, |ui| {
-            egui::Grid::new("import-template").num_columns(3).spacing([theme::space::L, theme::space::S]).show(ui, |ui| {
-                for column in Column::TEMPLATE {
-                    ui.label(RichText::new(column.header()).strong());
-                    let required = if column == Column::Name { tr("required") } else { tr("optional") };
-                    ui.label(RichText::new(required).size(theme::text::SMALL).color(p.muted));
-                    ui.label(RichText::new(column.explain()).size(theme::text::SMALL));
-                    ui.end_row();
-                }
-            });
+            egui::Grid::new("import-template")
+                .num_columns(3)
+                .spacing([theme::space::L, theme::space::S])
+                .show(ui, |ui| {
+                    for column in Column::TEMPLATE {
+                        ui.label(RichText::new(column.header()).strong());
+                        let required = if column == Column::Name {
+                            tr("required")
+                        } else {
+                            tr("optional")
+                        };
+                        ui.label(
+                            RichText::new(required)
+                                .size(theme::text::SMALL)
+                                .color(p.muted),
+                        );
+                        ui.label(RichText::new(column.explain()).size(theme::text::SMALL));
+                        ui.end_row();
+                    }
+                });
         });
     });
 }

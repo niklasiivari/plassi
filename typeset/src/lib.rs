@@ -26,16 +26,24 @@ static FONTS: [&[u8]; 8] = [
 
 fn engine() -> &'static TypstEngine<typst_as_lib::TypstTemplateMainFile> {
     static ENGINE: OnceLock<TypstEngine<typst_as_lib::TypstTemplateMainFile>> = OnceLock::new();
-    ENGINE.get_or_init(|| TypstEngine::builder().main_file(TEMPLATE).fonts(FONTS).build())
+    ENGINE.get_or_init(|| {
+        TypstEngine::builder()
+            .main_file(TEMPLATE)
+            .fonts(FONTS)
+            .build()
+    })
 }
 
 /// Typesets one print. `data` is the JSON the template reads as `data`.
 pub fn pdf(data: &str) -> Result<Vec<u8>, String> {
     let mut inputs = Dict::new();
     inputs.insert("data".into(), data.into_value());
-    let document: PagedDocument =
-        engine().compile_with_input(inputs).output.map_err(|error| format!("typesetting failed: {error:?}"))?;
-    typst_pdf::pdf(&document, &Default::default()).map_err(|error| format!("PDF export failed: {error:?}"))
+    let document: PagedDocument = engine()
+        .compile_with_input(inputs)
+        .output
+        .map_err(|error| format!("typesetting failed: {error:?}"))?;
+    typst_pdf::pdf(&document, &Default::default())
+        .map_err(|error| format!("PDF export failed: {error:?}"))
 }
 
 /// The same, for the browser.

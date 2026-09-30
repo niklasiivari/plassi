@@ -11,9 +11,17 @@ pub(super) fn language_toggle(app: &mut PlassiApp, ui: &mut egui::Ui) {
         Lang::En => Lang::Fi,
         Lang::Fi => Lang::En,
     };
-    let button = egui::Button::new(RichText::new(current.code().to_uppercase()).size(theme::text::SMALL).strong())
-        .min_size(egui::vec2(theme::CONTROL_HEIGHT, theme::CONTROL_HEIGHT));
-    if ui.add(button).on_hover_text(fill("Switch language to {}", &[&next.name()])).clicked() {
+    let button = egui::Button::new(
+        RichText::new(current.code().to_uppercase())
+            .size(theme::text::SMALL)
+            .strong(),
+    )
+    .min_size(egui::vec2(theme::CONTROL_HEIGHT, theme::CONTROL_HEIGHT));
+    if ui
+        .add(button)
+        .on_hover_text(fill("Switch language to {}", &[&next.name()]))
+        .clicked()
+    {
         i18n::set(next);
         app.file.library.set_setting("language", next.code());
         app.file.revision += 1;
@@ -45,8 +53,10 @@ fn nav_item(
     label: Option<&str>,
     badge: Option<(usize, Color32)>,
 ) -> egui::Response {
-    let (rect, response) =
-        ui.allocate_exact_size(egui::vec2(ui.available_width(), theme::CONTROL_HEIGHT), egui::Sense::click());
+    let (rect, response) = ui.allocate_exact_size(
+        egui::vec2(ui.available_width(), theme::CONTROL_HEIGHT),
+        egui::Sense::click(),
+    );
     let fill = if selected {
         p.accent_soft
     } else if response.hovered() {
@@ -70,7 +80,12 @@ fn nav_item(
     if let Some(label) = label {
         let label = RichText::new(label).size(theme::text::BODY).color(fg);
         let label = if selected { label.strong() } else { label };
-        let galley = egui::WidgetText::from(label).into_galley(ui, Some(egui::TextWrapMode::Truncate), rect.width(), egui::TextStyle::Body);
+        let galley = egui::WidgetText::from(label).into_galley(
+            ui,
+            Some(egui::TextWrapMode::Truncate),
+            rect.width(),
+            egui::TextStyle::Body,
+        );
         let at = rect.left_center() + egui::vec2(theme::space::XXL + 8.0, -galley.size().y / 2.0);
         ui.painter().galley(at, galley, fg);
     }
@@ -82,7 +97,11 @@ fn nav_item(
         }
         let center = rect.right_center() - egui::vec2(theme::space::M + 8.0, 0.0);
         let badge = egui::Rect::from_center_size(center, egui::vec2(26.0, 20.0));
-        ui.painter().rect_filled(badge, theme::radius::PILL, theme::blend(p.surface, color, 0.16));
+        ui.painter().rect_filled(
+            badge,
+            theme::radius::PILL,
+            theme::blend(p.surface, color, 0.16),
+        );
         ui.painter().text(
             center,
             egui::Align2::CENTER_CENTER,
@@ -155,7 +174,11 @@ impl PlassiApp {
     }
 
     fn collapse_toggle(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
-        let tip = if expanded { tr("Icons only") } else { tr("Show labels") };
+        let tip = if expanded {
+            tr("Icons only")
+        } else {
+            tr("Show labels")
+        };
         theme::icon_button(ui, p, theme::Icon::Sidebar, tip, false).clicked()
     }
 
@@ -175,7 +198,11 @@ impl PlassiApp {
             .sum();
         let unmapped_badge = (unmapped > 0).then_some((unmapped, p.warn));
         // Seats missing for everyone to sit.
-        let short = self.project.attendees.len().saturating_sub(self.project.layout.seat_count());
+        let short = self
+            .project
+            .attendees
+            .len()
+            .saturating_sub(self.project.layout.seat_count());
         ui.spacing_mut().item_spacing.y = theme::space::XS;
         let pages = [
             (
@@ -197,15 +224,32 @@ impl PlassiApp {
                 tr("Categories"),
                 unmapped_badge,
             ),
-            (Page::Policy, theme::Icon::Policy, tr("Seating policy"), None),
-            (Page::Room, theme::Icon::Room, tr("Room layout"), (short > 0).then_some((short, p.bad))),
+            (
+                Page::Policy,
+                theme::Icon::Policy,
+                tr("Seating policy"),
+                None,
+            ),
+            (
+                Page::Room,
+                theme::Icon::Room,
+                tr("Room layout"),
+                (short > 0).then_some((short, p.bad)),
+            ),
             (Page::Print, theme::Icon::Print, tr("Print"), None),
         ];
         for (page, icon, label, badge) in pages {
             let shown = expanded.then_some(label);
             let item = nav_item(ui, p, self.page == page, icon, shown, badge);
             // Named for screen readers (and UI tests), also when only the icon shows.
-            item.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, self.page == page, label));
+            item.widget_info(|| {
+                egui::WidgetInfo::selected(
+                    egui::WidgetType::SelectableLabel,
+                    true,
+                    self.page == page,
+                    label,
+                )
+            });
             if item.on_hover_text(label).clicked() {
                 self.page = page;
             }
@@ -214,15 +258,21 @@ impl PlassiApp {
 
     /// Open-file field, sync status and project size (laid out bottom up).
     fn file_controls(&mut self, ui: &mut egui::Ui, p: Palette) {
-        let sync = ui.horizontal(|ui| {
-            self.sync_dot(ui, p);
-            theme::hint(ui, p, self.sync_text());
-        }).response;
+        let sync = ui
+            .horizontal(|ui| {
+                self.sync_dot(ui, p);
+                theme::hint(ui, p, self.sync_text());
+            })
+            .response;
         #[cfg(target_arch = "wasm32")]
         {
             let note = match platform::storage_persisted() {
-                Some(true) => tr("This browser will keep this project's data until you clear site data."),
-                _ => tr("This browser may remove this project's data when storage is needed or if you clear site data."),
+                Some(true) => {
+                    tr("This browser will keep this project's data until you clear site data.")
+                }
+                _ => tr(
+                    "This browser may remove this project's data when storage is needed or if you clear site data.",
+                ),
             };
             sync.on_hover_text(note);
         }
@@ -230,12 +280,19 @@ impl PlassiApp {
         sync.on_hover_text(self.file.store.location());
         #[cfg(target_arch = "wasm32")]
         self.browser_storage(ui, p);
-        let (people, seats) = (self.project.attendees.len(), self.project.layout.seat_count());
+        let (people, seats) = (
+            self.project.attendees.len(),
+            self.project.layout.seat_count(),
+        );
         let size = match seats.cmp(&people) {
             _ if people == 0 => fill("No people yet · {} seats", &[&seats]),
-            std::cmp::Ordering::Less => fill("{} people · {} seats short", &[&people, &(people - seats)]),
+            std::cmp::Ordering::Less => {
+                fill("{} people · {} seats short", &[&people, &(people - seats)])
+            }
             std::cmp::Ordering::Equal => fill("{} people · every seat taken", &[&people]),
-            std::cmp::Ordering::Greater => fill("{} people · {} free seats", &[&people, &(seats - people)]),
+            std::cmp::Ordering::Greater => {
+                fill("{} people · {} free seats", &[&people, &(seats - people)])
+            }
         };
         let color = if seats < people { p.bad } else { p.muted };
         ui.label(RichText::new(size).size(theme::text::SMALL).color(color));
@@ -275,55 +332,74 @@ impl PlassiApp {
             (6.0 - age).clamp(0.0, 1.0)
         };
         egui::Area::new(egui::Id::new("toast"))
-            .anchor(egui::Align2::RIGHT_BOTTOM, egui::vec2(-theme::space::XL, -theme::space::XL))
+            .anchor(
+                egui::Align2::RIGHT_BOTTOM,
+                egui::vec2(-theme::space::XL, -theme::space::XL),
+            )
             .interactable(true)
             .show(ctx, |ui| {
                 ui.set_opacity(alpha);
-                theme::toast_frame(p)
-                    .show(ui, |ui| {
-                        ui.set_max_width(420.0);
-                        let color = p.surface;
-                        ui.visuals_mut().override_text_color = Some(color);
-                        let mut stop = false;
-                        if let Some(job) = &self.solving {
-                            let (started, budget) = (job.started, job.budget);
-                            let done = started.elapsed().as_secs_f32() / budget.as_secs_f32().max(1.0);
-                            ui.label(fill(
-                                "Searching for the best seating… {} of {} s",
-                                &[&started.elapsed().as_secs().min(budget.as_secs()), &budget.as_secs()],
-                            ));
-                            ui.add(egui::ProgressBar::new(done.min(1.0)).desired_height(6.0));
-                            ui.horizontal(|ui| {
-                                if let Some((score, hard)) = job.runner.progress() {
-                                    let best = if hard > 0 {
-                                        fill("Best so far: score {} · {} hard rules broken", &[&score, &hard])
-                                    } else {
-                                        fill("Best so far: score {}", &[&score])
-                                    };
-                                    ui.label(best);
-                                }
-                                let button = theme::danger_button(tr("Stop"), p)
-                                    .min_size(egui::vec2(0.0, theme::CHIP_HEIGHT));
-                                stop = ui.add(button).on_hover_text(tr("Stop now and keep the best seating found so far")).clicked();
-                            });
-                        } else {
-                            ui.horizontal(|ui| {
-                                if self.file.external_invalid {
-                                    theme::status_dot(ui, p.warn);
-                                }
-                                ui.label(RichText::new(&self.status).color(color));
-                                // The message of the change that Undo would revert.
-                                let undoable = self.file.undo_stack.last().is_some_and(|s| s.change == self.status);
-                                let undo = egui::Button::new(RichText::new(tr("Undo")).color(color).strong()).frame(false);
-                                if undoable && ui.add(undo).clicked() {
-                                    self.undo(false);
-                                }
-                            });
-                        }
-                        if stop {
-                            self.stop_search();
-                        }
-                    });
+                theme::toast_frame(p).show(ui, |ui| {
+                    ui.set_max_width(420.0);
+                    let color = p.surface;
+                    ui.visuals_mut().override_text_color = Some(color);
+                    let mut stop = false;
+                    if let Some(job) = &self.solving {
+                        let (started, budget) = (job.started, job.budget);
+                        let done = started.elapsed().as_secs_f32() / budget.as_secs_f32().max(1.0);
+                        ui.label(fill(
+                            "Searching for the best seating… {} of {} s",
+                            &[
+                                &started.elapsed().as_secs().min(budget.as_secs()),
+                                &budget.as_secs(),
+                            ],
+                        ));
+                        ui.add(egui::ProgressBar::new(done.min(1.0)).desired_height(6.0));
+                        ui.horizontal(|ui| {
+                            if let Some((score, hard)) = job.runner.progress() {
+                                let best = if hard > 0 {
+                                    fill(
+                                        "Best so far: score {} · {} hard rules broken",
+                                        &[&score, &hard],
+                                    )
+                                } else {
+                                    fill("Best so far: score {}", &[&score])
+                                };
+                                ui.label(best);
+                            }
+                            let button = theme::danger_button(tr("Stop"), p)
+                                .min_size(egui::vec2(0.0, theme::CHIP_HEIGHT));
+                            stop = ui
+                                .add(button)
+                                .on_hover_text(tr(
+                                    "Stop now and keep the best seating found so far",
+                                ))
+                                .clicked();
+                        });
+                    } else {
+                        ui.horizontal(|ui| {
+                            if self.file.external_invalid {
+                                theme::status_dot(ui, p.warn);
+                            }
+                            ui.label(RichText::new(&self.status).color(color));
+                            // The message of the change that Undo would revert.
+                            let undoable = self
+                                .file
+                                .undo_stack
+                                .last()
+                                .is_some_and(|s| s.change == self.status);
+                            let undo =
+                                egui::Button::new(RichText::new(tr("Undo")).color(color).strong())
+                                    .frame(false);
+                            if undoable && ui.add(undo).clicked() {
+                                self.undo(false);
+                            }
+                        });
+                    }
+                    if stop {
+                        self.stop_search();
+                    }
+                });
             });
     }
 }

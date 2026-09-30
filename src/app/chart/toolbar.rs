@@ -44,7 +44,8 @@ impl PlassiApp {
     fn solve_buttons(&mut self, ui: &mut egui::Ui, p: Palette) {
         let seats = self.project.layout.seat_count();
         let people = self.project.attendees.len();
-        let can_solve = self.solving.is_none() && !self.file.external_invalid && people > 0 && seats >= people;
+        let can_solve =
+            self.solving.is_none() && !self.file.external_invalid && people > 0 && seats >= people;
         let has_option = !self.project.candidates.is_empty();
         if ui
             .add_enabled(can_solve, theme::primary_button(tr("Solve"), p))
@@ -101,11 +102,18 @@ impl PlassiApp {
                     .iter()
                     .map(|c| {
                         let e = score::evaluate_with(&scorer, project, &c.assignment);
-                        let wishes: Vec<_> = e.results.iter().filter(|r| project.is_wish(r.rule_id)).collect();
+                        let wishes: Vec<_> = e
+                            .results
+                            .iter()
+                            .filter(|r| project.is_wish(r.rule_id))
+                            .collect();
                         OptionSummary {
                             score: e.penalty(),
                             hard: e.hard_violations,
-                            met: wishes.iter().filter(|r| r.outcome() == Outcome::Met).count(),
+                            met: wishes
+                                .iter()
+                                .filter(|r| r.outcome() == Outcome::Met)
+                                .count(),
                             wishes: wishes.len(),
                         }
                     })
@@ -154,7 +162,10 @@ impl PlassiApp {
                     let mut hover = format!(
                         "{}\n{}",
                         candidate.solver_status.describe(),
-                        fill("{} of {} wishes fully met · score {} (lower is better)", &[&summary.met, &summary.wishes, &score]),
+                        fill(
+                            "{} of {} wishes fully met · score {} (lower is better)",
+                            &[&summary.met, &summary.wishes, &score]
+                        ),
                     );
                     if hard > 0 {
                         hover.push_str(&fill(" · {} hard rules broken", &[&hard]));
@@ -163,11 +174,7 @@ impl PlassiApp {
                         hover.push_str(tr(" · best"));
                     }
                     hover.push_str(&format!("\n{}", tr("Right-click for more")));
-                    let response = ui
-                        .add(
-                            theme::chip(label, p, active),
-                        )
-                        .on_hover_text(hover);
+                    let response = ui.add(theme::chip(label, p, active)).on_hover_text(hover);
                     if response.clicked() {
                         selected = index;
                     }
@@ -176,8 +183,10 @@ impl PlassiApp {
                     }
                     response.context_menu(|ui| {
                         ui.horizontal(|ui| {
-                            let field = ui.add(theme::field(&mut self.chart.rename).desired_width(140.0));
-                            let enter = field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                            let field =
+                                ui.add(theme::field(&mut self.chart.rename).desired_width(140.0));
+                            let enter =
+                                field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                             if ui.button(tr("Rename")).clicked() || enter {
                                 action = Some(OptionAction::Rename(index));
                                 ui.close();
@@ -195,7 +204,8 @@ impl PlassiApp {
                     });
                 }
             });
-        self.tour.anchors.options = (!self.project.candidates.is_empty()).then_some(chips.inner_rect);
+        self.tour.anchors.options =
+            (!self.project.candidates.is_empty()).then_some(chips.inner_rect);
         if selected != self.selected_candidate {
             self.selected_candidate = selected;
             if self.chart.compare_with == Some(selected) {
@@ -208,9 +218,17 @@ impl PlassiApp {
             Some(OptionAction::Delete(i)) => self.delete_option(i),
             Some(OptionAction::Rename(i)) => {
                 let name = self.chart.rename.trim().to_string();
-                if let Some(candidate) = self.project.candidates.get_mut(i).filter(|_| !name.is_empty()) {
+                if let Some(candidate) = self
+                    .project
+                    .candidates
+                    .get_mut(i)
+                    .filter(|_| !name.is_empty())
+                {
                     let old = std::mem::replace(&mut candidate.name, name);
-                    self.commit(&fill("Renamed {} to {}", &[&old, &self.project.candidates[i].name]));
+                    self.commit(&fill(
+                        "Renamed {} to {}",
+                        &[&old, &self.project.candidates[i].name],
+                    ));
                 }
             }
             None => {}
@@ -228,12 +246,25 @@ impl PlassiApp {
         if theme::icon_button(ui, p, theme::Icon::SidePanel, tip, open).clicked() {
             self.chart.hide_inspector = open;
         }
-        if theme::icon_button(ui, p, theme::Icon::Fit, tr("Fit the room to the window (F)"), false)
-            .clicked()
+        if theme::icon_button(
+            ui,
+            p,
+            theme::Icon::Fit,
+            tr("Fit the room to the window (F)"),
+            false,
+        )
+        .clicked()
         {
             self.chart.view.fit_pending = true;
         }
-        if theme::icon_button(ui, p, theme::Icon::ZoomIn, tr("Zoom in (scroll wheel)"), false).clicked()
+        if theme::icon_button(
+            ui,
+            p,
+            theme::Icon::ZoomIn,
+            tr("Zoom in (scroll wheel)"),
+            false,
+        )
+        .clicked()
         {
             self.chart.view.camera.zoom_by(1.25);
         }
@@ -270,17 +301,25 @@ impl PlassiApp {
 
     fn history_buttons(&mut self, ui: &mut egui::Ui, p: Palette) {
         let redo = !self.file.redo_stack.is_empty();
-        let tip = self.file.redo_stack.last().map_or(tr("Redo (Ctrl+Shift+Z)").into(), |s| fill("Redo: {} (Ctrl+Shift+Z)", &[&s.change]));
-        if theme::icon_button_enabled(ui, p, theme::Icon::Redo, &tip, false, redo)
-            .clicked()
-        {
+        let tip = self
+            .file
+            .redo_stack
+            .last()
+            .map_or(tr("Redo (Ctrl+Shift+Z)").into(), |s| {
+                fill("Redo: {} (Ctrl+Shift+Z)", &[&s.change])
+            });
+        if theme::icon_button_enabled(ui, p, theme::Icon::Redo, &tip, false, redo).clicked() {
             self.undo(true);
         }
         let undo = !self.file.undo_stack.is_empty();
-        let tip = self.file.undo_stack.last().map_or(tr("Undo (Ctrl+Z)").into(), |s| fill("Undo: {} (Ctrl+Z)", &[&s.change]));
-        if theme::icon_button_enabled(ui, p, theme::Icon::Undo, &tip, false, undo)
-            .clicked()
-        {
+        let tip = self
+            .file
+            .undo_stack
+            .last()
+            .map_or(tr("Undo (Ctrl+Z)").into(), |s| {
+                fill("Undo: {} (Ctrl+Z)", &[&s.change])
+            });
+        if theme::icon_button_enabled(ui, p, theme::Icon::Undo, &tip, false, undo).clicked() {
             self.undo(false);
         }
     }
@@ -288,7 +327,11 @@ impl PlassiApp {
     /// A search field with a list of matching people (name or organization).
     /// Arrow keys pick, Enter selects and centres; Ctrl+F focuses it.
     fn person_search(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
-        let search = ui.add(theme::field(&mut self.chart.search).hint_text(tr("Find person (Ctrl+F)")).desired_width(190.0));
+        let search = ui.add(
+            theme::field(&mut self.chart.search)
+                .hint_text(tr("Find person (Ctrl+F)"))
+                .desired_width(190.0),
+        );
         if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::F)) {
             search.request_focus();
         }
@@ -297,7 +340,11 @@ impl PlassiApp {
         }
         let needle = crate::app::search::Needle::new(&self.chart.search);
         // Keep the list while the pointer is on it, so a click can land.
-        let over_list = self.chart.search_list.zip(ui.input(|i| i.pointer.hover_pos())).is_some_and(|(r, pos)| r.contains(pos));
+        let over_list = self
+            .chart
+            .search_list
+            .zip(ui.input(|i| i.pointer.hover_pos()))
+            .is_some_and(|(r, pos)| r.contains(pos));
         if needle.is_empty() || !(search.has_focus() || search.lost_focus() || over_list) {
             self.chart.search_list = None;
             return;
@@ -311,7 +358,12 @@ impl PlassiApp {
             .take(8)
             .collect();
         let (down, up, enter, escape) = ui.input(|i| {
-            (i.key_pressed(egui::Key::ArrowDown), i.key_pressed(egui::Key::ArrowUp), i.key_pressed(egui::Key::Enter), i.key_pressed(egui::Key::Escape))
+            (
+                i.key_pressed(egui::Key::ArrowDown),
+                i.key_pressed(egui::Key::ArrowUp),
+                i.key_pressed(egui::Key::Enter),
+                i.key_pressed(egui::Key::Escape),
+            )
         });
         let last = matches.len().saturating_sub(1);
         self.chart.search_pick = match (down, up) {
@@ -323,7 +375,9 @@ impl PlassiApp {
             self.chart.search.clear();
             return;
         }
-        let mut chosen = (enter && search.lost_focus()).then(|| matches.get(self.chart.search_pick).copied()).flatten();
+        let mut chosen = (enter && search.lost_focus())
+            .then(|| matches.get(self.chart.search_pick).copied())
+            .flatten();
         let list = egui::Area::new(ui.id().with("search-matches"))
             .fixed_pos(search.rect.left_bottom() + Vec2::new(0.0, 4.0))
             .order(egui::Order::Foreground)
@@ -334,10 +388,21 @@ impl PlassiApp {
                         theme::hint(ui, p, tr("Nobody matches"));
                     }
                     for (i, &id) in matches.iter().enumerate() {
-                        let seat = scene.seat_of.get(&id).map(|s| self.project.seat_label(s)).unwrap_or_else(|| tr("no seat").into());
+                        let seat = scene
+                            .seat_of
+                            .get(&id)
+                            .map(|s| self.project.seat_label(s))
+                            .unwrap_or_else(|| tr("no seat").into());
                         let person = self.project.person(id).expect("matched person");
-                        let text = format!("{} · {} · {seat}", person.name, self.project.affiliation(person));
-                        if ui.selectable_label(i == self.chart.search_pick, text).clicked() {
+                        let text = format!(
+                            "{} · {} · {seat}",
+                            person.name,
+                            self.project.affiliation(person)
+                        );
+                        if ui
+                            .selectable_label(i == self.chart.search_pick, text)
+                            .clicked()
+                        {
                             chosen = Some(id);
                         }
                     }
@@ -361,9 +426,12 @@ impl PlassiApp {
         else {
             return;
         };
-        let chip =
-            theme::chip(RichText::new(fill("Comparing with {}  ×", &[&name])).color(p.warn), p, false)
-                .fill(theme::blend(p.surface, p.warn, 0.16));
+        let chip = theme::chip(
+            RichText::new(fill("Comparing with {}  ×", &[&name])).color(p.warn),
+            p,
+            false,
+        )
+        .fill(theme::blend(p.surface, p.warn, 0.16));
         if ui.add(chip).on_hover_text(tr("Stop comparing")).clicked() {
             self.chart.compare_with = None;
         }

@@ -3,11 +3,25 @@
 use super::*;
 
 pub(super) fn result_row(ui: &mut egui::Ui, p: Palette, result: &RuleResult) {
-    outcome_row(ui, p, &result.label, &result.detail, result.penalty, result.hard_violation);
+    outcome_row(
+        ui,
+        p,
+        &result.label,
+        &result.detail,
+        result.penalty,
+        result.hard_violation,
+    );
 }
 
 /// Status dot, label, detail and penalty on one line.
-pub(super) fn outcome_row(ui: &mut egui::Ui, p: Palette, label: &str, detail: &str, penalty: i64, hard_violation: bool) {
+pub(super) fn outcome_row(
+    ui: &mut egui::Ui,
+    p: Palette,
+    label: &str,
+    detail: &str,
+    penalty: i64,
+    hard_violation: bool,
+) {
     let color = theme::outcome_color(p, Some(crate::score::Outcome::of(hard_violation, penalty)));
     ui.horizontal_wrapped(|ui| {
         theme::status_dot(ui, color);
@@ -24,21 +38,20 @@ pub(super) fn outcome_row(ui: &mut egui::Ui, p: Palette, label: &str, detail: &s
 }
 
 pub(super) fn stat_tile(ui: &mut egui::Ui, p: Palette, label: &str, value: String, color: Color32) {
-    theme::inset(p)
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.label(
-                RichText::new(label)
-                    .size(theme::text::CAPTION)
-                    .color(p.muted),
-            );
-            ui.label(
-                RichText::new(value)
-                    .size(theme::text::PAGE)
-                    .strong()
-                    .color(color),
-            );
-        });
+    theme::inset(p).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.label(
+            RichText::new(label)
+                .size(theme::text::CAPTION)
+                .color(p.muted),
+        );
+        ui.label(
+            RichText::new(value)
+                .size(theme::text::PAGE)
+                .strong()
+                .color(color),
+        );
+    });
 }
 
 fn stat_grid(ui: &mut egui::Ui, p: Palette, scene: &Scene, evaluation: &Evaluation) {
@@ -97,7 +110,10 @@ fn issue_row(ui: &mut egui::Ui, p: Palette, name: &str, result: &RuleResult) -> 
         painter.rect_filled(rect, theme::radius::SM, p.surface_hi);
     }
     painter.rect_filled(
-        Rect::from_min_size(rect.min + Vec2::new(0.0, theme::space::S), Vec2::new(3.0, 26.0)),
+        Rect::from_min_size(
+            rect.min + Vec2::new(0.0, theme::space::S),
+            Vec2::new(3.0, 26.0),
+        ),
         2.0,
         color,
     );
@@ -139,13 +155,18 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
         ] {
             ui.horizontal(|ui| {
                 let (r, _) = ui.allocate_exact_size(Vec2::new(3.0, 14.0), Sense::hover());
-                ui.painter().rect_filled(r, 2.0, theme::outcome_color(p, Some(status)));
+                ui.painter()
+                    .rect_filled(r, 2.0, theme::outcome_color(p, Some(status)));
                 theme::hint(ui, p, text);
             });
         }
     });
     ui.add_space(theme::space::S);
-    theme::hint(ui, p, tr("Drag to move or swap. Ctrl-click to select people; right-click for more actions."));
+    theme::hint(
+        ui,
+        p,
+        tr("Drag to move or swap. Ctrl-click to select people; right-click for more actions."),
+    );
     ui.add_space(theme::space::M);
     theme::section_title(ui, p, tr("Keys"));
     theme::text_rows(ui, |ui| {
@@ -191,11 +212,10 @@ impl PlassiApp {
             .map(|c| c.solver_status.describe())
             .unwrap_or_default();
         let policy_cost = evaluation.policy_penalty();
-        theme::card(p)
-            .fill(p.accent_soft)
-            .show(ui, |ui| {
-                ui.set_width(ui.available_width());
-                theme::text_rows(ui, |ui| ui.horizontal(|ui| {
+        theme::card(p).fill(p.accent_soft).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            theme::text_rows(ui, |ui| {
+                ui.horizontal(|ui| {
                     ui.label(
                         RichText::new(tr("SCORE"))
                             .size(theme::text::CAPTION)
@@ -207,22 +227,27 @@ impl PlassiApp {
                             .size(theme::text::CAPTION)
                             .color(p.muted),
                     );
-                }));
-                ui.label(
-                    RichText::new(scene.score.to_string())
-                        .size(theme::text::DISPLAY)
-                        .strong(),
-                );
-                theme::hint(
-                    ui,
-                    p,
-                    fill(
-                        "wishes {} · your preferences {} · seating policy {}",
-                        &[&evaluation.wish_penalty, &evaluation.preference_penalty, &policy_cost],
-                    ),
-                );
-                theme::hint(ui, p, status);
+                })
             });
+            ui.label(
+                RichText::new(scene.score.to_string())
+                    .size(theme::text::DISPLAY)
+                    .strong(),
+            );
+            theme::hint(
+                ui,
+                p,
+                fill(
+                    "wishes {} · your preferences {} · seating policy {}",
+                    &[
+                        &evaluation.wish_penalty,
+                        &evaluation.preference_penalty,
+                        &policy_cost,
+                    ],
+                ),
+            );
+            theme::hint(ui, p, status);
+        });
     }
 
     /// Gaps with a fix, people sitting alone, comparison and hard-rule notes.
@@ -249,7 +274,11 @@ impl PlassiApp {
                     .color(p.bad),
             );
         }
-        for a in evaluation.left_out.iter().filter_map(|id| self.project.person(*id)) {
+        for a in evaluation
+            .left_out
+            .iter()
+            .filter_map(|id| self.project.person(*id))
+        {
             ui.label(
                 RichText::new(fill("None of {}'s wishes is near them", &[&a.name]))
                     .size(theme::text::SMALL)
@@ -321,5 +350,4 @@ impl PlassiApp {
             self.focus_person(id, scene);
         }
     }
-
 }

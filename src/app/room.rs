@@ -252,7 +252,12 @@ impl PlassiApp {
         let mut changed = false;
         ui.horizontal_wrapped(|ui| {
             seat_picker(ui, "tag-seat", &mut self.room.selected_seat, seats);
-            if let Some(tags) = self.project.layout.seat_tags.get_mut(&self.room.selected_seat) {
+            if let Some(tags) = self
+                .project
+                .layout
+                .seat_tags
+                .get_mut(&self.room.selected_seat)
+            {
                 tags.retain(|tag| {
                     let keep = !ui.add(theme::tag_button(tag)).clicked();
                     changed |= !keep;
@@ -266,7 +271,12 @@ impl PlassiApp {
             );
             let tag = self.room.new_tag.trim().to_owned();
             if ui.button(tr("Add tag")).clicked() && !tag.is_empty() {
-                let tags = self.project.layout.seat_tags.entry(self.room.selected_seat.clone()).or_default();
+                let tags = self
+                    .project
+                    .layout
+                    .seat_tags
+                    .entry(self.room.selected_seat.clone())
+                    .or_default();
                 if !tags.contains(&tag) {
                     tags.push(tag);
                     changed = true;
@@ -298,12 +308,11 @@ impl PlassiApp {
         ui.horizontal_wrapped(|ui| {
             seat_picker(ui, "relation-a", &mut self.room.relation_a, seats);
             seat_picker(ui, "relation-b", &mut self.room.relation_b, seats);
-            theme::combo("relation-class", self.room.relation_class.label())
-                .show_ui(ui, |ui| {
-                    for class in DistanceClass::ALL {
-                        ui.selectable_value(&mut self.room.relation_class, class, class.label());
-                    }
-                });
+            theme::combo("relation-class", self.room.relation_class.label()).show_ui(ui, |ui| {
+                for class in DistanceClass::ALL {
+                    ui.selectable_value(&mut self.room.relation_class, class, class.label());
+                }
+            });
             let (a, b) = (&self.room.relation_a, &self.room.relation_b);
             if ui.button(tr("Add / replace")).clicked() && a != b {
                 self.project
@@ -357,7 +366,8 @@ fn row_card(
             edit.labels |= ui.add(label).changed();
             ui.label(RichText::new(fill("{} tables", &[&row.tables.len()])).color(p.muted));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                remove_row = removable && ui.add(theme::ghost_button(tr("Remove row"), p)).clicked();
+                remove_row =
+                    removable && ui.add(theme::ghost_button(tr("Remove row"), p)).clicked();
                 if ui.add(theme::secondary_button(tr("+ Add table"))).clicked() {
                     add_table(row, table_ids);
                     edit.geometry = true;

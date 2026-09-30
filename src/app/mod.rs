@@ -10,20 +10,20 @@ mod printing;
 mod room;
 
 // App infrastructure.
+mod about;
 mod backups;
 mod camera;
 mod copy_reminder;
-mod about;
 mod help;
-mod tour;
 mod input;
 mod memo;
-mod search;
 mod project_file;
 mod projects;
+mod search;
 mod shell;
 mod solving;
 mod theme;
+mod tour;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod ui_tests;
 #[cfg(test)]
@@ -108,7 +108,10 @@ impl PlassiApp {
         self.evaluation
             .get((self.file.revision, option), || {
                 let candidate = project.candidates.get(option)?;
-                Some(std::rc::Rc::new(crate::score::evaluate(project, &candidate.assignment)))
+                Some(std::rc::Rc::new(crate::score::evaluate(
+                    project,
+                    &candidate.assignment,
+                )))
             })
             .clone()
     }
@@ -163,7 +166,11 @@ impl eframe::App for PlassiApp {
                 .show_separator_line(true)
                 .frame(frame),
             |ui, expanded| {
-                let padding = if expanded { theme::space::M } else { theme::space::S };
+                let padding = if expanded {
+                    theme::space::M
+                } else {
+                    theme::space::S
+                };
                 theme::panel_card(ui, p, padding, |ui| {
                     toggle_sidebar = self.sidebar(ui, p, expanded);
                 });
@@ -217,7 +224,10 @@ pub(super) fn run() -> anyhow::Result<()> {
             theme::install(&cc.egui_ctx);
             let mut app = PlassiApp::new();
             // Optional start page and selection, e.g. for screenshots.
-            if let Some(page) = std::env::var("PLASSI_PAGE").ok().and_then(|p| Page::named(&p)) {
+            if let Some(page) = std::env::var("PLASSI_PAGE")
+                .ok()
+                .and_then(|p| Page::named(&p))
+            {
                 app.page = page;
             }
             app.graph
@@ -254,7 +264,9 @@ pub fn start_web() {
                     platform::request_persistence();
                     let mut app = PlassiApp::new();
                     // A start page from the address, e.g. ".../#people".
-                    let hash = web_sys::window().and_then(|w| w.location().hash().ok()).unwrap_or_default();
+                    let hash = web_sys::window()
+                        .and_then(|w| w.location().hash().ok())
+                        .unwrap_or_default();
                     if let Some(page) = Page::named(hash.trim_start_matches('#')) {
                         app.page = page;
                     }
@@ -289,7 +301,9 @@ impl PlassiApp {
     pub(super) fn with_library(library: platform::Library) -> Self {
         let (file, project, status) = project_file::ProjectFile::open_default(library);
         let saved = file.library.setting("language");
-        let lang = saved.or_else(platform::system_locale).and_then(|l| crate::i18n::Lang::from_locale(&l));
+        let lang = saved
+            .or_else(platform::system_locale)
+            .and_then(|l| crate::i18n::Lang::from_locale(&l));
         crate::i18n::set(lang.unwrap_or(crate::i18n::Lang::En));
         Self {
             project,

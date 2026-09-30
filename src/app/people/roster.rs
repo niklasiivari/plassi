@@ -26,9 +26,7 @@ impl PlassiApp {
         let action = match edit {
             RosterEdit::Add(person) => attendee_form(ui, p, tr("Add a person"), tr("Add"), person),
             RosterEdit::Replace(old, person) => {
-                let old_name = self
-                    .project
-                    .person_name(*old).to_string();
+                let old_name = self.project.person_name(*old).to_string();
                 let title = fill("Replace {}", &[&old_name]);
                 ui.label(
                     RichText::new(fill(
@@ -50,7 +48,10 @@ impl PlassiApp {
 
     /// Removes people from the event; their seats become free. Undo brings them back.
     pub(in crate::app) fn remove_people(&mut self, ids: &[usize]) {
-        let names: Vec<String> = ids.iter().map(|id| self.project.person_name(*id).to_string()).collect();
+        let names: Vec<String> = ids
+            .iter()
+            .map(|id| self.project.person_name(*id).to_string())
+            .collect();
         for &id in ids {
             roster::remove(&mut self.project, id);
         }
@@ -101,39 +102,38 @@ fn attendee_form(
     person: &mut NewAttendee,
 ) -> Option<FormAction> {
     let mut action = None;
-    theme::raised_card(p)
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.label(RichText::new(title).strong().size(theme::text::LEAD));
-            egui::Grid::new("attendee-form")
-                .num_columns(2)
-                .spacing([12.0, 8.0])
-                .show(ui, |ui| {
-                    for (label, value) in [
-                        (tr("Name"), &mut person.name),
-                        (tr("Organization"), &mut person.organization),
-                        (tr("Ticket / group"), &mut person.participant_group),
-                        (tr("Food"), &mut person.food),
-                        (tr("Drinks"), &mut person.drink),
-                        (tr("Allergies / diet"), &mut person.allergies),
-                    ] {
-                        ui.label(RichText::new(label).color(p.muted));
-                        ui.add(theme::field(value).desired_width(340.0));
-                        ui.end_row();
-                    }
-                });
-            ui.horizontal(|ui| {
-                let ready = !person.name.trim().is_empty();
-                if ui
-                    .add_enabled(ready, theme::primary_button(submit, p))
-                    .clicked()
-                {
-                    action = Some(FormAction::Submit);
-                }
-                if ui.button(tr("Cancel")).clicked() {
-                    action = Some(FormAction::Cancel);
+    theme::raised_card(p).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.label(RichText::new(title).strong().size(theme::text::LEAD));
+        egui::Grid::new("attendee-form")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                for (label, value) in [
+                    (tr("Name"), &mut person.name),
+                    (tr("Organization"), &mut person.organization),
+                    (tr("Ticket / group"), &mut person.participant_group),
+                    (tr("Food"), &mut person.food),
+                    (tr("Drinks"), &mut person.drink),
+                    (tr("Allergies / diet"), &mut person.allergies),
+                ] {
+                    ui.label(RichText::new(label).color(p.muted));
+                    ui.add(theme::field(value).desired_width(340.0));
+                    ui.end_row();
                 }
             });
+        ui.horizontal(|ui| {
+            let ready = !person.name.trim().is_empty();
+            if ui
+                .add_enabled(ready, theme::primary_button(submit, p))
+                .clicked()
+            {
+                action = Some(FormAction::Submit);
+            }
+            if ui.button(tr("Cancel")).clicked() {
+                action = Some(FormAction::Cancel);
+            }
         });
+    });
     action
 }

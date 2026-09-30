@@ -26,7 +26,10 @@ fn kind_of(name: &str) -> DropKind {
 
 /// The file's name (on the web the path is just the name).
 fn file_name(file: &dyn egui::DroppedFile) -> String {
-    file.path().file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+    file.path()
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 /// Text of a dropped sheet; a byte-order mark is dropped and invalid UTF-8 replaced.
@@ -48,20 +51,34 @@ impl PlassiApp {
         if let Some(file) = ui.input(|i| i.raw.dropped_files.first().cloned()) {
             let name = file_name(file.as_ref());
             match kind_of(&name) {
-                DropKind::Text => self.people.dropped = Some((name, crate::platform::DroppedRead::start(file))),
+                DropKind::Text => {
+                    self.people.dropped = Some((name, crate::platform::DroppedRead::start(file)))
+                }
                 DropKind::Excel => {
                     self.status = tr("Excel files can't be read directly. Save the sheet as .csv or .tsv, or copy the rows and paste them.").into();
                 }
-                DropKind::Other => self.status = fill("{} is not a .csv, .tsv or .txt file", &[&name]),
+                DropKind::Other => {
+                    self.status = fill("{} is not a .csv, .tsv or .txt file", &[&name])
+                }
             }
         }
-        let Some(read) = self.people.dropped.as_ref().and_then(|(_, read)| read.poll()) else { return };
+        let Some(read) = self
+            .people
+            .dropped
+            .as_ref()
+            .and_then(|(_, read)| read.poll())
+        else {
+            return;
+        };
         let (name, _) = self.people.dropped.take().expect("a read in progress");
         match read {
             Ok(bytes) => {
                 self.people.import_text = sheet_text(&bytes);
                 self.selected_person = None;
-                self.status = fill("Loaded {}. Check the preview, then update attendees.", &[&name]);
+                self.status = fill(
+                    "Loaded {}. Check the preview, then update attendees.",
+                    &[&name],
+                );
             }
             Err(error) => self.status = fill("Could not read {}: {}", &[&name, &error]),
         }

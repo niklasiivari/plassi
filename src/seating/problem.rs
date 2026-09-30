@@ -62,11 +62,20 @@ pub(super) struct Fairness {
 impl Fairness {
     fn new(terms: &[Term], n_people: usize, penalty: i64) -> Self {
         let mut group_of_person = vec![None; n_people];
-        let mut fairness = Self { groups: Vec::new(), requester: Vec::new(), of_term: vec![None; terms.len()], penalty };
+        let mut fairness = Self {
+            groups: Vec::new(),
+            requester: Vec::new(),
+            of_term: vec![None; terms.len()],
+            penalty,
+        };
         if penalty == 0 {
             return fairness;
         }
-        for (t, term) in terms.iter().enumerate().filter(|(_, t)| matches!(t.source, Source::Rule(_))) {
+        for (t, term) in terms
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| matches!(t.source, Source::Rule(_)))
+        {
             let g = *group_of_person[term.requester].get_or_insert_with(|| {
                 fairness.groups.push(Vec::new());
                 fairness.requester.push(term.requester);
@@ -205,10 +214,19 @@ impl Problem {
     /// How a term fares: the distance to the `required`-th nearest target
     /// (which decides hard limits) and the penalty, the mean cost of the
     /// `required` nearest, so each target that comes closer counts.
-    pub(super) fn term_outcome(&self, t: usize, seat_of: &[usize], scratch: &mut Vec<DistanceClass>) -> (DistanceClass, i64) {
+    pub(super) fn term_outcome(
+        &self,
+        t: usize,
+        seat_of: &[usize],
+        scratch: &mut Vec<DistanceClass>,
+    ) -> (DistanceClass, i64) {
         let term = &self.terms[t];
         scratch.clear();
-        scratch.extend(term.targets.iter().map(|&x| self.distance(seat_of, term.requester, x)));
+        scratch.extend(
+            term.targets
+                .iter()
+                .map(|&x| self.distance(seat_of, term.requester, x)),
+        );
         let k = term.required;
         if k == 1 {
             let class = scratch.iter().copied().min().unwrap_or(DistanceClass::Far);
@@ -221,19 +239,40 @@ impl Problem {
     }
 
     /// Extra cost if none of a requester's wishes is near them.
-    pub(super) fn left_out_cost(&self, g: usize, seat_of: &[usize], scratch: &mut Vec<DistanceClass>) -> i64 {
-        let near = self.fairness.groups[g].iter().any(|&t| self.term_outcome(t, seat_of, scratch).0 <= DistanceClass::Near);
+    pub(super) fn left_out_cost(
+        &self,
+        g: usize,
+        seat_of: &[usize],
+        scratch: &mut Vec<DistanceClass>,
+    ) -> i64 {
+        let near = self.fairness.groups[g]
+            .iter()
+            .any(|&t| self.term_outcome(t, seat_of, scratch).0 <= DistanceClass::Near);
         if near { 0 } else { self.fairness.penalty }
     }
 
-    pub(super) fn term_cost(&self, t: usize, seat_of: &[usize], scratch: &mut Vec<DistanceClass>) -> i64 {
+    pub(super) fn term_cost(
+        &self,
+        t: usize,
+        seat_of: &[usize],
+        scratch: &mut Vec<DistanceClass>,
+    ) -> i64 {
         let (class, penalty) = self.term_outcome(t, seat_of, scratch);
-        penalty + if self.terms[t].forbidden[class as usize] { HARD } else { 0 }
+        penalty
+            + if self.terms[t].forbidden[class as usize] {
+                HARD
+            } else {
+                0
+            }
     }
 
     /// Placement cost of `p` on seat `s`; nothing for someone without a seat.
     pub(super) fn placement_cost(&self, p: usize, s: usize) -> i64 {
-        if s == NONE { 0 } else { self.placement[p][s].unwrap_or(HARD) }
+        if s == NONE {
+            0
+        } else {
+            self.placement[p][s].unwrap_or(HARD)
+        }
     }
 
     /// Seating-policy cost of two people sitting beside or opposite each other.
@@ -243,7 +282,9 @@ impl Problem {
 
     fn fill_pair_costs(&mut self) {
         let n = self.people.len();
-        self.pair = (0..n * n).map(|i| self.organization_cost(i / n, i % n) + self.sprinkle_cost(i / n, i % n)).collect();
+        self.pair = (0..n * n)
+            .map(|i| self.organization_cost(i / n, i % n) + self.sprinkle_cost(i / n, i % n))
+            .collect();
     }
 
     fn organization_cost(&self, a: usize, b: usize) -> i64 {
@@ -320,7 +361,10 @@ impl Problem {
     }
 
     pub(super) fn isolated_cost(&self, seat: usize, occupant: &[usize]) -> i64 {
-        if !self.may_isolate || occupant[seat] == NONE || self.neighbours[seat].iter().any(|&n| occupant[n] != NONE) {
+        if !self.may_isolate
+            || occupant[seat] == NONE
+            || self.neighbours[seat].iter().any(|&n| occupant[n] != NONE)
+        {
             0
         } else {
             self.isolation
@@ -398,7 +442,11 @@ fn usable(
         .filter(|row| row.iter().any(Option::is_none))
         .map(|row| row.iter().map(Option::is_some).collect())
         .collect();
-    let index: HashMap<&str, usize> = seats.iter().enumerate().map(|(i, s)| (s.id.as_str(), i)).collect();
+    let index: HashMap<&str, usize> = seats
+        .iter()
+        .enumerate()
+        .map(|(i, s)| (s.id.as_str(), i))
+        .collect();
     let held = people
         .iter()
         .filter(|p| fixed.contains(p))
@@ -413,12 +461,23 @@ fn distance_matrix(project: &Project, seats: &[Seat]) -> Vec<DistanceClass> {
     let mut class = Vec::with_capacity(n * n);
     for (i, a) in seats.iter().enumerate() {
         for (j, b) in seats.iter().enumerate() {
-            class.push(if i == j { DistanceClass::Beside } else { table_distance(a, b) });
+            class.push(if i == j {
+                DistanceClass::Beside
+            } else {
+                table_distance(a, b)
+            });
         }
     }
-    let index: HashMap<&str, usize> = seats.iter().enumerate().map(|(i, s)| (s.id.as_str(), i)).collect();
+    let index: HashMap<&str, usize> = seats
+        .iter()
+        .enumerate()
+        .map(|(i, s)| (s.id.as_str(), i))
+        .collect();
     for relation in &project.layout.relations {
-        if let (Some(&a), Some(&b)) = (index.get(relation.a.as_str()), index.get(relation.b.as_str())) {
+        if let (Some(&a), Some(&b)) = (
+            index.get(relation.a.as_str()),
+            index.get(relation.b.as_str()),
+        ) {
             class[a * n + b] = relation.class;
             class[b * n + a] = relation.class;
         }
@@ -438,13 +497,24 @@ fn neighbours(class: &[DistanceClass], n: usize) -> Vec<Vec<usize>> {
 }
 
 /// Each enabled placement rule's cost per seat.
-fn placement_rules(project: &Project, seats: &[Seat], index: &HashMap<usize, usize>) -> Vec<PlacementRule> {
+fn placement_rules(
+    project: &Project,
+    seats: &[Seat],
+    index: &HashMap<usize, usize>,
+) -> Vec<PlacementRule> {
     project
         .rules
         .iter()
         .filter(|r| r.enabled)
         .filter_map(|rule| {
-            let RuleKind::Placement { person, area, must_be, hard, penalty } = &rule.kind else {
+            let RuleKind::Placement {
+                person,
+                area,
+                must_be,
+                hard,
+                penalty,
+            } = &rule.kind
+            else {
                 return None;
             };
             let cost = seats
@@ -455,13 +525,21 @@ fn placement_rules(project: &Project, seats: &[Seat], index: &HashMap<usize, usi
                     false => Some(*penalty),
                 })
                 .collect();
-            Some(PlacementRule { rule_id: rule.id, person: *index.get(person)?, cost })
+            Some(PlacementRule {
+                rule_id: rule.id,
+                person: *index.get(person)?,
+                cost,
+            })
         })
         .collect()
 }
 
 /// Per person, per seat: the sum of their placement rules.
-fn combine_placement(rules: &[PlacementRule], n_people: usize, n_seats: usize) -> Vec<Vec<Option<i64>>> {
+fn combine_placement(
+    rules: &[PlacementRule],
+    n_people: usize,
+    n_seats: usize,
+) -> Vec<Vec<Option<i64>>> {
     let mut placement = vec![vec![Some(0); n_seats]; n_people];
     for rule in rules {
         for (total, cost) in placement[rule.person].iter_mut().zip(&rule.cost) {
@@ -473,7 +551,11 @@ fn combine_placement(rules: &[PlacementRule], n_people: usize, n_seats: usize) -
 
 /// Wishes and the planner's preferences as terms.
 fn compile_terms(project: &Project, index: &HashMap<usize, usize>) -> Vec<Term> {
-    let wishes = project.rules.iter().filter(|r| r.enabled).filter_map(|rule| wish_term(project, rule, index));
+    let wishes = project
+        .rules
+        .iter()
+        .filter(|r| r.enabled)
+        .filter_map(|rule| wish_term(project, rule, index));
     let preferences = project.active_preferences().flat_map(|preference| {
         preference.pair_terms().filter_map(move |t| {
             Some(Term {
@@ -491,14 +573,28 @@ fn compile_terms(project: &Project, index: &HashMap<usize, usize>) -> Vec<Term> 
 
 /// The weighted term of a proximity rule, or `None` if it is not one.
 fn wish_term(project: &Project, rule: &Rule, index: &HashMap<usize, usize>) -> Option<Term> {
-    let RuleKind::Proximity { requester, target, costs, max_class, .. } = &rule.kind else {
+    let RuleKind::Proximity {
+        requester,
+        target,
+        costs,
+        max_class,
+        ..
+    } = &rule.kind
+    else {
         return None;
     };
     Some(Term {
         requester: *index.get(requester)?,
-        targets: project.target_ids(*requester, target).iter().filter_map(|t| index.get(t).copied()).collect(),
+        targets: project
+            .target_ids(*requester, target)
+            .iter()
+            .filter_map(|t| index.get(t).copied())
+            .collect(),
         // Never more than there are: a removed person can't make it unmeetable.
-        required: target.required().min(project.target_ids(*requester, target).len()).max(1),
+        required: target
+            .required()
+            .min(project.target_ids(*requester, target).len())
+            .max(1),
         costs: {
             let (weight, share) = project.weight_share(rule);
             costs.shared(weight, share)

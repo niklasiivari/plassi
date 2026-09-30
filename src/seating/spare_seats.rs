@@ -9,7 +9,12 @@ use crate::model::{Area, EmptySeatPlacement, Project, RuleKind, Seat, Side};
 /// `allowed` lists, for each person limited by hard placement rules, the seats
 /// they may take; seats are only left empty while each such group of people
 /// still fits. Seats in `held` (by people who may not move) stay usable.
-pub fn usable_seats(project: &Project, seats: &[Seat], allowed: &[Vec<bool>], held: &HashSet<usize>) -> Vec<bool> {
+pub fn usable_seats(
+    project: &Project,
+    seats: &[Seat],
+    allowed: &[Vec<bool>],
+    held: &HashSet<usize>,
+) -> Vec<bool> {
     let mut usable = vec![true; seats.len()];
     let mut spare = seats.len().saturating_sub(project.attendees.len());
     if spare == 0 {
@@ -41,7 +46,8 @@ pub fn usable_seats(project: &Project, seats: &[Seat], allowed: &[Vec<bool>], he
             tables[t].entry(seat.index).or_default().push(i);
         }
         let removable = |row: &Vec<usize>, usable: &[bool]| {
-            row.iter().all(|&i| !protected.contains(seats[i].id.as_str()) && !held.contains(&i))
+            row.iter()
+                .all(|&i| !protected.contains(seats[i].id.as_str()) && !held.contains(&i))
                 && fits.after_removing(usable, row)
         };
         while spare > 0 {
@@ -84,7 +90,11 @@ pub fn usable_seats(project: &Project, seats: &[Seat], allowed: &[Vec<bool>], he
         if spare == 0 {
             break;
         }
-        if usable[i] && !protected.contains(seats[i].id.as_str()) && !held.contains(&i) && fits.after_removing(&usable, &[i]) {
+        if usable[i]
+            && !protected.contains(seats[i].id.as_str())
+            && !held.contains(&i)
+            && fits.after_removing(&usable, &[i])
+        {
             usable[i] = false;
             spare -= 1;
         }
@@ -113,7 +123,9 @@ impl<'a> Restrictions<'a> {
     /// Whether every group still has a usable seat per person once `removed` go.
     fn after_removing(&self, usable: &[bool], removed: &[usize]) -> bool {
         self.groups.iter().all(|(allowed, count)| {
-            let left = (0..usable.len()).filter(|&s| usable[s] && allowed[s] && !removed.contains(&s)).count();
+            let left = (0..usable.len())
+                .filter(|&s| usable[s] && allowed[s] && !removed.contains(&s))
+                .count();
             left >= *count
         })
     }

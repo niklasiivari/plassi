@@ -50,7 +50,9 @@ impl PlassiApp {
     /// Notes that the open project was just downloaded.
     pub(super) fn downloaded_copy(&mut self) {
         let now = platform::now_stamp().to_string();
-        self.file.library.set_setting(&download_key(&self.file.name), &now);
+        self.file
+            .library
+            .set_setting(&download_key(&self.file.name), &now);
         self.reset_copy_reminder();
     }
 
@@ -59,7 +61,11 @@ impl PlassiApp {
             self.reset_copy_reminder();
         }
         let r = &self.copy_reminder;
-        let last = self.file.library.setting(&download_key(&self.file.name)).and_then(|t| t.parse().ok());
+        let last = self
+            .file
+            .library
+            .setting(&download_key(&self.file.name))
+            .and_then(|t| t.parse().ok());
         due(
             self.file.revision.saturating_sub(r.revision),
             self.project.candidates.len() > r.options,
@@ -86,7 +92,11 @@ impl PlassiApp {
                         self.reset_copy_reminder();
                     }
                 });
-                ui.label(RichText::new(tr("Download a copy of this project")).size(theme::text::SMALL).strong());
+                ui.label(
+                    RichText::new(tr("Download a copy of this project"))
+                        .size(theme::text::SMALL)
+                        .strong(),
+                );
             });
         });
     }

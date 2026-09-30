@@ -25,7 +25,9 @@ impl PlassiApp {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui
                     .add(theme::secondary_button(tr("+ Add person")))
-                    .on_hover_text(tr("A walk-in: add them and seat them in the best free seat"))
+                    .on_hover_text(tr(
+                        "A walk-in: add them and seat them in the best free seat",
+                    ))
                     .clicked()
                 {
                     self.people.roster = Some(roster::RosterEdit::Add(Default::default()));
@@ -34,7 +36,13 @@ impl PlassiApp {
         });
         ui.add_space(theme::space::M);
         if self.project.attendees.is_empty() {
-            theme::hint(ui, p, tr("No people yet. Paste your sign-up sheet on the right, or add people one by one."));
+            theme::hint(
+                ui,
+                p,
+                tr(
+                    "No people yet. Paste your sign-up sheet on the right, or add people one by one.",
+                ),
+            );
             return;
         }
         ui.add(
@@ -50,8 +58,11 @@ impl PlassiApp {
         let active = self.project.active_people();
         let pinned = self.project.pinned_people();
         let unmet = self.unmet_people();
-        let seated: Option<HashSet<usize>> =
-            self.project.candidates.get(self.selected_candidate).map(|c| c.assignment.keys().copied().collect());
+        let seated: Option<HashSet<usize>> = self
+            .project
+            .candidates
+            .get(self.selected_candidate)
+            .map(|c| c.assignment.keys().copied().collect());
         let needle = crate::app::search::Needle::new(&self.people.search);
         let mut select = None;
         let mut pick = None;
@@ -67,7 +78,9 @@ impl PlassiApp {
                         PeopleFilter::WithWishes => active.contains(&person.id),
                         PeopleFilter::Unconstrained => !active.contains(&person.id),
                         PeopleFilter::Unmet => unmet.contains(&person.id),
-                        PeopleFilter::NotSeated => seated.as_ref().is_some_and(|s| !s.contains(&person.id)),
+                        PeopleFilter::NotSeated => {
+                            seated.as_ref().is_some_and(|s| !s.contains(&person.id))
+                        }
                         PeopleFilter::Pinned => pinned.contains(&person.id),
                     };
                     let matches = needle.matches(&person.name)
@@ -81,7 +94,8 @@ impl PlassiApp {
                             .project
                             .category_key(crate::catalog::Kind::Organization, person),
                         unreviewed,
-                        selected: self.selected_person == Some(person.id) || self.people.picked.contains(&person.id),
+                        selected: self.selected_person == Some(person.id)
+                            || self.people.picked.contains(&person.id),
                     };
                     shown.push(person.id);
                     let row = person_row(ui, p, person, &info);
@@ -107,8 +121,15 @@ impl PlassiApp {
 
     /// People with a wish or rule not fully met in the selected option.
     fn unmet_people(&mut self) -> HashSet<usize> {
-        let Some(evaluation) = self.evaluation() else { return HashSet::new() };
-        let owners: HashMap<u64, usize> = self.project.rules.iter().map(|r| (r.id, r.owner())).collect();
+        let Some(evaluation) = self.evaluation() else {
+            return HashSet::new();
+        };
+        let owners: HashMap<u64, usize> = self
+            .project
+            .rules
+            .iter()
+            .map(|r| (r.id, r.owner()))
+            .collect();
         evaluation
             .results
             .iter()
@@ -138,11 +159,16 @@ impl PlassiApp {
         ];
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().button_padding = egui::vec2(theme::space::M, theme::space::XS);
-            ui.spacing_mut().item_spacing = egui::vec2(theme::space::XS + 2.0, theme::space::XS + 2.0);
+            ui.spacing_mut().item_spacing =
+                egui::vec2(theme::space::XS + 2.0, theme::space::XS + 2.0);
             ui.spacing_mut().interact_size.y = theme::CHIP_HEIGHT;
             for (filter, label) in filters {
                 let on = self.people.filter == filter;
-                let chip = theme::chip(theme::chip_text(label, p, on).size(theme::text::SMALL), p, on);
+                let chip = theme::chip(
+                    theme::chip_text(label, p, on).size(theme::text::SMALL),
+                    p,
+                    on,
+                );
                 if ui.add(chip).clicked() {
                     self.people.filter = filter;
                 }
@@ -189,7 +215,14 @@ impl PlassiApp {
 fn person_row(ui: &mut egui::Ui, p: Palette, person: &Attendee, info: &RowInfo) -> egui::Response {
     let (rect, response) =
         ui.allocate_exact_size(egui::vec2(ui.available_width(), 48.0), Sense::click());
-    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, info.selected, &person.name));
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(
+            egui::WidgetType::SelectableLabel,
+            true,
+            info.selected,
+            &person.name,
+        )
+    });
     let painter = ui.painter();
     let fill = match () {
         _ if info.selected => p.accent_soft,
@@ -208,7 +241,8 @@ fn person_row(ui: &mut egui::Ui, p: Palette, person: &Attendee, info: &RowInfo) 
         egui::FontId::proportional(theme::text::CAPTION),
         Color32::WHITE,
     );
-    let text_at = |dy: f32| rect.left_center() + egui::vec2(theme::space::S + 28.0 + theme::space::M, dy);
+    let text_at =
+        |dy: f32| rect.left_center() + egui::vec2(theme::space::S + 28.0 + theme::space::M, dy);
     painter.text(
         text_at(-8.0),
         egui::Align2::LEFT_CENTER,
@@ -226,7 +260,11 @@ fn person_row(ui: &mut egui::Ui, p: Palette, person: &Attendee, info: &RowInfo) 
     if info.unreviewed > 0 {
         let centre = rect.right_center() - egui::vec2(theme::space::L + 4.0, 0.0);
         let badge = egui::Rect::from_center_size(centre, egui::vec2(24.0, 20.0));
-        painter.rect_filled(badge, theme::radius::PILL, theme::blend(p.surface, p.warn, 0.16));
+        painter.rect_filled(
+            badge,
+            theme::radius::PILL,
+            theme::blend(p.surface, p.warn, 0.16),
+        );
         painter.text(
             centre,
             egui::Align2::CENTER_CENTER,

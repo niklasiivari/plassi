@@ -121,7 +121,12 @@ impl PlassiApp {
         let key = (self.file.revision, candidate, self.chart.compare_with);
         let evaluation = self.evaluation();
         let scene = std::rc::Rc::clone(self.chart.scene.get(key, || {
-            std::rc::Rc::new(Scene::build(&self.project, candidate, self.chart.compare_with, evaluation))
+            std::rc::Rc::new(Scene::build(
+                &self.project,
+                candidate,
+                self.chart.compare_with,
+                evaluation,
+            ))
         }));
         if let Some(id) = self.chart.view.focus_person.take() {
             self.selected_person = Some(id);
@@ -131,12 +136,10 @@ impl PlassiApp {
         // Where the tour points; recorded while drawing this frame.
         self.tour.anchors = Default::default();
         egui::Panel::top("chart-toolbar")
-            .frame(
-                theme::panel_frame(p).inner_margin(egui::Margin::symmetric(
-                        theme::space::L as i8,
-                        theme::space::M as i8,
-                    )),
-            )
+            .frame(theme::panel_frame(p).inner_margin(egui::Margin::symmetric(
+                theme::space::L as i8,
+                theme::space::M as i8,
+            )))
             .show(ui, |ui| self.chart_toolbar(ui, p, &scene));
         let mut open = !self.chart.hide_inspector;
         let inspector = egui::Panel::right("chart-inspector")
@@ -182,7 +185,18 @@ impl PlassiApp {
     /// Where a seat's card was on screen in the last frame, for UI tests.
     pub(in crate::app) fn seat_card_on_screen(&self, seat_id: &str) -> Option<Rect> {
         let canvas = self.tour.anchors.canvas?;
-        let seat = self.project.layout.seats().into_iter().find(|s| s.id == seat_id)?;
-        Some(self.chart.view.camera.viewport(canvas).rect(card_rect(&seat)))
+        let seat = self
+            .project
+            .layout
+            .seats()
+            .into_iter()
+            .find(|s| s.id == seat_id)?;
+        Some(
+            self.chart
+                .view
+                .camera
+                .viewport(canvas)
+                .rect(card_rect(&seat)),
+        )
     }
 }

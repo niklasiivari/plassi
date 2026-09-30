@@ -2,24 +2,54 @@
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Connections", "Yhteydet"),
-    ("Who wished to sit with whom. Drag people around; click to select.", "Kuka toivoi istuvansa kenen kanssa. Siirrä ihmisiä vetämällä, valitse napsauttamalla."),
-    ("Include people without wishes", "Näytä myös ihmiset ilman toiveita"),
+    (
+        "Who wished to sit with whom. Drag people around; click to select.",
+        "Kuka toivoi istuvansa kenen kanssa. Siirrä ihmisiä vetämällä, valitse napsauttamalla.",
+    ),
+    (
+        "Include people without wishes",
+        "Näytä myös ihmiset ilman toiveita",
+    ),
     ("Arrange by table", "Järjestä pöydittäin"),
-    ("Pull everyone towards the table they sit at in the current option, to see which groups were split.", "Vetää jokaisen kohti pöytää, jossa hän istuu nykyisessä vaihtoehdossa, jotta näet mitkä ryhmät hajosivat."),
+    (
+        "Pull everyone towards the table they sit at in the current option, to see which groups were split.",
+        "Vetää jokaisen kohti pöytää, jossa hän istuu nykyisessä vaihtoehdossa, jotta näet mitkä ryhmät hajosivat.",
+    ),
     ("Show names", "Näytä nimet"),
     ("Structure", "Rakenne"),
-    ("{} wishes between {} people", "{} toivetta {} ihmisen välillä"),
-    ("{} wish groups, the largest has {}", "{} toiveryhmää, suurimmassa {}"),
-    ("{} people without wishes hidden", "{} ihmistä ilman toiveita piilotettu"),
-    ("{} of {} wishes met in this option", "{}/{} toiveesta toteutuu tässä vaihtoehdossa"),
+    (
+        "{} wishes between {} people",
+        "{} toivetta {} ihmisen välillä",
+    ),
+    (
+        "{} wish groups, the largest has {}",
+        "{} toiveryhmää, suurimmassa {}",
+    ),
+    (
+        "{} people without wishes hidden",
+        "{} ihmistä ilman toiveita piilotettu",
+    ),
+    (
+        "{} of {} wishes met in this option",
+        "{}/{} toiveesta toteutuu tässä vaihtoehdossa",
+    ),
     ("Selected", "Valittu"),
     ("Edit wishes", "Muokkaa toiveita"),
     ("Wish met", "Toive toteutuu"),
     ("Wish partly met", "Toive toteutuu osittain"),
-    ("Not judged (no option yet)", "Ei arvioitu (ei vielä vaihtoehtoa)"),
+    (
+        "Not judged (no option yet)",
+        "Ei arvioitu (ei vielä vaihtoehtoa)",
+    ),
     ("Avec (thicker)", "Avec (paksumpi)"),
-    ("Arrows point from the person who wished. A line without arrows is mutual. Dot colour is the organization; larger dots have more links.", "Nuoli lähtee toiveen esittäneestä. Viiva ilman nuolia on molemminpuolinen. Pisteen väri kertoo järjestön; isommilla pisteillä on enemmän yhteyksiä."),
-    ("No wishes yet — add some on People & wishes", "Ei vielä toiveita — lisää niitä sivulla Ihmiset ja toiveet"),
+    (
+        "Arrows point from the person who wished. A line without arrows is mutual. Dot colour is the organization; larger dots have more links.",
+        "Nuoli lähtee toiveen esittäneestä. Viiva ilman nuolia on molemminpuolinen. Pisteen väri kertoo järjestön; isommilla pisteillä on enemmän yhteyksiä.",
+    ),
+    (
+        "No wishes yet — add some on People & wishes",
+        "Ei vielä toiveita — lisää niitä sivulla Ihmiset ja toiveet",
+    ),
     ("Fit everyone into view", "Sovita kaikki näkymään"),
     ("Re-arrange", "Järjestä uudelleen"),
     ("1 wish to other tables", "1 toive muihin pöytiin"),

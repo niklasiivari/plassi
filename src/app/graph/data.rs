@@ -3,8 +3,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{Edge, Graph};
-use crate::score::Outcome;
 use crate::model::{Project, RuleKind, Target};
+use crate::score::Outcome;
 
 impl Graph {
     pub(super) fn build(project: &Project, candidate: Option<usize>, everyone: bool) -> Self {
@@ -12,7 +12,12 @@ impl Graph {
             .and_then(|i| project.candidates.get(i))
             .map(|c| crate::score::evaluate(project, &c.assignment));
         let outcome_of = |rule_id: u64| {
-            evaluation.as_ref()?.results.iter().find(|r| r.rule_id == rule_id).map(|r| r.outcome())
+            evaluation
+                .as_ref()?
+                .results
+                .iter()
+                .find(|r| r.rule_id == rule_id)
+                .map(|r| r.outcome())
         };
         let mut pairs: Vec<(usize, usize, bool, Option<Outcome>)> = Vec::new();
         for rule in project.rules.iter().filter(|r| r.enabled) {

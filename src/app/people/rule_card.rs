@@ -107,7 +107,12 @@ fn rule_header(
             .changed();
         ui.label(RichText::new(crate::i18n::tr_any(&rule.label)).strong());
         if let Some(result) = result {
-            theme::status_pill(ui, p, &result.detail, theme::outcome_color(p, Some(result.outcome())));
+            theme::status_pill(
+                ui,
+                p,
+                &result.detail,
+                theme::outcome_color(p, Some(result.outcome())),
+            );
         }
         let delete = ui
             .with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -138,7 +143,11 @@ fn placement_editor(ui: &mut egui::Ui, kind: &mut RuleKind) -> bool {
         Area::Tag(tag) => fill("seats tagged “{}”", &[tag]),
     };
     ui.label(fill(
-        if *must_be { "Must sit at {}" } else { "Must not sit at {}" },
+        if *must_be {
+            "Must sit at {}"
+        } else {
+            "Must not sit at {}"
+        },
         &[&area_text],
     ));
     ui.horizontal(|ui| {
@@ -360,24 +369,36 @@ fn limit_editor(ui: &mut egui::Ui, max_class: &mut Option<DistanceClass>) -> boo
     ui.horizontal(|ui| {
         ui.label(tr("Must be"));
         let mut changed = false;
-        theme::combo("max", max_class.map(DistanceClass::limit_label).unwrap_or(tr("no hard limit")))
-            .show_ui(ui, |ui| {
+        theme::combo(
+            "max",
+            max_class
+                .map(DistanceClass::limit_label)
+                .unwrap_or(tr("no hard limit")),
+        )
+        .show_ui(ui, |ui| {
+            changed |= ui
+                .selectable_value(max_class, None, tr("no hard limit"))
+                .changed();
+            for class in DistanceClass::ALL
+                .into_iter()
+                .filter(|c| *c != DistanceClass::Far)
+            {
                 changed |= ui
-                    .selectable_value(max_class, None, tr("no hard limit"))
+                    .selectable_value(max_class, Some(class), class.limit_label())
                     .changed();
-                for class in DistanceClass::ALL.into_iter().filter(|c| *c != DistanceClass::Far) {
-                    changed |= ui
-                        .selectable_value(max_class, Some(class), class.limit_label())
-                        .changed();
-                }
-            });
+            }
+        });
         changed
     })
     .inner
 }
 
 /// Per-distance penalties, kept non-decreasing with distance.
-pub(in crate::app) fn costs_editor(ui: &mut egui::Ui, p: Palette, costs: &mut ProximityCosts) -> bool {
+pub(in crate::app) fn costs_editor(
+    ui: &mut egui::Ui,
+    p: Palette,
+    costs: &mut ProximityCosts,
+) -> bool {
     let mut changed = false;
     egui::CollapsingHeader::new(RichText::new(tr("Distance penalties")).size(theme::text::SMALL).color(p.muted))
         .id_salt("costs")

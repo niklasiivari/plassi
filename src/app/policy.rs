@@ -8,7 +8,10 @@ use super::theme::{self, Palette};
 
 impl PlassiApp {
     pub(super) fn policy_page(&mut self, ui: &mut egui::Ui, p: Palette) {
-        crate::app::help::page_header(ui, p, crate::app::help::HelpPage::Policy,
+        crate::app::help::page_header(
+            ui,
+            p,
+            crate::app::help::HelpPage::Policy,
             tr("Seating policy"),
             Some(tr(
                 "Rules for everyone, mostly for people without wishes of their own. They are weighed against wishes when you solve.",
@@ -39,7 +42,10 @@ impl PlassiApp {
                 if policy.organization != OrganizationMixing::Indifferent {
                     ui.horizontal(|ui| {
                         ui.label(tr("Strength"));
-                        let r = theme::slider(ui, egui::Slider::new(&mut policy.organization_weight, 0..=100));
+                        let r = theme::slider(
+                            ui,
+                            egui::Slider::new(&mut policy.organization_weight, 0..=100),
+                        );
                         settled &= !r.dragged();
                     });
                 }
@@ -56,8 +62,10 @@ impl PlassiApp {
             |ui| {
                 ui.horizontal(|ui| {
                     theme::hint(ui, p, tr("Keep separate"));
-                    let r =
-                        theme::slider(ui, egui::Slider::new(&mut policy.sprinkle, -50..=50).show_value(false));
+                    let r = theme::slider(
+                        ui,
+                        egui::Slider::new(&mut policy.sprinkle, -50..=50).show_value(false),
+                    );
                     settled &= !r.dragged();
                     theme::hint(ui, p, tr("Sprinkle in"));
                 });
@@ -83,7 +91,10 @@ impl PlassiApp {
             tr("Cost for anyone with no one beside or opposite them."),
             |ui| {
                 ui.horizontal(|ui| {
-                    let r = theme::slider(ui, egui::Slider::new(&mut policy.isolation_penalty, 0..=2000));
+                    let r = theme::slider(
+                        ui,
+                        egui::Slider::new(&mut policy.isolation_penalty, 0..=2000),
+                    );
                     settled &= !r.dragged();
                 });
             },
@@ -98,7 +109,10 @@ impl PlassiApp {
             ),
             |ui| {
                 ui.horizontal(|ui| {
-                    let r = theme::slider(ui, egui::Slider::new(&mut policy.left_out_penalty, 0..=2000));
+                    let r = theme::slider(
+                        ui,
+                        egui::Slider::new(&mut policy.left_out_penalty, 0..=2000),
+                    );
                     settled &= !r.dragged();
                 });
             },

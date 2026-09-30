@@ -99,7 +99,10 @@ impl PlassiApp {
         ui.label(RichText::new(&person.name).strong().size(theme::text::LEAD));
         ui.label(RichText::new(self.project.affiliation(person)).color(p.muted));
         ui.horizontal(|ui| {
-            if ui.add(theme::secondary_button(tr("Show on chart"))).clicked() {
+            if ui
+                .add(theme::secondary_button(tr("Show on chart")))
+                .clicked()
+            {
                 self.page = Page::Chart;
                 self.chart.view.focus_person = Some(id);
             }

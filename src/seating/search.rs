@@ -8,8 +8,8 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use web_time::{Duration, Instant};
 
 use crate::i18n::{fill, tr};
@@ -51,7 +51,11 @@ impl Outcome {
         if self.optimal() {
             SolverStatus::Optimal
         } else {
-            SolverStatus::BestFound { seconds: seconds.round() as u64, runs_at_best: self.runs_at_best, runs: self.runs }
+            SolverStatus::BestFound {
+                seconds: seconds.round() as u64,
+                runs_at_best: self.runs_at_best,
+                runs: self.runs,
+            }
         }
     }
 }
@@ -66,7 +70,10 @@ pub struct Progress {
 
 impl Default for Progress {
     fn default() -> Self {
-        Self { best: Arc::new(AtomicI64::new(i64::MAX)), stop: Arc::new(AtomicBool::new(false)) }
+        Self {
+            best: Arc::new(AtomicI64::new(i64::MAX)),
+            stop: Arc::new(AtomicBool::new(false)),
+        }
     }
 }
 
@@ -119,14 +126,24 @@ impl Search {
             anyhow::bail!(tr("define the room layout before solving"));
         }
         if seats < project.attendees.len() {
-            anyhow::bail!(fill("room has {} seats for {} attendees", &[&seats, &project.attendees.len()]));
+            anyhow::bail!(fill(
+                "room has {} seats for {} attendees",
+                &[&seats, &project.attendees.len()]
+            ));
         }
         let mut fixed = options.fixed.clone();
         fixed.extend(project.pinned_people());
         let pr = Problem::new(project, &fixed, options.differ_from, options.start);
-        if let Some(p) = pr.placement.iter().position(|row| row.iter().all(Option::is_none)) {
+        if let Some(p) = pr
+            .placement
+            .iter()
+            .position(|row| row.iter().all(Option::is_none))
+        {
             let name = project.person_name(pr.people[p]);
-            anyhow::bail!(fill("no seat is allowed for {} by the hard placement rules", &[&name]));
+            anyhow::bail!(fill(
+                "no seat is allowed for {} by the hard placement rules",
+                &[&name]
+            ));
         }
         let start: Option<Vec<usize>> = options.start.map(|a| pr.state_of(a).0);
         let seed = options.seed.unwrap_or_else(rand::random);
@@ -134,13 +151,23 @@ impl Search {
         let runs: Vec<(Run, StdRng)> = (0..options.runs.max(1))
             .map(|r| {
                 let mut rng = StdRng::seed_from_u64(seed.wrapping_add(r as u64));
-                (Run::new(&pr, construct(&pr, &mut rng, start.as_deref())), rng)
+                (
+                    Run::new(&pr, construct(&pr, &mut rng, start.as_deref())),
+                    rng,
+                )
             })
             .collect();
         for (run, _) in &runs {
             progress.improved(run.best.cost);
         }
-        Ok(Self { lower_bound: pr.lower_bound(), pr, runs, started: Instant::now(), budget: options.budget, progress })
+        Ok(Self {
+            lower_bound: pr.lower_bound(),
+            pr,
+            runs,
+            started: Instant::now(),
+            budget: options.budget,
+            progress,
+        })
     }
 
     /// A handle for watching and stopping this search from elsewhere.
@@ -155,7 +182,12 @@ impl Search {
     /// Nothing left to do: out of time, or a run reached the lower bound.
     #[cfg(target_arch = "wasm32")]
     pub fn done(&self) -> bool {
-        Instant::now() >= self.deadline() || self.progress.stopped() || self.runs.iter().any(|(run, _)| run.best.cost <= self.lower_bound)
+        Instant::now() >= self.deadline()
+            || self.progress.stopped()
+            || self
+                .runs
+                .iter()
+                .any(|(run, _)| run.best.cost <= self.lower_bound)
     }
 
     /// Works on every run in turn until `until` (or the deadline).
@@ -169,7 +201,11 @@ impl Search {
                     step(run, pr, rng, progress);
                 }
             }
-            if self.runs.iter().any(|(run, _)| run.best.cost <= lower_bound) {
+            if self
+                .runs
+                .iter()
+                .any(|(run, _)| run.best.cost <= lower_bound)
+            {
                 return;
             }
         }
@@ -179,11 +215,15 @@ impl Search {
     pub fn run_to_end(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let (pr, lower_bound, deadline, progress) = (&self.pr, self.lower_bound, self.deadline(), &self.progress);
+            let (pr, lower_bound, deadline, progress) =
+                (&self.pr, self.lower_bound, self.deadline(), &self.progress);
             std::thread::scope(|scope| {
                 for (run, rng) in &mut self.runs {
                     scope.spawn(move || {
-                        while Instant::now() < deadline && run.best.cost > lower_bound && !progress.stopped() {
+                        while Instant::now() < deadline
+                            && run.best.cost > lower_bound
+                            && !progress.stopped()
+                        {
                             step(run, pr, rng, progress);
                         }
                     });
@@ -198,7 +238,13 @@ impl Search {
         let pr = &self.pr;
         let scores: Vec<i64> = self.runs.iter().map(|(run, _)| run.best.cost).collect();
         let iterations = self.runs.iter().map(|(run, _)| run.iteration).sum();
-        let best = &self.runs.iter().min_by_key(|(run, _)| run.best.cost).expect("at least one run").0.best;
+        let best = &self
+            .runs
+            .iter()
+            .min_by_key(|(run, _)| run.best.cost)
+            .expect("at least one run")
+            .0
+            .best;
         debug_assert_eq!(best.cost, pr.cost(&best.seat_of, &best.occupant));
         Outcome {
             assignment: pr

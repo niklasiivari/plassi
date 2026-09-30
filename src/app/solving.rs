@@ -18,9 +18,15 @@ pub(super) struct SolveJob {
 enum JobKind {
     New,
     /// Improving an option: its name and the people placed by hand.
-    Improve { from: String, hand_placed: std::collections::BTreeSet<usize> },
+    Improve {
+        from: String,
+        hand_placed: std::collections::BTreeSet<usize>,
+    },
     /// Searching longer from an option: its name and (broken hard rules, score).
-    Continue { from: String, before: (usize, i64) },
+    Continue {
+        from: String,
+        before: (usize, i64),
+    },
 }
 
 impl PlassiApp {
@@ -28,8 +34,14 @@ impl PlassiApp {
         if self.solving.is_some() || self.file.external_invalid {
             return;
         }
-        let prior = alternative.then(|| self.project.candidates.get(self.selected_candidate)).flatten();
-        let min_changed = if prior.is_some() { (self.project.active_people().len() / 10).max(1) } else { 0 };
+        let prior = alternative
+            .then(|| self.project.candidates.get(self.selected_candidate))
+            .flatten();
+        let min_changed = if prior.is_some() {
+            (self.project.active_people().len() / 10).max(1)
+        } else {
+            0
+        };
         match seating::solve_search(&self.project, prior, min_changed, self.solve_time) {
             Ok(search) => {
                 self.start_job(search, self.solve_time, JobKind::New);
@@ -50,8 +62,16 @@ impl PlassiApp {
         };
         let mut fixed = self.project.pinned_people();
         fixed.extend(current.hand_placed.iter().copied());
-        let kind = JobKind::Improve { from: current.name.clone(), hand_placed: current.hand_placed.clone() };
-        match seating::improve_search(&self.project, &current.assignment, &fixed, self.improve_time) {
+        let kind = JobKind::Improve {
+            from: current.name.clone(),
+            hand_placed: current.hand_placed.clone(),
+        };
+        match seating::improve_search(
+            &self.project,
+            &current.assignment,
+            &fixed,
+            self.improve_time,
+        ) {
             Ok(search) => {
                 self.start_job(search, self.improve_time, kind);
                 self.status = tr("Improving around your edits…").into();
@@ -74,7 +94,12 @@ impl PlassiApp {
             from: current.name.clone(),
             before: (evaluation.hard_violations, evaluation.penalty()),
         };
-        match seating::improve_search(&self.project, &current.assignment, &Default::default(), self.solve_time) {
+        match seating::improve_search(
+            &self.project,
+            &current.assignment,
+            &Default::default(),
+            self.solve_time,
+        ) {
             Ok(search) => {
                 self.start_job(search, self.solve_time, kind);
                 self.status = tr("Searching further…").into();
@@ -106,7 +131,8 @@ impl PlassiApp {
         };
         let job = self.solving.take().expect("job just polled");
         if job.revision != self.file.revision {
-            self.status = tr("The project changed during the search; its result was discarded").into();
+            self.status =
+                tr("The project changed during the search; its result was discarded").into();
             return;
         }
         let elapsed = job.started.elapsed().min(job.budget);
@@ -115,7 +141,10 @@ impl PlassiApp {
         match job.kind {
             JobKind::New => {}
             JobKind::Improve { from, hand_placed } => {
-                candidate.solver_status = SolverStatus::Improved { from, hand_placed: hand_placed.len() };
+                candidate.solver_status = SolverStatus::Improved {
+                    from,
+                    hand_placed: hand_placed.len(),
+                };
                 candidate.hand_placed = hand_placed;
             }
             JobKind::Continue { from, before } => {
@@ -123,12 +152,18 @@ impl PlassiApp {
                     self.status = fill("No better seating found in {} s", &[&elapsed.as_secs()]);
                     return;
                 }
-                candidate.solver_status = SolverStatus::Continued { from, seconds: elapsed.as_secs() };
+                candidate.solver_status = SolverStatus::Continued {
+                    from,
+                    seconds: elapsed.as_secs(),
+                };
             }
         }
         self.project.candidates.push(candidate);
         self.selected_candidate = self.project.candidates.len() - 1;
         self.page = Page::Chart;
-        self.commit(&fill("Saved option: score {}, hard violations {}", &[&evaluation.penalty(), &evaluation.hard_violations]));
+        self.commit(&fill(
+            "Saved option: score {}, hard violations {}",
+            &[&evaluation.penalty(), &evaluation.hard_violations],
+        ));
     }
 }

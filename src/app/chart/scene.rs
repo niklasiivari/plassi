@@ -34,7 +34,8 @@ impl Scene {
         let occupant = assignment.iter().map(|(p, s)| (s.clone(), *p)).collect();
         let mut own: HashMap<usize, Vec<(u64, RuleResult)>> = HashMap::new();
         if let Some(evaluation) = &evaluation {
-            let owners: HashMap<u64, usize> = project.rules.iter().map(|r| (r.id, r.owner())).collect();
+            let owners: HashMap<u64, usize> =
+                project.rules.iter().map(|r| (r.id, r.owner())).collect();
             for result in &evaluation.results {
                 if let Some(&owner) = owners.get(&result.rule_id) {
                     own.entry(owner)
@@ -54,7 +55,10 @@ impl Scene {
                     .collect()
             })
             .unwrap_or_default();
-        let gaps = crate::model::gaps(&seats, &assignment).into_iter().map(|s| s.id.clone()).collect();
+        let gaps = crate::model::gaps(&seats, &assignment)
+            .into_iter()
+            .map(|s| s.id.clone())
+            .collect();
         let score = evaluation.as_ref().map_or(0, |e| e.penalty());
         Self {
             seats,
@@ -75,7 +79,11 @@ impl Scene {
 
     /// The worst outcome of this person's rules; `None` without any.
     pub(super) fn status(&self, person: usize) -> Option<Outcome> {
-        self.own.get(&person)?.iter().map(|(_, r)| r.outcome()).max()
+        self.own
+            .get(&person)?
+            .iter()
+            .map(|(_, r)| r.outcome())
+            .max()
     }
 }
 

@@ -7,10 +7,7 @@ use crate::score::{Outcome, RuleResult};
 
 /// "Avec with X", "Sit near Y and Z (high importance)", …
 pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<String>) {
-    let name = |id: &usize| {
-        project
-            .person_name(*id).to_string()
-    };
+    let name = |id: &usize| project.person_name(*id).to_string();
     let mut notes = Vec::new();
     if !rule.enabled {
         notes.push(tr("turned off").to_string());
@@ -22,9 +19,7 @@ pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<Stri
             must_be: true,
             hard: true,
             ..
-        } => {
-            fill("Pinned to {}", &[&project.seat_label(seat)])
-        }
+        } => fill("Pinned to {}", &[&project.seat_label(seat)]),
         RuleKind::Placement {
             area,
             must_be,
@@ -49,12 +44,10 @@ pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<Stri
             ..
         } => {
             let who = match target {
-                Target::People { ids, .. } if ids.len() > 1 => {
-                    fill(
-                        "All of {}",
-                        &[&ids.iter().map(name).collect::<Vec<_>>().join(", ")],
-                    )
-                }
+                Target::People { ids, .. } if ids.len() > 1 => fill(
+                    "All of {}",
+                    &[&ids.iter().map(name).collect::<Vec<_>>().join(", ")],
+                ),
                 Target::People { ids, .. } => ids.iter().map(name).collect::<Vec<_>>().join(", "),
                 Target::Organization { name, .. } => fill("people from {}", &[name]),
                 Target::Tag { tag, .. } => fill("group “{}”", &[tag]),
@@ -104,7 +97,10 @@ impl PlassiApp {
                     Outcome::Partial => tr("Not met"),
                     Outcome::Met => tr("Met"),
                 };
-                (theme::outcome_color(p, Some(r.outcome())), format!("{outcome} · {}", r.detail))
+                (
+                    theme::outcome_color(p, Some(r.outcome())),
+                    format!("{outcome} · {}", r.detail),
+                )
             }
             None => (p.muted, String::new()),
         };

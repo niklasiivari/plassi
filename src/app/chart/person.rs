@@ -1,7 +1,7 @@
 //! The side panel for one person: seat, status, pins, wishes and who wished for them.
 
-use super::*;
 use super::inspector::result_row;
+use super::*;
 
 impl PlassiApp {
     /// Everything about the selected person on this chart.
@@ -79,8 +79,14 @@ impl PlassiApp {
         };
         let pinned = scene.pinned.contains(&id);
         if ui
-            .add(theme::secondary_button(if pinned { tr("Unpin") } else { tr("Pin to this seat") }))
-            .on_hover_text(tr("A pinned person must sit on this seat; the solver never moves them"))
+            .add(theme::secondary_button(if pinned {
+                tr("Unpin")
+            } else {
+                tr("Pin to this seat")
+            }))
+            .on_hover_text(tr(
+                "A pinned person must sit on this seat; the solver never moves them",
+            ))
             .clicked()
         {
             self.set_pin(id, (!pinned).then_some(seat.as_str()));
@@ -102,9 +108,7 @@ impl PlassiApp {
                 continue;
             }
             any = true;
-            let name = self
-                .project
-                .person_name(*requester);
+            let name = self.project.person_name(*requester);
             let result = scene
                 .own
                 .get(requester)
@@ -138,23 +142,22 @@ impl PlassiApp {
         ui.add_space(theme::space::XL);
         theme::section_title(ui, p, tr("Original sign-up text"));
         for note in notes {
-            theme::inset(p)
-                .show(ui, |ui| {
-                    ui.set_width(ui.available_width());
+            theme::inset(p).show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.label(
+                    RichText::new(format!("{:?}", note.field))
+                        .size(theme::text::CAPTION)
+                        .color(p.muted),
+                );
+                ui.label(&note.text);
+                if !note.reviewed {
                     ui.label(
-                        RichText::new(format!("{:?}", note.field))
+                        RichText::new(tr("Not reviewed yet"))
                             .size(theme::text::CAPTION)
-                            .color(p.muted),
+                            .color(p.warn),
                     );
-                    ui.label(&note.text);
-                    if !note.reviewed {
-                        ui.label(
-                            RichText::new(tr("Not reviewed yet"))
-                                .size(theme::text::CAPTION)
-                                .color(p.warn),
-                        );
-                    }
-                });
+                }
+            });
         }
     }
 

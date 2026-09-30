@@ -20,11 +20,25 @@ pub fn project() -> Project {
             id,
             name: guest(id),
             organization: ORGANIZATIONS[id * 7 % ORGANIZATIONS.len()].into(),
-            participant_group: if id % 5 == 0 { "Guest of honour" } else { "Member" }.into(),
+            participant_group: if id % 5 == 0 {
+                "Guest of honour"
+            } else {
+                "Member"
+            }
+            .into(),
             tags: Vec::new(),
             food: FOOD[id % FOOD.len()].into(),
-            drink: if id % 4 == 0 { "Without alcohol" } else { "With alcohol" }.into(),
-            allergies: if id % 11 == 0 { "Nuts".into() } else { String::new() },
+            drink: if id % 4 == 0 {
+                "Without alcohol"
+            } else {
+                "With alcohol"
+            }
+            .into(),
+            allergies: if id % 11 == 0 {
+                "Nuts".into()
+            } else {
+                String::new()
+            },
             extra: Default::default(),
         })
         .collect();

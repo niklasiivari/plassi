@@ -252,7 +252,9 @@ pub enum WeightMode {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum Target {
     /// Every named person is part of the wish.
-    People { ids: Vec<usize> },
+    People {
+        ids: Vec<usize>,
+    },
     Tag {
         tag: String,
         required: usize,
@@ -305,7 +307,8 @@ impl ProximityCosts {
 
     /// Avec-strength costs (opposite already costs something and far away is expensive).
     pub fn is_avec(&self) -> bool {
-        self[DistanceClass::Far] >= Self::AVEC[DistanceClass::Far] && self[DistanceClass::Opposite] > 0
+        self[DistanceClass::Far] >= Self::AVEC[DistanceClass::Far]
+            && self[DistanceClass::Opposite] > 0
     }
 
     /// Whether a farther distance never costs less than a nearer one.
@@ -405,11 +408,21 @@ pub enum SolverStatus {
     /// No seating can score better.
     Optimal,
     /// The best seating found within the time.
-    BestFound { seconds: u64, runs_at_best: usize, runs: usize },
+    BestFound {
+        seconds: u64,
+        runs_at_best: usize,
+        runs: usize,
+    },
     /// Improved from another option, keeping people placed by hand.
-    Improved { from: String, hand_placed: usize },
+    Improved {
+        from: String,
+        hand_placed: usize,
+    },
     /// A longer search continued from another option.
-    Continued { from: String, seconds: u64 },
+    Continued {
+        from: String,
+        seconds: u64,
+    },
     EditedByHand,
 }
 
@@ -418,13 +431,21 @@ impl SolverStatus {
     pub fn describe(&self) -> String {
         match self {
             Self::Optimal => tr("Optimal — no seating can score better").into(),
-            Self::BestFound { seconds, runs_at_best, runs } => {
-                fill("Best found in {} s · {} of {} runs reached this score", &[seconds, runs_at_best, runs])
+            Self::BestFound {
+                seconds,
+                runs_at_best,
+                runs,
+            } => fill(
+                "Best found in {} s · {} of {} runs reached this score",
+                &[seconds, runs_at_best, runs],
+            ),
+            Self::Improved { from, hand_placed } => fill(
+                "Improved from {}, keeping {} hand-placed people",
+                &[from, hand_placed],
+            ),
+            Self::Continued { from, seconds } => {
+                fill("Searched {} s more from {}", &[seconds, from])
             }
-            Self::Improved { from, hand_placed } => {
-                fill("Improved from {}, keeping {} hand-placed people", &[from, hand_placed])
-            }
-            Self::Continued { from, seconds } => fill("Searched {} s more from {}", &[seconds, from]),
             Self::EditedByHand => tr("Edited by hand").into(),
         }
     }
@@ -450,13 +471,23 @@ impl Project {
     /// A seat's table label, side and row (from 1), from its ID.
     pub fn seat_place<'a>(&'a self, seat_id: &'a str) -> Option<(&'a str, Side, usize)> {
         let mut parts = seat_id.split(':');
-        let (table, side, index) = (parts.next()?, parts.next()?, parts.next()?.parse::<usize>().ok()?);
+        let (table, side, index) = (
+            parts.next()?,
+            parts.next()?,
+            parts.next()?.parse::<usize>().ok()?,
+        );
         let side = match side {
             "left" => Side::Left,
             "right" => Side::Right,
             _ => return None,
         };
-        let label = self.layout.rows.iter().flat_map(|r| &r.tables).find(|t| t.id == table).map_or(table, |t| t.label.as_str());
+        let label = self
+            .layout
+            .rows
+            .iter()
+            .flat_map(|r| &r.tables)
+            .find(|t| t.id == table)
+            .map_or(table, |t| t.label.as_str());
         Some((label, side, index + 1))
     }
 
@@ -531,7 +562,9 @@ impl Project {
     /// The person's name, or "?" for an unknown ID.
     /// Whether a rule is a wish to sit near someone.
     pub fn is_wish(&self, rule_id: u64) -> bool {
-        self.rules.iter().any(|r| r.id == rule_id && matches!(r.kind, RuleKind::Proximity { .. }))
+        self.rules
+            .iter()
+            .any(|r| r.id == rule_id && matches!(r.kind, RuleKind::Proximity { .. }))
     }
 
     pub fn person_name(&self, id: usize) -> &str {
@@ -569,7 +602,13 @@ impl Project {
     /// A wish's importance and how many wishes share it: a person with a
     /// shared budget splits it over all their wishes.
     pub fn weight_share(&self, rule: &Rule) -> (i64, i64) {
-        let RuleKind::Proximity { requester, weight, weight_mode, .. } = &rule.kind else {
+        let RuleKind::Proximity {
+            requester,
+            weight,
+            weight_mode,
+            ..
+        } = &rule.kind
+        else {
             return (0, 1);
         };
         match weight_mode {

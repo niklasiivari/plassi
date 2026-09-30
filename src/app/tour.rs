@@ -29,11 +29,31 @@ enum Target {
 
 /// (area, title, text) per step; text is untranslated keys.
 const STEPS: [(Target, &str, &str); 5] = [
-    (Target::Options, "Options and scores", "Each chip is one option. It shows how many wishes are fully met; the score counts what is unmet, so lower is better."),
-    (Target::Canvas, "Move and swap", "Drag a card onto a free seat to move someone, or onto another person to swap them. Scores update right away."),
-    (Target::Panel, "Status stripes", "The stripe on a card shows the person's status: all wishes met, some not met, or a hard rule broken. The legend in the side panel lists the colours."),
-    (Target::Canvas, "Group or keep apart", "Ctrl-click several people, then group them (G) or keep them apart from the side panel."),
-    (Target::Panel, "Side panel", "Click a person to see their wishes, how each is met and suggested swaps here."),
+    (
+        Target::Options,
+        "Options and scores",
+        "Each chip is one option. It shows how many wishes are fully met; the score counts what is unmet, so lower is better.",
+    ),
+    (
+        Target::Canvas,
+        "Move and swap",
+        "Drag a card onto a free seat to move someone, or onto another person to swap them. Scores update right away.",
+    ),
+    (
+        Target::Panel,
+        "Status stripes",
+        "The stripe on a card shows the person's status: all wishes met, some not met, or a hard rule broken. The legend in the side panel lists the colours.",
+    ),
+    (
+        Target::Canvas,
+        "Group or keep apart",
+        "Ctrl-click several people, then group them (G) or keep them apart from the side panel.",
+    ),
+    (
+        Target::Panel,
+        "Side panel",
+        "Click a person to see their wishes, how each is met and suggested swaps here.",
+    ),
 ];
 
 #[derive(Default)]
@@ -69,9 +89,15 @@ fn place(anchor: Rect, screen: Rect, size: Vec2) -> Pos2 {
     let pos = if anchor.height() < 120.0 {
         Pos2::new(anchor.left(), anchor.bottom() + gap)
     } else if anchor.left() > screen.center().x {
-        Pos2::new(anchor.left() - gap - size.x, anchor.top() + theme::space::XXL)
+        Pos2::new(
+            anchor.left() - gap - size.x,
+            anchor.top() + theme::space::XXL,
+        )
     } else {
-        Pos2::new(anchor.center().x - size.x / 2.0, anchor.top() + theme::space::XXL)
+        Pos2::new(
+            anchor.center().x - size.x / 2.0,
+            anchor.top() + theme::space::XXL,
+        )
     };
     let max = (screen.max - size).max(screen.min);
     pos.clamp(screen.min, max)
@@ -99,17 +125,27 @@ impl PlassiApp {
         let size = ctx
             .memory(|m| m.area_rect(egui::Id::new("chart-tour")).map(|r| r.size()))
             .unwrap_or(Vec2::new(CARD_WIDTH, 160.0));
-        ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::new("chart-tour-mark")))
-            .rect_stroke(anchor.expand(2.0), theme::radius::MD, egui::Stroke::new(2.0, p.accent), egui::StrokeKind::Outside);
+        ctx.layer_painter(egui::LayerId::new(
+            egui::Order::Foreground,
+            egui::Id::new("chart-tour-mark"),
+        ))
+        .rect_stroke(
+            anchor.expand(2.0),
+            theme::radius::MD,
+            egui::Stroke::new(2.0, p.accent),
+            egui::StrokeKind::Outside,
+        );
         let mut choice = None;
         egui::Area::new(egui::Id::new("chart-tour"))
             .order(egui::Order::Foreground)
             .fixed_pos(place(anchor, screen, size))
             .show(ctx, |ui| {
-                theme::floating(p).inner_margin(egui::Margin::same(theme::space::L as i8)).show(ui, |ui| {
-                    ui.set_width(CARD_WIDTH);
-                    choice = card(ui, p, step, title, text);
-                });
+                theme::floating(p)
+                    .inner_margin(egui::Margin::same(theme::space::L as i8))
+                    .show(ui, |ui| {
+                        ui.set_width(CARD_WIDTH);
+                        choice = card(ui, p, step, title, text);
+                    });
             });
         if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             choice = Some(Choice::Skip);
@@ -132,7 +168,13 @@ enum Choice {
     Skip,
 }
 
-fn card(ui: &mut egui::Ui, p: Palette, step: usize, title: &'static str, text: &'static str) -> Option<Choice> {
+fn card(
+    ui: &mut egui::Ui,
+    p: Palette,
+    step: usize,
+    title: &'static str,
+    text: &'static str,
+) -> Option<Choice> {
     let mut choice = None;
     ui.label(RichText::new(tr(title)).size(theme::text::LEAD).strong());
     ui.add_space(theme::space::XS);
@@ -142,7 +184,13 @@ fn card(ui: &mut egui::Ui, p: Palette, step: usize, title: &'static str, text: &
         theme::hint(ui, p, fill("Step {} of {}", &[&(step + 1), &STEPS.len()]));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let last = next(step).is_none();
-            if ui.add(theme::primary_button(if last { tr("Done") } else { tr("Next") }, p)).clicked() {
+            if ui
+                .add(theme::primary_button(
+                    if last { tr("Done") } else { tr("Next") },
+                    p,
+                ))
+                .clicked()
+            {
                 choice = Some(Choice::Next);
             }
             if step > 0 && ui.add(theme::secondary_button(tr("Back"))).clicked() {
@@ -173,7 +221,10 @@ mod tests {
         let screen = Rect::from_min_max(Pos2::ZERO, Pos2::new(1400.0, 900.0));
         let size = Vec2::new(300.0, 150.0);
         let toolbar = Rect::from_min_max(Pos2::new(200.0, 10.0), Pos2::new(600.0, 40.0));
-        assert_eq!(place(toolbar, screen, size), Pos2::new(200.0, 40.0 + theme::space::M));
+        assert_eq!(
+            place(toolbar, screen, size),
+            Pos2::new(200.0, 40.0 + theme::space::M)
+        );
         let panel = Rect::from_min_max(Pos2::new(1100.0, 60.0), Pos2::new(1400.0, 900.0));
         assert!(place(panel, screen, size).x + size.x <= panel.left());
         // Never off screen.

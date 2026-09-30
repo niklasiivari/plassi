@@ -17,7 +17,9 @@ pub struct Store {
 
 impl Store {
     pub fn new(location: &str) -> Self {
-        Self { path: PathBuf::from(location) }
+        Self {
+            path: PathBuf::from(location),
+        }
     }
 
     pub fn location(&self) -> String {
@@ -37,7 +39,10 @@ impl Store {
 
     /// The folder files are saved to.
     fn folder(&self) -> PathBuf {
-        self.path.parent().map(Path::to_path_buf).unwrap_or_default()
+        self.path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default()
     }
 }
 
@@ -94,7 +99,10 @@ impl SearchRunner {
 pub fn save_file(store: &Store, name: &str, bytes: &[u8]) -> Result<Saved> {
     let path = store.folder().join(name);
     fs::write(&path, bytes).with_context(|| format!("writing {}", path.display()))?;
-    Ok(Saved { description: path.display().to_string(), location: Some(path) })
+    Ok(Saved {
+        description: path.display().to_string(),
+        location: Some(path),
+    })
 }
 
 /// Opens a file or folder with the system's default app.
@@ -106,7 +114,10 @@ pub fn open_location(path: &Path) -> Result<()> {
     } else {
         "xdg-open"
     };
-    std::process::Command::new(program).arg(path).spawn().with_context(|| format!("opening {}", path.display()))?;
+    std::process::Command::new(program)
+        .arg(path)
+        .spawn()
+        .with_context(|| format!("opening {}", path.display()))?;
     Ok(())
 }
 
@@ -122,7 +133,10 @@ impl<K: Send + 'static> PdfJob<K> {
     /// `prints` holds each print's template data, or why there is none.
     pub fn start(prints: Vec<(K, Result<String, String>)>) -> Self {
         Self(Task::spawn(move || {
-            prints.into_iter().map(|(kind, data)| (kind, data.and_then(|data| plassi_typeset::pdf(&data)))).collect()
+            prints
+                .into_iter()
+                .map(|(kind, data)| (kind, data.and_then(|data| plassi_typeset::pdf(&data))))
+                .collect()
         }))
     }
 
@@ -141,7 +155,10 @@ pub struct Library {
 }
 
 /// Backups kept per project on disk.
-const KEEP: super::Keep = super::Keep { recent: 20, days: 14 };
+const KEEP: super::Keep = super::Keep {
+    recent: 20,
+    days: 14,
+};
 
 fn data_folder() -> PathBuf {
     let env = |key: &str| std::env::var_os(key).map(PathBuf::from);
@@ -155,7 +172,9 @@ fn data_folder() -> PathBuf {
     if cfg!(target_os = "macos") {
         return home.join("Library/Application Support/Plassi");
     }
-    env("XDG_DATA_HOME").unwrap_or_else(|| home.join(".local/share")).join("plassi")
+    env("XDG_DATA_HOME")
+        .unwrap_or_else(|| home.join(".local/share"))
+        .join("plassi")
 }
 
 impl Library {
@@ -167,7 +186,10 @@ impl Library {
     pub fn at(data: &Path) -> Self {
         let folder = data.join("projects");
         let _ = fs::create_dir_all(&folder);
-        Self { folder, backups: data.join("backups") }
+        Self {
+            folder,
+            backups: data.join("backups"),
+        }
     }
 
     fn path(&self, name: &str) -> PathBuf {
@@ -193,11 +215,14 @@ impl Library {
     }
 
     pub fn store(&self, name: &str) -> Store {
-        Store { path: self.path(name) }
+        Store {
+            path: self.path(name),
+        }
     }
 
     pub fn rename(&self, from: &str, to: &str) -> Result<()> {
-        fs::rename(self.path(from), self.path(to)).with_context(|| format!("renaming {from} to {to}"))?;
+        fs::rename(self.path(from), self.path(to))
+            .with_context(|| format!("renaming {from} to {to}"))?;
         let _ = fs::rename(self.backups.join(from), self.backups.join(to));
         Ok(())
     }
@@ -216,7 +241,9 @@ impl Library {
     }
 
     fn backup_path(&self, name: &str, stamp: u64) -> PathBuf {
-        self.backups.join(name).join(format!("{}.json", super::backup_plan::stamp_name(stamp)))
+        self.backups
+            .join(name)
+            .join(format!("{}.json", super::backup_plan::stamp_name(stamp)))
     }
 
     /// The times of `name`'s backups, newest first.
@@ -267,7 +294,9 @@ impl Library {
 
     /// A small app setting, kept as a file in the data folder.
     pub fn setting(&self, key: &str) -> Option<String> {
-        fs::read_to_string(self.folder.join("..").join(key)).ok().map(|s| s.trim().to_string())
+        fs::read_to_string(self.folder.join("..").join(key))
+            .ok()
+            .map(|s| s.trim().to_string())
     }
 
     pub fn set_setting(&self, key: &str, value: &str) {
@@ -282,7 +311,9 @@ impl Library {
 
 /// The system's language, e.g. "fi_FI.UTF-8".
 pub fn system_locale() -> Option<String> {
-    ["LC_ALL", "LC_MESSAGES", "LANG"].iter().find_map(|key| std::env::var(key).ok().filter(|v| !v.is_empty()))
+    ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .iter()
+        .find_map(|key| std::env::var(key).ok().filter(|v| !v.is_empty()))
 }
 
 /// Reads a file dropped onto the window (at once on desktop).
@@ -302,7 +333,10 @@ impl DroppedRead {
 /// Minutes the local time zone is ahead of UTC at `stamp` (milliseconds since 1970).
 pub fn utc_offset_minutes(stamp: u64) -> i64 {
     use chrono::{Local, Offset, TimeZone};
-    Local.timestamp_millis_opt(stamp as i64).single().map_or(0, |t| t.offset().fix().local_minus_utc() as i64 / 60)
+    Local
+        .timestamp_millis_opt(stamp as i64)
+        .single()
+        .map_or(0, |t| t.offset().fix().local_minus_utc() as i64 / 60)
 }
 
 #[cfg(test)]
@@ -311,14 +345,21 @@ mod tests {
 
     #[test]
     fn backups_survive_delete_and_follow_renames() {
-        let data = std::env::temp_dir().join(format!("plassi-test-{}-{}", std::process::id(), super::super::now_stamp()));
+        let data = std::env::temp_dir().join(format!(
+            "plassi-test-{}-{}",
+            std::process::id(),
+            super::super::now_stamp()
+        ));
         let library = Library::at(&data);
         library.store("A").write(b"{}").unwrap();
         library.backup("A", b"one").unwrap();
         library.backup("A", b"two").unwrap();
         let stamps = library.backups("A");
         assert_eq!(stamps.len(), 2);
-        assert_eq!(library.read_backup("A", stamps[0]).as_deref(), Some(&b"two"[..]));
+        assert_eq!(
+            library.read_backup("A", stamps[0]).as_deref(),
+            Some(&b"two"[..])
+        );
         library.rename("A", "B").unwrap();
         assert_eq!(library.backups("B").len(), 2);
         library.delete("B").unwrap();

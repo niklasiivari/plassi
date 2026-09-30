@@ -4,8 +4,14 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     // List
     ("People & wishes", "Ihmiset ja toiveet"),
     ("+ Add person", "+ Lisää henkilö"),
-    ("A walk-in: add them and seat them in the best free seat", "Paikan päälle tullut: lisää hänet ja sijoita parhaalle vapaalle paikalle"),
-    ("No people yet. Paste your sign-up sheet on the right, or add people one by one.", "Ei vielä ihmisiä. Liitä ilmoittautumistaulukko oikealle tai lisää ihmiset yksitellen."),
+    (
+        "A walk-in: add them and seat them in the best free seat",
+        "Paikan päälle tullut: lisää hänet ja sijoita parhaalle vapaalle paikalle",
+    ),
+    (
+        "No people yet. Paste your sign-up sheet on the right, or add people one by one.",
+        "Ei vielä ihmisiä. Liitä ilmoittautumistaulukko oikealle tai lisää ihmiset yksitellen.",
+    ),
     ("Search name or organization", "Hae nimellä tai järjestöllä"),
     ("All {}", "Kaikki {}"),
     ("To review {}", "Läpikäytävät {}"),
@@ -18,7 +24,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("{} wishes", "{} toivetta"),
     ("pinned", "kiinnitetty"),
     // Bulk actions
-    ("Ctrl-click to pick several people.", "Ctrl-klikkaa valitaksesi useita ihmisiä."),
+    (
+        "Ctrl-click to pick several people.",
+        "Ctrl-klikkaa valitaksesi useita ihmisiä.",
+    ),
     ("Select all shown", "Valitse kaikki näkyvät"),
     ("{} picked", "{} valittu"),
     ("Mark notes reviewed", "Merkitse tekstit läpikäydyiksi"),
@@ -28,7 +37,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Grouped {} people together", "{} henkilöä pidetään yhdessä"),
     ("Remove from event", "Poista tapahtumasta"),
     ("Clear", "Tyhjennä"),
-    ("Marked {} notes reviewed", "{} tekstiä merkitty läpikäydyiksi"),
+    (
+        "Marked {} notes reviewed",
+        "{} tekstiä merkitty läpikäydyiksi",
+    ),
     ("Pinned {} people", "Kiinnitetty {} henkilöä"),
     ("Unpinned {} people", "Irrotettu {} henkilöä"),
     // Details
@@ -47,7 +59,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Replace with someone else…", "Vaihda toiseen henkilöön…"),
     ("Remove from the event", "Poista tapahtumasta"),
     ("Their wishes", "Hänen toiveensa"),
-    ("No wishes — the seating policy places them.", "Ei toiveita — istumaperiaatteet sijoittavat hänet."),
+    (
+        "No wishes — the seating policy places them.",
+        "Ei toiveita — istumaperiaatteet sijoittavat hänet.",
+    ),
     ("+ Add", "+ Lisää"),
     ("Sit near someone…", "Istu jonkun lähellä…"),
     ("Not at a table end", "Ei pöydän päässä"),
@@ -58,7 +73,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     // New wish
     ("New wish", "Uusi toive"),
     ("Everyone tagged", "Kaikki tunnisteella"),
-    ("No tags yet — add them to people under Details.", "Ei vielä tunnisteita — lisää niitä ihmisille kohdassa Tiedot."),
+    (
+        "No tags yet — add them to people under Details.",
+        "Ei vielä tunnisteita — lisää niitä ihmisille kohdassa Tiedot.",
+    ),
     ("Everyone from", "Kaikki järjestöstä"),
     ("No organizations yet.", "Ei vielä järjestöjä."),
     ("Source text (optional)", "Lähdeteksti (valinnainen)"),
@@ -70,7 +88,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("People", "Ihmisiä"),
     ("A tag", "Tunniste"),
     ("An organization", "Järjestö"),
-    ("Each selected person is included in the wish.", "Jokainen valittu henkilö sisältyy toiveeseen."),
+    (
+        "Each selected person is included in the wish.",
+        "Jokainen valittu henkilö sisältyy toiveeseen.",
+    ),
     ("Choose…", "Valitse…"),
     // Sign-up text
     ("Sign-up text", "Ilmoittautumisteksti"),
@@ -81,30 +102,60 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Reopen", "Avaa uudelleen"),
     ("Mark reviewed", "Merkitse läpikäydyksi"),
     ("Reviewed, next person", "Läpikäyty, seuraava henkilö"),
-    ("Mark this reviewed and open the next person with sign-up text to review", "Merkitse tämä läpikäydyksi ja avaa seuraava henkilö, jonka ilmoittautumisteksti on käymättä läpi"),
+    (
+        "Mark this reviewed and open the next person with sign-up text to review",
+        "Merkitse tämä läpikäydyksi ja avaa seuraava henkilö, jonka ilmoittautumisteksti on käymättä läpi",
+    ),
     // Overview
-    ("{} people · {} with wishes · {} rules", "{} henkilöä · {} toiveellista · {} sääntöä"),
+    (
+        "{} people · {} with wishes · {} rules",
+        "{} henkilöä · {} toiveellista · {} sääntöä",
+    ),
     ("Wishes overview", "Toiveiden yhteenveto"),
     ("Add your guests", "Lisää vieraat"),
-    ("Paste your sign-up sheet to start. Everything else builds on the guest list.", "Aloita liittämällä ilmoittautumistaulukko. Kaikki muu rakentuu vieraslistan pohjalle."),
-    ("A header row like this works (any order, extra columns are kept):", "Tällainen otsikkorivi toimii (järjestys vapaa, ylimääräiset sarakkeet säilyvät):"),
+    (
+        "Paste your sign-up sheet to start. Everything else builds on the guest list.",
+        "Aloita liittämällä ilmoittautumistaulukko. Kaikki muu rakentuu vieraslistan pohjalle.",
+    ),
+    (
+        "A header row like this works (any order, extra columns are kept):",
+        "Tällainen otsikkorivi toimii (järjestys vapaa, ylimääräiset sarakkeet säilyvät):",
+    ),
     ("No sheet at hand?", "Eikö taulukkoa ole käsillä?"),
     ("Try with example data", "Kokeile esimerkkidatalla"),
-    ("48 made-up guests with wishes and a room, to see how everything works", "48 keksittyä vierasta toiveineen ja tila, jotta näet miten kaikki toimii"),
+    (
+        "48 made-up guests with wishes and a room, to see how everything works",
+        "48 keksittyä vierasta toiveineen ja tila, jotta näet miten kaikki toimii",
+    ),
     ("Everything is reviewed.", "Kaikki on käyty läpi."),
-    ("{} of {} notes reviewed · {} to go", "{}/{} tekstiä käyty läpi · {} jäljellä"),
+    (
+        "{} of {} notes reviewed · {} to go",
+        "{}/{} tekstiä käyty läpi · {} jäljellä",
+    ),
     ("Start reviewing", "Aloita läpikäynti"),
     ("{} suggested wishes", "{} ehdotettua toivetta"),
-    ("{} are full names found in the text. The rest are shown on each person to check.", "{} on tekstistä löytyneitä kokonaisia nimiä. Loput näytetään kunkin henkilön kohdalla tarkistettaviksi."),
+    (
+        "{} are full names found in the text. The rest are shown on each person to check.",
+        "{} on tekstistä löytyneitä kokonaisia nimiä. Loput näytetään kunkin henkilön kohdalla tarkistettaviksi.",
+    ),
     ("Add {}", "Lisää {}"),
-    ("Add every full-name match as a wish", "Lisää jokainen kokonaisen nimen osuma toiveeksi"),
-    ("Added {} wishes from full-name matches", "Lisätty {} toivetta kokonaisten nimien osumista"),
+    (
+        "Add every full-name match as a wish",
+        "Lisää jokainen kokonaisen nimen osuma toiveeksi",
+    ),
+    (
+        "Added {} wishes from full-name matches",
+        "Lisätty {} toivetta kokonaisten nimien osumista",
+    ),
     (" or ", " tai "),
     ("Avec {}", "Avec {}"),
     ("Sit near {}", "Istu lähellä: {}"),
     ("All of {}", "Kaikki: {}"),
     ("Sit with {} people", "Istu järjestön {} väen kanssa"),
-    ("Import or update from a spreadsheet", "Tuo tai päivitä taulukosta"),
+    (
+        "Import or update from a spreadsheet",
+        "Tuo tai päivitä taulukosta",
+    ),
     (
         "Copy the rows (with the header row) from Excel or Sheets and paste them here. Columns are recognised by name: \
          name, organization, participant group, avec, seating wish, food, drinks, allergies; others are kept as extra info. \
@@ -113,21 +164,42 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
          nimi, järjestö, osallistujaryhmä, avec, pöytäseuratoive, ruoka, juoma, allergiat; muut säilyvät lisätietoina. \
          Ihmiset yhdistetään nimen perusteella — säännöt, tila ja vaihtoehdot säilyvät.",
     ),
-    ("Paste spreadsheet rows here…", "Liitä taulukon rivit tähän…"),
+    (
+        "Paste spreadsheet rows here…",
+        "Liitä taulukon rivit tähän…",
+    ),
     ("{} rows ·", "{} riviä ·"),
     ("Update attendees", "Päivitä osallistujat"),
-    ("Imported: {} updated, {} added, {} new notes, {} wishes matched", "Tuotu: {} päivitetty, {} lisätty, {} uutta ilmoittautumistekstiä, {} toivetta tunnistettu"),
-    (" · same name on several rows, kept as separate people: {}", " · sama nimi useilla riveillä, pidetty eri henkilöinä: {}"),
+    (
+        "Imported: {} updated, {} added, {} new notes, {} wishes matched",
+        "Tuotu: {} päivitetty, {} lisätty, {} uutta ilmoittautumistekstiä, {} toivetta tunnistettu",
+    ),
+    (
+        " · same name on several rows, kept as separate people: {}",
+        " · sama nimi useilla riveillä, pidetty eri henkilöinä: {}",
+    ),
     ("Import failed: {}", "Tuonti epäonnistui: {}"),
     // Roster
     ("Add a person", "Lisää henkilö"),
     ("Add", "Lisää"),
     ("Replace {}", "Vaihda {}"),
-    ("The new person takes {}'s seat in every option. Wishes by or about {} are removed.", "Uusi henkilö saa paikan {} tilalta jokaisessa vaihtoehdossa. Toiveet, jotka koskevat henkilöä {} tai ovat hänen, poistetaan."),
+    (
+        "The new person takes {}'s seat in every option. Wishes by or about {} are removed.",
+        "Uusi henkilö saa paikan {} tilalta jokaisessa vaihtoehdossa. Toiveet, jotka koskevat henkilöä {} tai ovat hänen, poistetaan.",
+    ),
     ("Replace", "Vaihda"),
-    ("Removed {}; their seat is free (Improve or Close gaps on the chart)", "Poistettu {}; paikka on vapaa (Paranna tai sulje aukot istumajärjestyksessä)"),
-    ("Removed {}; their seats are free (Improve or Close gaps on the chart)", "Poistettu {}; paikat ovat vapaita (Paranna tai sulje aukot istumajärjestyksessä)"),
-    ("Added {} to the best free seat", "{} lisätty parhaalle vapaalle paikalle"),
+    (
+        "Removed {}; their seat is free (Improve or Close gaps on the chart)",
+        "Poistettu {}; paikka on vapaa (Paranna tai sulje aukot istumajärjestyksessä)",
+    ),
+    (
+        "Removed {}; their seats are free (Improve or Close gaps on the chart)",
+        "Poistettu {}; paikat ovat vapaita (Paranna tai sulje aukot istumajärjestyksessä)",
+    ),
+    (
+        "Added {} to the best free seat",
+        "{} lisätty parhaalle vapaalle paikalle",
+    ),
     ("{} took over the seat", "{} sai paikan"),
     ("Name", "Nimi"),
     ("Organization", "Järjestö"),
@@ -148,7 +220,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Penalty", "Sakko"),
     ("At a table end", "Pöydän päässä"),
     ("Next to a table end", "Pöydän pään vieressä"),
-    ("An end seat has nobody beside them on one side. For scale: an ordinary wish at another table costs {}.", "Päätypaikalla toisella puolella ei istu ketään. Vertailun vuoksi: tavallinen toive eri pöydässä maksaa {}."),
+    (
+        "An end seat has nobody beside them on one side. For scale: an ordinary wish at another table costs {}.",
+        "Päätypaikalla toisella puolella ei istu ketään. Vertailun vuoksi: tavallinen toive eri pöydässä maksaa {}.",
+    ),
     ("needs", "tarvitsee"),
     ("of {}", "/ {}"),
     ("people from", "väkeä järjestöstä"),
@@ -158,7 +233,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Normal", "Normaali"),
     ("High", "Korkea"),
     ("Critical", "Kriittinen"),
-    ("Share importance with their other wishes", "Jaa tärkeys hänen muiden toiveidensa kanssa"),
+    (
+        "Share importance with their other wishes",
+        "Jaa tärkeys hänen muiden toiveidensa kanssa",
+    ),
     (
         "When on, a person's wishes split one budget, so listing many wishes doesn't outweigh others. \
          Turn off to give this wish its full importance.",
@@ -169,7 +247,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Must be", "Oltava"),
     ("no hard limit", "ei ehdotonta rajaa"),
     ("Distance penalties", "Etäisyyssakot"),
-    ("Penalty = distance cost × importance. A farther distance never costs less than a nearer one.", "Sakko = etäisyyden hinta × tärkeys. Kauempi etäisyys ei koskaan maksa vähemmän kuin lähempi."),
+    (
+        "Penalty = distance cost × importance. A farther distance never costs less than a nearer one.",
+        "Sakko = etäisyyden hinta × tärkeys. Kauempi etäisyys ei koskaan maksa vähemmän kuin lähempi.",
+    ),
     // Wish rows
     ("turned off", "pois käytöstä"),
     ("Pinned to {}", "Kiinnitetty: {}"),
@@ -188,45 +269,114 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Broken", "Rikottu"),
     ("Not met", "Ei täyty"),
     ("Met", "Täyttyy"),
-    ("The guest list and each person's wishes and rules.", "Vieraslista sekä kunkin henkilön toiveet ja säännöt."),
-    ("Paste spreadsheet rows, or drop a .csv/.tsv file, to add or update people.", "Liitä taulukon rivejä tai pudota .csv/.tsv-tiedosto lisätäksesi tai päivittääksesi henkilöitä."),
-    ("Select a person on the left to edit their wishes.", "Valitse henkilö vasemmalta muokataksesi hänen toiveitaan."),
-    ("Review sign-up text to turn notes into wishes.", "Käy ilmoittautumisteksti läpi tehdäksesi muistiinpanoista toiveita."),
-    ("Or drop a .csv/.tsv file here", "Tai pudota .csv/.tsv-tiedosto tähän"),
-    ("Drop the file to load it here", "Pudota tiedosto ladataksesi sen tähän"),
-    ("Excel files can't be read directly. Save the sheet as .csv or .tsv, or copy the rows and paste them.", "Excel-tiedostoja ei voi lukea suoraan. Tallenna taulukko .csv- tai .tsv-muodossa tai kopioi rivit ja liitä ne."),
-    ("{} is not a .csv, .tsv or .txt file", "{} ei ole .csv-, .tsv- tai .txt-tiedosto"),
-    ("Loaded {}. Check the preview, then update attendees.", "Ladattiin {}. Tarkista esikatselu ja päivitä sitten osallistujat."),
+    (
+        "The guest list and each person's wishes and rules.",
+        "Vieraslista sekä kunkin henkilön toiveet ja säännöt.",
+    ),
+    (
+        "Paste spreadsheet rows, or drop a .csv/.tsv file, to add or update people.",
+        "Liitä taulukon rivejä tai pudota .csv/.tsv-tiedosto lisätäksesi tai päivittääksesi henkilöitä.",
+    ),
+    (
+        "Select a person on the left to edit their wishes.",
+        "Valitse henkilö vasemmalta muokataksesi hänen toiveitaan.",
+    ),
+    (
+        "Review sign-up text to turn notes into wishes.",
+        "Käy ilmoittautumisteksti läpi tehdäksesi muistiinpanoista toiveita.",
+    ),
+    (
+        "Or drop a .csv/.tsv file here",
+        "Tai pudota .csv/.tsv-tiedosto tähän",
+    ),
+    (
+        "Drop the file to load it here",
+        "Pudota tiedosto ladataksesi sen tähän",
+    ),
+    (
+        "Excel files can't be read directly. Save the sheet as .csv or .tsv, or copy the rows and paste them.",
+        "Excel-tiedostoja ei voi lukea suoraan. Tallenna taulukko .csv- tai .tsv-muodossa tai kopioi rivit ja liitä ne.",
+    ),
+    (
+        "{} is not a .csv, .tsv or .txt file",
+        "{} ei ole .csv-, .tsv- tai .txt-tiedosto",
+    ),
+    (
+        "Loaded {}. Check the preview, then update attendees.",
+        "Ladattiin {}. Tarkista esikatselu ja päivitä sitten osallistujat.",
+    ),
     ("Could not read {}: {}", "Tiedostoa {} ei voitu lukea: {}"),
     // Spreadsheet template and import.
-    ("Full name; people are matched by it.", "Koko nimi; ihmiset yhdistetään sen perusteella."),
-    ("Organization or club. Used for mixing and avatar colours.", "Järjestö tai kerho. Käytetään sekoittamiseen ja tunnusväreihin."),
-    ("Ticket type or participant group.", "Lipputyyppi tai osallistujaryhmä."),
-    ("The avec's full name, as the person wrote it.", "Avecin koko nimi, kuten henkilö sen kirjoitti."),
-    ("Who they want to sit with, in their own words.", "Kenen kanssa hän haluaa istua, omin sanoin."),
+    (
+        "Full name; people are matched by it.",
+        "Koko nimi; ihmiset yhdistetään sen perusteella.",
+    ),
+    (
+        "Organization or club. Used for mixing and avatar colours.",
+        "Järjestö tai kerho. Käytetään sekoittamiseen ja tunnusväreihin.",
+    ),
+    (
+        "Ticket type or participant group.",
+        "Lipputyyppi tai osallistujaryhmä.",
+    ),
+    (
+        "The avec's full name, as the person wrote it.",
+        "Avecin koko nimi, kuten henkilö sen kirjoitti.",
+    ),
+    (
+        "Who they want to sit with, in their own words.",
+        "Kenen kanssa hän haluaa istua, omin sanoin.",
+    ),
     ("Menu choice.", "Menuvalinta."),
     ("Drink choice.", "Juomavalinta."),
     ("Allergies and diets.", "Allergiat ja ruokavaliot."),
     ("Ignore", "Ohita"),
-    ("no name column; set one column to “{}” (found: {})", "nimisarake puuttuu; aseta yksi sarake kohtaan ”{}” (löytyi: {})"),
+    (
+        "no name column; set one column to “{}” (found: {})",
+        "nimisarake puuttuu; aseta yksi sarake kohtaan ”{}” (löytyi: {})",
+    ),
     ("Member", "Jäsen"),
     ("With Q R", "Q R:n kanssa"),
     ("Vegetarian", "Kasvis"),
     ("Water", "Vesi"),
     ("Nuts", "Pähkinät"),
-    ("Paste the rows here, header row included…", "Liitä rivit tähän otsikkorivin kanssa…"),
-    ("Use these columns, in any order. Only the name is required; other columns are kept as extra info. People are matched by name, so importing again updates them and keeps rules, room and options.", "Käytä näitä sarakkeita, missä järjestyksessä tahansa. Vain nimi on pakollinen; muut sarakkeet säilyvät lisätietoina. Ihmiset yhdistetään nimen perusteella, joten uusi tuonti päivittää heidät ja säilyttää säännöt, tilan ja vaihtoehdot."),
+    (
+        "Paste the rows here, header row included…",
+        "Liitä rivit tähän otsikkorivin kanssa…",
+    ),
+    (
+        "Use these columns, in any order. Only the name is required; other columns are kept as extra info. People are matched by name, so importing again updates them and keeps rules, room and options.",
+        "Käytä näitä sarakkeita, missä järjestyksessä tahansa. Vain nimi on pakollinen; muut sarakkeet säilyvät lisätietoina. Ihmiset yhdistetään nimen perusteella, joten uusi tuonti päivittää heidät ja säilyttää säännöt, tilan ja vaihtoehdot.",
+    ),
     ("Copy header row", "Kopioi otsikkorivi"),
-    ("Paste it into the first row of your spreadsheet", "Liitä se taulukkosi ensimmäiselle riville"),
-    ("Copied the header row; paste it into your spreadsheet", "Otsikkorivi kopioitu; liitä se taulukkoosi"),
+    (
+        "Paste it into the first row of your spreadsheet",
+        "Liitä se taulukkosi ensimmäiselle riville",
+    ),
+    (
+        "Copied the header row; paste it into your spreadsheet",
+        "Otsikkorivi kopioitu; liitä se taulukkoosi",
+    ),
     ("Download template", "Lataa pohja"),
-    ("A .csv file with the columns and one example row", ".csv-tiedosto, jossa sarakkeet ja yksi esimerkkirivi"),
+    (
+        "A .csv file with the columns and one example row",
+        ".csv-tiedosto, jossa sarakkeet ja yksi esimerkkirivi",
+    ),
     ("plassi-template.csv", "plassi-pohja.csv"),
     ("Export people", "Vie ihmiset"),
-    ("Everyone in these columns, to edit in a spreadsheet and import back", "Kaikki näissä sarakkeissa, muokattavaksi taulukossa ja tuotavaksi takaisin"),
+    (
+        "Everyone in these columns, to edit in a spreadsheet and import back",
+        "Kaikki näissä sarakkeissa, muokattavaksi taulukossa ja tuotavaksi takaisin",
+    ),
     ("plassi-people.csv", "plassi-ihmiset.csv"),
-    ("{} rows · check what each column becomes", "{} riviä · tarkista, miksi kukin sarake tuodaan"),
-    ("Set one column to “{}” to import.", "Aseta yksi sarake kohtaan ”{}”, niin voit tuoda."),
+    (
+        "{} rows · check what each column becomes",
+        "{} riviä · tarkista, miksi kukin sarake tuodaan",
+    ),
+    (
+        "Set one column to “{}” to import.",
+        "Aseta yksi sarake kohtaan ”{}”, niin voit tuoda.",
+    ),
     ("Column in your sheet", "Sarake taulukossasi"),
     ("Imported as", "Tuodaan"),
     ("First values", "Ensimmäiset arvot"),
@@ -235,5 +385,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("optional", "valinnainen"),
     ("Template column", "Pohjan sarake"),
     ("Your earlier choice", "Aiempi valintasi"),
-    ("Not in the template: choose what it is", "Ei pohjassa: valitse, mikä se on"),
+    (
+        "Not in the template: choose what it is",
+        "Ei pohjassa: valitse, mikä se on",
+    ),
 ];

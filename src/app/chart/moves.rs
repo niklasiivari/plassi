@@ -7,7 +7,10 @@ impl PlassiApp {
     pub(super) fn suggestions_ui(&mut self, ui: &mut egui::Ui, p: Palette, person: usize) {
         let key = (self.file.revision, person, self.selected_candidate);
         let project = &self.project;
-        let moves = self.chart.suggestions.get(key, || best_moves(project, key.2, person));
+        let moves = self
+            .chart
+            .suggestions
+            .get(key, || best_moves(project, key.2, person));
         if moves.is_empty() {
             return;
         }

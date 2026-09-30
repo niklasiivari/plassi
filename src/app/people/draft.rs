@@ -2,8 +2,8 @@
 //! tag, or near an organization.
 
 use super::*;
-use crate::i18n::tr;
 use crate::catalog::Kind;
+use crate::i18n::tr;
 
 impl PlassiApp {
     /// The new-wish form. Returns true when a rule was created.
@@ -16,45 +16,48 @@ impl PlassiApp {
         };
         let mut created = false;
         let mut cancel = false;
-        theme::raised_card(p)
-            .show(ui, |ui| {
-                ui.set_width(ui.available_width());
-                ui.label(RichText::new(tr("New wish")).size(theme::text::LEAD).strong());
-                ui.add_space(theme::space::S);
-                draft_kind(ui, draft);
-                ui.add_space(theme::space::S);
-                match &mut draft.near {
-                    DraftTarget::People => {
-                        people_targets(ui, p, draft, &names, &mut self.people.picker_filter)
-                    }
-                    DraftTarget::Tag(tag) => choice(
-                        ui,
-                        tr("Everyone tagged"),
-                        tag,
-                        &tags,
-                        tr("No tags yet — add them to people under Details."),
-                    ),
-                    DraftTarget::Organization(org) => choice(
-                        ui,
-                        tr("Everyone from"),
-                        org,
-                        &organizations,
-                        tr("No organizations yet."),
-                    ),
+        theme::raised_card(p).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.label(
+                RichText::new(tr("New wish"))
+                    .size(theme::text::LEAD)
+                    .strong(),
+            );
+            ui.add_space(theme::space::S);
+            draft_kind(ui, draft);
+            ui.add_space(theme::space::S);
+            match &mut draft.near {
+                DraftTarget::People => {
+                    people_targets(ui, p, draft, &names, &mut self.people.picker_filter)
                 }
-                ui.add(
-                    theme::field(&mut draft.source)
-                        .hint_text(tr("Source text (optional)"))
-                        .desired_width(f32::INFINITY),
-                );
-                ui.add_space(theme::space::S);
-                ui.horizontal(|ui| {
-                    created = ui
-                        .add_enabled(draft_ready(draft), theme::primary_button(tr("Add wish"), p))
-                        .clicked();
-                    cancel = ui.button(tr("Cancel")).clicked();
-                });
+                DraftTarget::Tag(tag) => choice(
+                    ui,
+                    tr("Everyone tagged"),
+                    tag,
+                    &tags,
+                    tr("No tags yet — add them to people under Details."),
+                ),
+                DraftTarget::Organization(org) => choice(
+                    ui,
+                    tr("Everyone from"),
+                    org,
+                    &organizations,
+                    tr("No organizations yet."),
+                ),
+            }
+            ui.add(
+                theme::field(&mut draft.source)
+                    .hint_text(tr("Source text (optional)"))
+                    .desired_width(f32::INFINITY),
+            );
+            ui.add_space(theme::space::S);
+            ui.horizontal(|ui| {
+                created = ui
+                    .add_enabled(draft_ready(draft), theme::primary_button(tr("Add wish"), p))
+                    .clicked();
+                cancel = ui.button(tr("Cancel")).clicked();
             });
+        });
         if cancel {
             self.people.wish_draft = None;
         }
@@ -134,10 +137,17 @@ fn draft_kind(ui: &mut egui::Ui, draft: &mut WishDraft) {
                     | (DraftTarget::Organization(_), 2)
             )
         };
-        if ui.selectable_label(is(&draft.near, 0), tr("People")).clicked() {
+        if ui
+            .selectable_label(is(&draft.near, 0), tr("People"))
+            .clicked()
+        {
             draft.near = DraftTarget::People;
         }
-        if ui.selectable_label(is(&draft.near, 1), tr("A tag")).clicked() && !is(&draft.near, 1) {
+        if ui
+            .selectable_label(is(&draft.near, 1), tr("A tag"))
+            .clicked()
+            && !is(&draft.near, 1)
+        {
             draft.near = DraftTarget::Tag(String::new());
         }
         if ui
@@ -161,10 +171,7 @@ fn people_targets(
         let mut remove = None;
         for t in &draft.targets {
             let name = names.get(t).cloned().unwrap_or_default();
-            if ui
-                .add(theme::tag_button(&name))
-                .clicked()
-            {
+            if ui.add(theme::tag_button(&name)).clicked() {
                 remove = Some(*t);
             }
         }
@@ -193,12 +200,11 @@ fn choice(ui: &mut egui::Ui, label: &str, value: &mut String, options: &[String]
         } else {
             value.as_str()
         };
-        theme::combo(("draft-choice", label), shown)
-            .show_ui(ui, |ui| {
-                for option in options {
-                    ui.selectable_value(value, option.clone(), option);
-                }
-            });
+        theme::combo(("draft-choice", label), shown).show_ui(ui, |ui| {
+            for option in options {
+                ui.selectable_value(value, option.clone(), option);
+            }
+        });
     });
 }
 

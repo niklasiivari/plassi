@@ -23,7 +23,10 @@ pub(super) struct PrintState {
 impl PlassiApp {
     pub(super) fn print_page(&mut self, ui: &mut egui::Ui, p: Palette) {
         self.poll_print();
-        crate::app::help::page_header(ui, p, crate::app::help::HelpPage::Print,
+        crate::app::help::page_header(
+            ui,
+            p,
+            crate::app::help::HelpPage::Print,
             tr("Print"),
             Some(if cfg!(target_arch = "wasm32") {
                 tr("A4 PDFs, downloaded.")
@@ -97,7 +100,9 @@ impl PlassiApp {
                             (PrintLanguage::Finnish, "Suomi"),
                             (PrintLanguage::English, "English"),
                         ] {
-                            changed |= ui.selectable_value(&mut event.print_language, value, label).changed();
+                            changed |= ui
+                                .selectable_value(&mut event.print_language, value, label)
+                                .changed();
                         }
                     });
                     ui.end_row();
@@ -120,12 +125,15 @@ impl PlassiApp {
         self.selected_candidate = self
             .selected_candidate
             .min(self.project.candidates.len() - 1);
-        theme::combo("print-option", &self.project.candidates[self.selected_candidate].name)
-            .show_ui(ui, |ui| {
-                for (i, c) in self.project.candidates.iter().enumerate() {
-                    ui.selectable_value(&mut self.selected_candidate, i, &c.name);
-                }
-            });
+        theme::combo(
+            "print-option",
+            &self.project.candidates[self.selected_candidate].name,
+        )
+        .show_ui(ui, |ui| {
+            for (i, c) in self.project.candidates.iter().enumerate() {
+                ui.selectable_value(&mut self.selected_candidate, i, &c.name);
+            }
+        });
     }
 
     /// Whether the option is fit to print: broken rules, gaps, unseated people.

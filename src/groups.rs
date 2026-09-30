@@ -121,7 +121,10 @@ pub fn suggest_moves(
                 .filter(|p| !group_set.contains(p))
                 .collect();
             // Everyone displaced needs a seat the group leaves.
-            let vacating = members.iter().filter(|p| assignment.get(*p).is_some_and(|s| !block_ids.contains(s))).count();
+            let vacating = members
+                .iter()
+                .filter(|p| assignment.get(*p).is_some_and(|s| !block_ids.contains(s)))
+                .count();
             if displaced.iter().any(|p| pinned.contains(p)) || displaced.len() > vacating {
                 continue;
             }
@@ -197,7 +200,9 @@ fn swapped(
 fn describe_move(project: &Project, block: &[&Seat], displaced: &[usize]) -> String {
     let rows: Vec<usize> = block.iter().map(|s| s.index + 1).collect();
     let (lo, hi) = (rows.iter().min().unwrap(), rows.iter().max().unwrap());
-    let table_label = project.seat_place(&block[0].id).map_or("", |(table, _, _)| table);
+    let table_label = project
+        .seat_place(&block[0].id)
+        .map_or("", |(table, _, _)| table);
     let who = match displaced.len() {
         0 => tr("into free seats").to_string(),
         n => {
@@ -207,7 +212,10 @@ fn describe_move(project: &Project, block: &[&Seat], displaced: &[usize]) -> Str
                 .filter_map(|p| project.person(*p).map(|a| a.name.clone()))
                 .collect();
             if n > 2 {
-                fill("swapping with {} and {} more", &[&names.join(", "), &(n - 2)])
+                fill(
+                    "swapping with {} and {} more",
+                    &[&names.join(", "), &(n - 2)],
+                )
             } else {
                 match names.as_slice() {
                     [a, b] => fill("swapping with {} and {}", &[a, b]),

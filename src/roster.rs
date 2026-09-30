@@ -56,7 +56,10 @@ pub fn add(project: &mut Project, person: NewAttendee) -> Result<usize> {
     }
     let seat_count = project.layout.seat_count();
     if project.attendees.len() >= seat_count {
-        bail!(fill("all {} seats are taken — add seats on the Room layout page first", &[&seat_count]));
+        bail!(fill(
+            "all {} seats are taken — add seats on the Room layout page first",
+            &[&seat_count]
+        ));
     }
     let id = project
         .attendees

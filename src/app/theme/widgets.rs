@@ -7,7 +7,13 @@ use super::tokens::{radius, space, text};
 
 /// A page title with an optional one-line description below it, and
 /// `trailing` controls (e.g. a help button) at the right end of the title row.
-pub fn page_header(ui: &mut egui::Ui, p: Palette, title: &str, subtitle: Option<&str>, trailing: impl FnOnce(&mut egui::Ui)) {
+pub fn page_header(
+    ui: &mut egui::Ui,
+    p: Palette,
+    title: &str,
+    subtitle: Option<&str>,
+    trailing: impl FnOnce(&mut egui::Ui),
+) {
     ui.horizontal(|ui| {
         ui.label(RichText::new(title).size(text::PAGE).strong());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), trailing);
@@ -33,24 +39,57 @@ pub fn section_title(ui: &mut egui::Ui, p: Palette, label: &str) {
 /// Resting shadow of cards: a close contact shadow plus a wide soft one,
 /// tinted with the palette's shadow colour.
 pub fn shadow_sm(p: Palette) -> egui::Shadow {
-    egui::Shadow { offset: [0, 2], blur: 12, spread: 0, color: shadow_color(p, 18) }
+    egui::Shadow {
+        offset: [0, 2],
+        blur: 12,
+        spread: 0,
+        color: shadow_color(p, 18),
+    }
 }
 
 /// Shadow of floating layers: menus, popups, toasts.
 pub fn shadow_lg(p: Palette) -> egui::Shadow {
-    egui::Shadow { offset: [0, 10], blur: 32, spread: 0, color: shadow_color(p, 40) }
+    egui::Shadow {
+        offset: [0, 10],
+        blur: 32,
+        spread: 0,
+        color: shadow_color(p, 40),
+    }
 }
 
 /// Soft shadows cast into `rect` by the panels around it (edges that are not
 /// the window's), so a canvas sits visibly below the chrome without borders.
 pub fn panel_edge_shadows(ui: &egui::Ui, p: Palette, rect: egui::Rect) {
     let screen = ui.ctx().content_rect();
-    let shadow = egui::Shadow { offset: [0, 0], blur: 14, spread: 0, color: shadow_color(p, 26) };
+    let shadow = egui::Shadow {
+        offset: [0, 0],
+        blur: 14,
+        spread: 0,
+        color: shadow_color(p, 26),
+    };
     let depth = 100.0;
     let outside = [
-        (rect.top() > screen.top() + 1.0, egui::Rect::from_min_max(rect.left_top() - egui::vec2(depth, depth), rect.right_top() + egui::vec2(depth, 0.0))),
-        (rect.left() > screen.left() + 1.0, egui::Rect::from_min_max(rect.left_top() - egui::vec2(depth, depth), rect.left_bottom() + egui::vec2(0.0, depth))),
-        (rect.right() < screen.right() - 1.0, egui::Rect::from_min_max(rect.right_top() - egui::vec2(0.0, depth), rect.right_bottom() + egui::vec2(depth, depth))),
+        (
+            rect.top() > screen.top() + 1.0,
+            egui::Rect::from_min_max(
+                rect.left_top() - egui::vec2(depth, depth),
+                rect.right_top() + egui::vec2(depth, 0.0),
+            ),
+        ),
+        (
+            rect.left() > screen.left() + 1.0,
+            egui::Rect::from_min_max(
+                rect.left_top() - egui::vec2(depth, depth),
+                rect.left_bottom() + egui::vec2(0.0, depth),
+            ),
+        ),
+        (
+            rect.right() < screen.right() - 1.0,
+            egui::Rect::from_min_max(
+                rect.right_top() - egui::vec2(0.0, depth),
+                rect.right_bottom() + egui::vec2(depth, depth),
+            ),
+        ),
     ];
     let painter = ui.painter_at(rect);
     for (shown, source) in outside {
@@ -225,7 +264,11 @@ pub fn chip(label: impl Into<egui::WidgetText>, p: Palette, on: bool) -> egui::B
 /// Text for a [`chip`]: accent and a little bolder when on.
 pub fn chip_text(label: impl Into<String>, p: Palette, on: bool) -> RichText {
     let text = RichText::new(label.into());
-    if on { text.color(p.accent).strong() } else { text }
+    if on {
+        text.color(p.accent).strong()
+    } else {
+        text
+    }
 }
 
 /// A small removable tag: "label  ×" in a pill.
@@ -266,7 +309,12 @@ pub fn key_hint(ui: &mut egui::Ui, p: Palette, keys: &str, action: &str) {
                 .corner_radius(radius::SM)
                 .inner_margin(Margin::symmetric(5, 2))
                 .show(ui, |ui| {
-                    ui.label(RichText::new(key).monospace().size(text::CAPTION).color(p.text));
+                    ui.label(
+                        RichText::new(key)
+                            .monospace()
+                            .size(text::CAPTION)
+                            .color(p.text),
+                    );
                 });
         }
         hint(ui, p, action);
@@ -320,7 +368,9 @@ pub fn field(value: &mut String) -> Field<'_> {
 
 /// A multi-line text area with the same padding as [`field`].
 pub fn text_area(value: &mut String) -> Field<'_> {
-    Field(egui::TextEdit::multiline(value).margin(Margin::symmetric(space::M as i8, space::S as i8)))
+    Field(
+        egui::TextEdit::multiline(value).margin(Margin::symmetric(space::M as i8, space::S as i8)),
+    )
 }
 
 /// A small coloured dot, e.g. before a status line.
@@ -374,7 +424,14 @@ pub fn initials(name: &str) -> String {
     let words: Vec<&str> = name.split_whitespace().collect();
     match words.as_slice() {
         [] => String::new(),
-        [.., last] if last.chars().all(|c| c.is_ascii_digit()) => last.chars().rev().take(2).collect::<Vec<_>>().into_iter().rev().collect(),
+        [.., last] if last.chars().all(|c| c.is_ascii_digit()) => last
+            .chars()
+            .rev()
+            .take(2)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect(),
         [only] => only.chars().take(1).collect(),
         [first, .., last] => first.chars().take(1).chain(last.chars().take(1)).collect(),
     }

@@ -101,14 +101,13 @@ fn add_spelling(
         return false;
     }
     let mut picked = None;
-    theme::combo("add-spelling", tr("+ Add spelling"))
-        .show_ui(ui, |ui| {
-            for spelling in options {
-                if ui.selectable_label(false, spelling).clicked() {
-                    picked = Some(spelling.clone());
-                }
+    theme::combo("add-spelling", tr("+ Add spelling")).show_ui(ui, |ui| {
+        for spelling in options {
+            if ui.selectable_label(false, spelling).clicked() {
+                picked = Some(spelling.clone());
             }
-        });
+        }
+    });
     if let Some(spelling) = picked {
         category.aliases.push(spelling);
         return true;

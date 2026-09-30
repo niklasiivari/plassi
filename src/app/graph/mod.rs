@@ -15,7 +15,6 @@ use super::PlassiApp;
 use super::theme::{self, Palette};
 use layout::ForceLayout;
 
-
 /// One wish from one person to another.
 struct Edge {
     from: usize,
@@ -79,7 +78,7 @@ impl Default for GraphState {
 }
 
 impl GraphState {
-#[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn set_by_table(&mut self, on: bool) {
         self.by_table = on;
     }

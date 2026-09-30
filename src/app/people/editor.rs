@@ -73,7 +73,10 @@ impl PlassiApp {
         {
             changed |= self.wish_draft_form(ui, p);
         }
-        let results = self.evaluation().map(|e| e.results.clone()).unwrap_or_default();
+        let results = self
+            .evaluation()
+            .map(|e| e.results.clone())
+            .unwrap_or_default();
         let rule_ids: Vec<u64> = self
             .project
             .rules
@@ -161,7 +164,11 @@ impl PlassiApp {
                 continue;
             };
             any = true;
-            let kind = if costs.is_avec() { tr("avec") } else { tr("wish") };
+            let kind = if costs.is_avec() {
+                tr("avec")
+            } else {
+                tr("wish")
+            };
             ui.horizontal(|ui| {
                 ui.label(&person.name);
                 theme::hint(ui, p, kind);

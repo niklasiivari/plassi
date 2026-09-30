@@ -52,7 +52,9 @@ fn covers(letters: &[char], words: &[Vec<char>]) -> bool {
         return false;
     }
     // Take the first letter, then try every way of taking more letters from this word.
-    (1..=letters.len()).any(|taken| is_subsequence(&letters[1..taken], &word[1..]) && covers(&letters[taken..], rest))
+    (1..=letters.len()).any(|taken| {
+        is_subsequence(&letters[1..taken], &word[1..]) && covers(&letters[taken..], rest)
+    })
 }
 
 fn is_subsequence(needle: &[char], haystack: &[char]) -> bool {
@@ -149,7 +151,10 @@ mod tests {
         assert!(abbreviates("AB", "Aa Bb"));
         assert!(abbreviates("ABC", "Aa Bb Cc"));
         assert!(abbreviates("ABC", "Aa-Bb Cc"));
-        assert!(abbreviates("XQZ", "Xaqa Zz"), "extra letter from inside a word");
+        assert!(
+            abbreviates("XQZ", "Xaqa Zz"),
+            "extra letter from inside a word"
+        );
         assert!(!abbreviates("ACB", "Aa Bb Cc"), "order matters");
         assert!(!abbreviates("AB", "Aa Bb Cc"), "every word contributes");
         assert!(!abbreviates("A", "Aa Bb"), "too short");

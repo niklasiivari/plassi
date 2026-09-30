@@ -131,8 +131,14 @@ fn multi_person_wish_counts_every_named_person() {
         (3, "table-a:right:0".into()),
     ]);
     let result = crate::score::evaluate(&project, &assignment);
-    assert_eq!(result.results[0].detail, "all of Person 1, Person 2: diagonal");
-    assert!(result.results[0].penalty > 0, "both named people count toward the wish");
+    assert_eq!(
+        result.results[0].detail,
+        "all of Person 1, Person 2: diagonal"
+    );
+    assert!(
+        result.results[0].penalty > 0,
+        "both named people count toward the wish"
+    );
 }
 
 #[test]
@@ -308,7 +314,8 @@ fn spare_seats_come_from_table_bottoms_in_pairs() {
     project.layout.rows[0].tables[0].left = 4;
     project.layout.rows[0].tables[0].right = 4;
     let seats = project.layout.seats();
-    let usable = crate::seating::spare_seats::usable_seats(&project, &seats, &[], &Default::default());
+    let usable =
+        crate::seating::spare_seats::usable_seats(&project, &seats, &[], &Default::default());
     let empty: Vec<_> = seats
         .iter()
         .zip(&usable)
@@ -335,7 +342,8 @@ fn spare_seats_come_from_table_bottoms_in_pairs() {
         allergies: String::new(),
         extra: Default::default(),
     });
-    let usable = crate::seating::spare_seats::usable_seats(&project, &seats, &[], &Default::default());
+    let usable =
+        crate::seating::spare_seats::usable_seats(&project, &seats, &[], &Default::default());
     let right_bottom = seats
         .iter()
         .position(|s| s.id == "table-a:right:2")
@@ -734,7 +742,12 @@ fn two_tables() -> Project {
         id: "row".into(),
         label: "Row 1".into(),
         tables: (1..=2)
-            .map(|i| TableSpec { id: format!("t{i}"), label: format!("Table {i}"), left: 2, right: 2 })
+            .map(|i| TableSpec {
+                id: format!("t{i}"),
+                label: format!("Table {i}"),
+                left: 2,
+                right: 2,
+            })
             .collect(),
     });
     project
@@ -745,16 +758,33 @@ fn preferences_group_together_and_keep_apart() {
     use crate::preferences::{Closeness, PreferenceKind, Strength};
     let mut project = two_tables();
     // Spread over the organizations' natural order, so the solver must move them.
-    project.add_preference(PreferenceKind::together(vec![0, 3, 5, 6]), Strength::Important);
-    project.add_preference(PreferenceKind::Apart { people: vec![1, 2], closeness: Closeness::Neighbours }, Strength::Must);
+    project.add_preference(
+        PreferenceKind::together(vec![0, 3, 5, 6]),
+        Strength::Important,
+    );
+    project.add_preference(
+        PreferenceKind::Apart {
+            people: vec![1, 2],
+            closeness: Closeness::Neighbours,
+        },
+        Strength::Must,
+    );
     project.validate().expect("valid");
     crate::seating::check_deltas(&project);
-    let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(300)).expect("seating");
+    let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(300))
+        .expect("seating");
     let result = crate::score::evaluate(&project, &candidate.assignment);
     assert_eq!(result.hard_violations, 0);
-    let details: Vec<&str> = result.preferences.iter().map(|p| p.detail.as_str()).collect();
+    let details: Vec<&str> = result
+        .preferences
+        .iter()
+        .map(|p| p.detail.as_str())
+        .collect();
     assert_eq!(details[1], "kept apart");
-    assert!(details[0] == "all at one table" || details[0] == "everyone close", "{details:?}");
+    assert!(
+        details[0] == "all at one table" || details[0] == "everyone close",
+        "{details:?}"
+    );
 
     // Removing people shrinks preferences; one left alone is dropped.
     crate::roster::remove(&mut project, 1);
@@ -772,7 +802,12 @@ fn report_score_matches_solver_score() {
         id: "row".into(),
         label: "Row 1".into(),
         tables: (1..=3)
-            .map(|i| TableSpec { id: format!("t{i}"), label: format!("Table {i}"), left: 7, right: 7 })
+            .map(|i| TableSpec {
+                id: format!("t{i}"),
+                label: format!("Table {i}"),
+                left: 7,
+                right: 7,
+            })
             .collect(),
     });
     project.policy.organization = OrganizationMixing::Mixed;
@@ -781,10 +816,20 @@ fn report_score_matches_solver_score() {
         label: "Not at a table end".into(),
         source: String::new(),
         enabled: true,
-        kind: RuleKind::AvoidTableEnd { person: 5, end_penalty: 300, near_end_penalty: 80 },
+        kind: RuleKind::AvoidTableEnd {
+            person: 5,
+            end_penalty: 300,
+            near_end_penalty: 80,
+        },
     });
     project.add_preference(PreferenceKind::together(vec![1, 2, 3]), Strength::Important);
-    project.add_preference(PreferenceKind::Apart { people: vec![4, 6], closeness: Closeness::Table }, Strength::NiceToHave);
+    project.add_preference(
+        PreferenceKind::Apart {
+            people: vec![4, 6],
+            closeness: Closeness::Table,
+        },
+        Strength::NiceToHave,
+    );
     let outcome = crate::seating::search(
         &project,
         crate::seating::Options {
@@ -805,13 +850,26 @@ fn report_score_matches_solver_score() {
 #[test]
 fn improve_moves_a_pinned_person_to_their_pin() {
     let mut project = two_tables();
-    let seating = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(200)).expect("seating");
-    let other = seating.assignment.iter().find(|(p, _)| **p != 0).map(|(_, s)| s.clone()).unwrap();
+    let seating = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(200))
+        .expect("seating");
+    let other = seating
+        .assignment
+        .iter()
+        .find(|(p, _)| **p != 0)
+        .map(|(_, s)| s.clone())
+        .unwrap();
     project.pin(0, &other);
-    let improved =
-        crate::seating::improve(&project, &seating.assignment, &Default::default(), web_time::Duration::from_millis(200));
+    let improved = crate::seating::improve(
+        &project,
+        &seating.assignment,
+        &Default::default(),
+        web_time::Duration::from_millis(200),
+    );
     assert_eq!(improved[&0], other);
-    assert_eq!(crate::score::evaluate(&project, &improved).hard_violations, 0);
+    assert_eq!(
+        crate::score::evaluate(&project, &improved).hard_violations,
+        0
+    );
 }
 
 #[test]
@@ -834,18 +892,30 @@ fn spare_seats_leave_room_for_hard_table_rules() {
             },
         });
     }
-    let seating = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(200)).expect("seating");
-    assert_eq!(crate::score::evaluate(&project, &seating.assignment).hard_violations, 0);
+    let seating = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(200))
+        .expect("seating");
+    assert_eq!(
+        crate::score::evaluate(&project, &seating.assignment).hard_violations,
+        0
+    );
 }
 
 #[test]
 fn suggests_names_written_surname_first() {
     let mut project = fixture();
     project.attendees[1].name = "Xxxx Yyyy".into();
-    project.notes.push(ImportNote { person: 0, field: ImportField::Wish, text: "Yyyy Xxxx please".into(), reviewed: false });
+    project.notes.push(ImportNote {
+        person: 0,
+        field: ImportField::Wish,
+        text: "Yyyy Xxxx please".into(),
+        reviewed: false,
+    });
     let found = crate::suggest::for_note(&project, 0);
     assert!(
-        found.iter().any(|s| s.target == crate::suggest::SuggestedTarget::People(vec![1]) && s.confidence == crate::suggest::Confidence::High),
+        found.iter().any(
+            |s| s.target == crate::suggest::SuggestedTarget::People(vec![1])
+                && s.confidence == crate::suggest::Confidence::High
+        ),
         "{found:?}"
     );
 }
@@ -864,14 +934,22 @@ fn import_keeps_same_named_rows_apart() {
 fn example_event_is_valid_and_solvable() {
     let project = crate::example::project();
     project.validate().expect("valid example");
-    let seating = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(300)).expect("seating");
-    assert_eq!(crate::score::evaluate(&project, &seating.assignment).hard_violations, 0);
+    let seating = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(300))
+        .expect("seating");
+    assert_eq!(
+        crate::score::evaluate(&project, &seating.assignment).hard_violations,
+        0
+    );
 }
 
 #[test]
 fn finnish_sample_header_is_recognised() {
     let sheet = crate::import::parse_sheet("Nimi\tJärjestö\tAvec\tPöytäseuratoive\tRuoka\tJuoma\tAllergiat\nX Y\tABC\t\t\tKala\tVesi\t\n").expect("sheet");
-    assert!(!sheet.columns.contains(&crate::import::Column::Other), "{:?}", sheet.headers);
+    assert!(
+        !sheet.columns.contains(&crate::import::Column::Other),
+        "{:?}",
+        sheet.headers
+    );
 }
 
 #[test]
@@ -886,14 +964,33 @@ fn avatar_initials() {
 fn solver_status_is_data_rendered_at_display_time() {
     use crate::model::SolverStatus;
     crate::i18n::set(crate::i18n::Lang::En);
-    let status = SolverStatus::BestFound { seconds: 30, runs_at_best: 2, runs: 8 };
-    assert_eq!(status.describe(), "Best found in 30 s · 2 of 8 runs reached this score");
+    let status = SolverStatus::BestFound {
+        seconds: 30,
+        runs_at_best: 2,
+        runs: 8,
+    };
+    assert_eq!(
+        status.describe(),
+        "Best found in 30 s · 2 of 8 runs reached this score"
+    );
     let json = serde_json::to_value(&status).unwrap();
     assert_eq!(json["kind"], "best_found");
-    assert_eq!(serde_json::from_value::<SolverStatus>(json).unwrap(), status);
-    let improved = SolverStatus::Improved { from: "Option 1".into(), hand_placed: 3 };
-    assert_eq!(improved.describe(), "Improved from Option 1, keeping 3 hand-placed people");
-    let continued = SolverStatus::Continued { from: "Option 2".into(), seconds: 30 };
+    assert_eq!(
+        serde_json::from_value::<SolverStatus>(json).unwrap(),
+        status
+    );
+    let improved = SolverStatus::Improved {
+        from: "Option 1".into(),
+        hand_placed: 3,
+    };
+    assert_eq!(
+        improved.describe(),
+        "Improved from Option 1, keeping 3 hand-placed people"
+    );
+    let continued = SolverStatus::Continued {
+        from: "Option 2".into(),
+        seconds: 30,
+    };
     assert_eq!(continued.describe(), "Searched 30 s more from Option 2");
     assert_eq!(SolverStatus::EditedByHand.describe(), "Edited by hand");
 }
@@ -926,7 +1023,10 @@ fn progress_reports_the_best_cost_found() {
     let project = two_tables();
     let mut search = quick_search(&project, 200);
     let progress = search.progress();
-    assert!(progress.best().is_some(), "the starting seatings count as progress");
+    assert!(
+        progress.best().is_some(),
+        "the starting seatings count as progress"
+    );
     search.run_to_end();
     let outcome = search.finish();
     let (score, hard) = progress.best().unwrap();
@@ -976,10 +1076,18 @@ fn exported_people_import_back_unchanged() {
     let project = crate::example::project();
     let csv = crate::import::export_csv(&project);
     let sheet = crate::import::parse_sheet(&csv).expect("sheet");
-    assert!(sheet.matches.iter().all(|m| *m == crate::import::Match::Exact));
+    assert!(
+        sheet
+            .matches
+            .iter()
+            .all(|m| *m == crate::import::Match::Exact)
+    );
     let mut again = project.clone();
     let summary = crate::import::merge(&mut again, &sheet).expect("merge");
-    assert_eq!((summary.added, summary.updated, summary.new_notes), (0, project.attendees.len(), 0));
+    assert_eq!(
+        (summary.added, summary.updated, summary.new_notes),
+        (0, project.attendees.len(), 0)
+    );
     assert_eq!(again.attendees.len(), project.attendees.len());
     let template = crate::import::parse_sheet(&crate::import::template_csv()).expect("template");
     assert!(template.has_name() && template.rows.len() == 1);

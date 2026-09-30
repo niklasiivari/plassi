@@ -1,14 +1,14 @@
 //! The People & wishes page: attendee list, per-person editor, review of sign-up text and spreadsheet import.
 
+mod bulk;
 mod details;
-mod drop;
-mod import;
 mod draft;
+mod drop;
 mod editor;
+mod import;
 mod list;
 mod notes;
 mod overview;
-mod bulk;
 mod roster;
 mod rule_card;
 pub(in crate::app) use roster::RosterEdit;
@@ -100,7 +100,9 @@ impl PlassiApp {
             .size_range(280.0..=500.0)
             .show_separator_line(true)
             .frame(theme::floating_panel_frame(p))
-            .show(ui, |ui| theme::panel_card(ui, p, theme::space::L, |ui| self.people_list(ui, p)));
+            .show(ui, |ui| {
+                theme::panel_card(ui, p, theme::space::L, |ui| self.people_list(ui, p))
+            });
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg))
             .show(ui, |ui| {

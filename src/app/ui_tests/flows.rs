@@ -25,10 +25,20 @@ fn solve_shows_option_score_and_tour_once() {
     let options = &ui.app().project.candidates;
     assert_eq!(options.len(), 1);
     let chip = format!("{}  ", options[0].name);
-    assert!(ui.dump().iter().any(|t| t.starts_with(&chip) && t.contains(" met")), "{:?}", ui.dump());
+    assert!(
+        ui.dump()
+            .iter()
+            .any(|t| t.starts_with(&chip) && t.contains(" met")),
+        "{:?}",
+        ui.dump()
+    );
     assert!(ui.has("SCORE"), "{:?}", ui.dump());
     for step in 1..=5 {
-        assert!(ui.has(&format!("Step {step} of 5")), "step {step}: {:?}", ui.dump());
+        assert!(
+            ui.has(&format!("Step {step} of 5")),
+            "step {step}: {:?}",
+            ui.dump()
+        );
         ui.click(if step == 5 { "Done" } else { "Next" });
     }
     assert!(!ui.has_text("Step "));
@@ -48,7 +58,14 @@ fn chart_search_pin_select_and_drag() {
     ui.type_text("Guest 07");
     assert!(ui.has_text("Guest 07 · "), "{:?}", ui.dump());
     ui.key(Modifiers::NONE, Key::Enter);
-    let guest = ui.app().project.attendees.iter().find(|a| a.name == "Guest 07").unwrap().id;
+    let guest = ui
+        .app()
+        .project
+        .attendees
+        .iter()
+        .find(|a| a.name == "Guest 07")
+        .unwrap()
+        .id;
     assert_eq!(ui.app().selected_person, Some(guest));
 
     // P pins the selected person to their seat.
@@ -70,7 +87,10 @@ fn chart_search_pin_select_and_drag() {
     let (seat_a, seat_b) = (ui.seat_of(a), ui.seat_of(b));
     let (from, to) = (ui.card_of(a).center(), ui.card_of(b).center());
     ui.drag(from, to);
-    assert_eq!((ui.seat_of(a), ui.seat_of(b)), (seat_b.clone(), seat_a.clone()));
+    assert_eq!(
+        (ui.seat_of(a), ui.seat_of(b)),
+        (seat_b.clone(), seat_a.clone())
+    );
     ui.key(Modifiers::COMMAND, Key::Z);
     assert_eq!((ui.seat_of(a), ui.seat_of(b)), (seat_a, seat_b));
 }
@@ -90,11 +110,20 @@ fn chart_group_selection_includes_the_existing_selection() {
     let guest30 = ids["Guest 30"];
     ui.node("Guest 30").click();
     ui.settle();
-    assert_eq!(ui.app().selected_person, Some(guest30), "first pick: {:?}", ui.dump());
+    assert_eq!(
+        ui.app().selected_person,
+        Some(guest30),
+        "first pick: {:?}",
+        ui.dump()
+    );
     for name in ["Guest 44", "Guest 23", "Guest 36"] {
         ui.node(name).click_modifiers(Modifiers::COMMAND);
         ui.settle();
-        assert!(ui.app().chart.multi.contains(&guest30), "after {name}: {:?}", ui.dump());
+        assert!(
+            ui.app().chart.multi.contains(&guest30),
+            "after {name}: {:?}",
+            ui.dump()
+        );
     }
     let group = &ui.app().chart.multi;
     assert_eq!(group.len(), 4);
@@ -120,13 +149,27 @@ fn project_menu_new_rename_duplicate_delete_restore() {
     assert_eq!(ui.app().file.name, "Example event");
     assert_eq!(ui.app().project.attendees.len(), 48);
     let names = ui.app().file.library.projects();
-    assert_eq!(names, ["Example event", "New event", "New event 2", "New event 2 copy"]);
+    assert_eq!(
+        names,
+        [
+            "Example event",
+            "New event",
+            "New event 2",
+            "New event 2 copy"
+        ]
+    );
 
     ui.open_project_menu();
     ui.click("Delete this project…");
     assert!(ui.has_text("Delete Example event?"), "{:?}", ui.dump());
     ui.click("Delete");
-    assert!(!ui.app().file.library.projects().contains(&"Example event".to_string()));
+    assert!(
+        !ui.app()
+            .file
+            .library
+            .projects()
+            .contains(&"Example event".to_string())
+    );
     assert_ne!(ui.app().file.name, "Example event");
 
     ui.open_project_menu();
@@ -166,7 +209,10 @@ fn language_switches_to_finnish_and_back() {
     assert!(ui.has("Seating chart"));
     ui.click("EN");
     assert!(ui.has("Istumajärjestys"), "{:?}", ui.dump());
-    assert_eq!(ui.app().file.library.setting("language").as_deref(), Some("fi"));
+    assert_eq!(
+        ui.app().file.library.setting("language").as_deref(),
+        Some("fi")
+    );
     ui.click("FI");
     assert!(ui.has("Seating chart"));
     assert!(!ui.has("Istumajärjestys"));
@@ -178,11 +224,26 @@ fn print_page_saves_four_pdfs() {
     ui.solve();
     ui.key(Modifiers::NONE, Key::Escape);
     ui.go_to("Print");
-    assert!(ui.has_text("Ready: everyone seated") || ui.has_text("hard rules broken") || ui.has_text("empty seats"), "{:?}", ui.dump());
+    assert!(
+        ui.has_text("Ready: everyone seated")
+            || ui.has_text("hard rules broken")
+            || ui.has_text("empty seats"),
+        "{:?}",
+        ui.dump()
+    );
     ui.click("Save all four PDFs");
     ui.wait_until(60, |app| app.printing.job.is_none());
     let folder = ui.dir.path().join("projects");
-    let pdfs = std::fs::read_dir(&folder).unwrap().filter(|e| e.as_ref().unwrap().path().extension().is_some_and(|x| x == "pdf")).count();
+    let pdfs = std::fs::read_dir(&folder)
+        .unwrap()
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .path()
+                .extension()
+                .is_some_and(|x| x == "pdf")
+        })
+        .count();
     assert_eq!(pdfs, 4, "{}", ui.app().status);
 }
 
@@ -209,7 +270,11 @@ fn people_filters_and_bulk_group() {
     ui.click("Group together");
     let project = &ui.app().project;
     assert_eq!(project.preferences.len(), preferences + 1);
-    assert!(ui.app().status.contains("Grouped 2 people together"), "{}", ui.app().status);
+    assert!(
+        ui.app().status.contains("Grouped 2 people together"),
+        "{}",
+        ui.app().status
+    );
 }
 
 #[test]
@@ -253,7 +318,11 @@ fn people_import_from_pasted_sheet() {
     ui.click_text_box(); // hinted "Paste the rows here, header row included…"
     ui.type_text("Full name\tOrganization\nX Y\tABC\nZ W\tXYZ\n");
     assert!(ui.has("Template column"), "{:?}", ui.dump());
-    assert!(ui.has("Not in the template: choose what it is"), "{:?}", ui.dump());
+    assert!(
+        ui.has("Not in the template: choose what it is"),
+        "{:?}",
+        ui.dump()
+    );
 
     // No guessing: say which column holds the names.
     ui.open_combo("Kept as extra info");
@@ -270,6 +339,12 @@ fn people_import_from_pasted_sheet() {
     let project = &ui.app().project;
     let names: Vec<&str> = project.attendees.iter().map(|a| a.name.as_str()).collect();
     assert_eq!(names, ["X Y", "Z W"]);
-    assert!(project.attendees.iter().all(|a| project.affiliation(a).is_empty()), "organization ignored");
+    assert!(
+        project
+            .attendees
+            .iter()
+            .all(|a| project.affiliation(a).is_empty()),
+        "organization ignored"
+    );
     assert!(ui.has("X Y") && ui.has("Z W"), "{:?}", ui.dump());
 }

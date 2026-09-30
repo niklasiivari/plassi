@@ -7,8 +7,14 @@ mod pages;
 mod people;
 
 pub(super) fn catalog() -> impl Iterator<Item = (&'static str, &'static str)> {
-    [common::STRINGS, chart::STRINGS, graph::STRINGS, people::STRINGS, pages::STRINGS]
-        .into_iter()
-        .flatten()
-        .copied()
+    [
+        common::STRINGS,
+        chart::STRINGS,
+        graph::STRINGS,
+        people::STRINGS,
+        pages::STRINGS,
+    ]
+    .into_iter()
+    .flatten()
+    .copied()
 }

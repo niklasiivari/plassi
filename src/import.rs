@@ -7,8 +7,8 @@
 //! merge into an existing one, matching attendees by name so rules, layout and
 //! options survive a re-import with more columns.
 
-use crate::i18n::{fill, tr};
 use crate::catalog::normalize;
+use crate::i18n::{fill, tr};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
@@ -18,7 +18,9 @@ use crate::model::{
     Attendee, ImportField, ImportNote, Project, ProximityCosts, Rule, RuleKind, Target, WeightMode,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
 pub enum Column {
     Name,
     FirstName,
@@ -161,7 +163,12 @@ pub struct Sheet {
 impl Sheet {
     /// Applies the column choices made on earlier imports into this project.
     pub fn remember(&mut self, choices: &BTreeMap<String, Column>) {
-        for ((header, column), found) in self.headers.iter().zip(&mut self.columns).zip(&mut self.matches) {
+        for ((header, column), found) in self
+            .headers
+            .iter()
+            .zip(&mut self.columns)
+            .zip(&mut self.matches)
+        {
             if *found == Match::Unknown
                 && let Some(choice) = choices.get(&normalize(header))
             {
@@ -174,7 +181,8 @@ impl Sheet {
     /// Whether the columns give each row a name.
     pub fn has_name(&self) -> bool {
         self.columns.contains(&Column::Name)
-            || (self.columns.contains(&Column::FirstName) && self.columns.contains(&Column::LastName))
+            || (self.columns.contains(&Column::FirstName)
+                && self.columns.contains(&Column::LastName))
     }
 }
 
@@ -208,7 +216,12 @@ pub fn parse_sheet(text: &str) -> Result<Sheet> {
         .map(|r| r.iter().map(|c| c.trim().to_string()).collect())
         .filter(|r: &Vec<String>| r.iter().any(|c| !c.is_empty()))
         .collect();
-    Ok(Sheet { headers, columns, matches, rows })
+    Ok(Sheet {
+        headers,
+        columns,
+        matches,
+        rows,
+    })
 }
 
 struct Row {
@@ -347,7 +360,11 @@ fn upsert_attendee(
 ) -> usize {
     let name = normalize(&row.name);
     let same_name = |a: &Attendee| normalize(&a.name) == name;
-    if project.attendees.iter().any(|a| same_name(a) && claimed.contains(&a.id)) {
+    if project
+        .attendees
+        .iter()
+        .any(|a| same_name(a) && claimed.contains(&a.id))
+    {
         summary.duplicate_names.push(row.name.clone());
     }
     let existing = project
@@ -469,7 +486,6 @@ pub fn wish_rule(id: u64, requester: usize, targets: Vec<usize>, avec: bool, sou
     }
 }
 
-
 /// The template's header row, tab-separated for pasting into a spreadsheet.
 pub fn header_row() -> String {
     Column::TEMPLATE.map(Column::header).join("\t")
@@ -479,15 +495,33 @@ pub fn header_row() -> String {
 /// spreadsheet programs expect in most European locales, with a byte-order
 /// mark so they read it as UTF-8.
 pub fn template_csv() -> String {
-    let example = ["X Y", "ABC", tr("Member"), "Z W", tr("With Q R"), tr("Vegetarian"), tr("Water"), tr("Nuts")];
-    csv_text(&[Column::TEMPLATE.map(Column::header).to_vec(), example.to_vec()])
+    let example = [
+        "X Y",
+        "ABC",
+        tr("Member"),
+        "Z W",
+        tr("With Q R"),
+        tr("Vegetarian"),
+        tr("Water"),
+        tr("Nuts"),
+    ];
+    csv_text(&[
+        Column::TEMPLATE.map(Column::header).to_vec(),
+        example.to_vec(),
+    ])
 }
 
 /// Everyone in the project in the template's columns, for editing in a
 /// spreadsheet and importing back.
 pub fn export_csv(project: &Project) -> String {
     let note = |person: usize, field: ImportField| {
-        project.notes.iter().filter(|n| n.person == person && n.field == field).map(|n| n.text.as_str()).collect::<Vec<_>>().join("; ")
+        project
+            .notes
+            .iter()
+            .filter(|n| n.person == person && n.field == field)
+            .map(|n| n.text.as_str())
+            .collect::<Vec<_>>()
+            .join("; ")
     };
     let mut rows = vec![Column::TEMPLATE.map(|c| c.header().to_string()).to_vec()];
     for a in &project.attendees {
@@ -506,7 +540,9 @@ pub fn export_csv(project: &Project) -> String {
 }
 
 fn csv_text<S: AsRef<str>>(rows: &[Vec<S>]) -> String {
-    let mut writer = csv::WriterBuilder::new().delimiter(b';').from_writer(Vec::new());
+    let mut writer = csv::WriterBuilder::new()
+        .delimiter(b';')
+        .from_writer(Vec::new());
     for row in rows {
         let _ = writer.write_record(row.iter().map(AsRef::as_ref));
     }

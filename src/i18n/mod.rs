@@ -103,7 +103,11 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for (en, fi) in fi::catalog() {
             assert!(seen.insert(en), "duplicate entry: {en}");
-            assert_eq!(en.matches("{}").count(), fi.matches("{}").count(), "placeholders differ: {en}");
+            assert_eq!(
+                en.matches("{}").count(),
+                fi.matches("{}").count(),
+                "placeholders differ: {en}"
+            );
             assert!(!fi.trim().is_empty(), "empty translation: {en}");
         }
     }

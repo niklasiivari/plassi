@@ -206,7 +206,11 @@ pub(super) fn construct(pr: &Problem, rng: &mut impl Rng, start: Option<&[usize]
     // Then the starting seating, where it is still allowed.
     if let Some(start) = start {
         for (p, &s) in start.iter().enumerate() {
-            if seat_of[p] == NONE && s != NONE && occupant[s] == NONE && pr.placement[p][s].is_some() {
+            if seat_of[p] == NONE
+                && s != NONE
+                && occupant[s] == NONE
+                && pr.placement[p][s].is_some()
+            {
                 place(p, s, &mut seat_of, &mut occupant);
             }
         }
@@ -371,12 +375,18 @@ impl Run {
     /// The best of a sample of block moves: two neighbouring seats swap
     /// contents with two other neighbouring seats, so pairs (couples, small
     /// groups) move together instead of being torn apart on the way.
-    fn best_block_move(&mut self, pr: &Problem, rng: &mut impl Rng) -> Option<(i64, [(usize, usize); 2])> {
+    fn best_block_move(
+        &mut self,
+        pr: &Problem,
+        rng: &mut impl Rng,
+    ) -> Option<(i64, [(usize, usize); 2])> {
         let mut best: Option<(i64, [(usize, usize); 2])> = None;
         for _ in 0..self.moves.len() {
             let x1 = self.moves[rng.random_range(0..self.moves.len())];
             let y1 = self.moves[rng.random_range(0..self.moves.len())];
-            let (Some(&x2), Some(&y2)) = (pr.neighbours[x1].choose(rng), pr.neighbours[y1].choose(rng)) else {
+            let (Some(&x2), Some(&y2)) =
+                (pr.neighbours[x1].choose(rng), pr.neighbours[y1].choose(rng))
+            else {
                 continue;
             };
             let distinct = x1 != y1 && x1 != y2 && x2 != y1 && x2 != y2 && x1 != x2 && y1 != y2;
@@ -427,18 +437,33 @@ pub fn move_deltas(
 ) -> Vec<(String, i64)> {
     let pr = Problem::new(project, &project.pinned_people(), None, Some(assignment));
     let (seat_of, occupant) = pr.state_of(assignment);
-    let Some(from) = pr.people.iter().position(|id| *id == person).map(|p| seat_of[p]) else {
+    let Some(from) = pr
+        .people
+        .iter()
+        .position(|id| *id == person)
+        .map(|p| seat_of[p])
+    else {
         return Vec::new();
     };
     if from == NONE {
         return Vec::new();
     }
-    let mut st = State { seat_of, occupant, cost: 0, changed: 0 };
+    let mut st = State {
+        seat_of,
+        occupant,
+        cost: 0,
+        changed: 0,
+    };
     let mut ev = Evaluator::new(&pr);
     let mut deltas: Vec<_> = (0..pr.n_seats)
         .filter_map(|s| {
             let valid = valid_swap(&pr, &st, from, s);
-            valid.then(|| (pr.seat_ids[s].clone(), delta(&pr, &mut st, &mut ev, from, s)))
+            valid.then(|| {
+                (
+                    pr.seat_ids[s].clone(),
+                    delta(&pr, &mut st, &mut ev, from, s),
+                )
+            })
         })
         .collect();
     deltas.sort_by_key(|d| d.1);

@@ -52,7 +52,10 @@ fn parse(markdown: &str) -> Vec<Section> {
         } else if line.starts_with("```") {
             code = Some(String::new());
         } else if let Some(title) = line.strip_prefix("## ") {
-            out.push(Section { title: title.to_owned(), body: Vec::new() });
+            out.push(Section {
+                title: title.to_owned(),
+                body: Vec::new(),
+            });
         } else if let Some(s) = out.last_mut() {
             let trimmed = line.trim_start_matches('#');
             if trimmed.len() != line.len() {
@@ -87,20 +90,31 @@ fn window(ctx: &egui::Context, p: Palette, open: &mut bool) {
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx, |ui| {
             ui.set_width(560.0);
-            ui.label(RichText::new(format!("Plassi {}", env!("CARGO_PKG_VERSION"))).size(theme::text::TITLE).strong());
+            ui.label(
+                RichText::new(format!("Plassi {}", env!("CARGO_PKG_VERSION")))
+                    .size(theme::text::TITLE)
+                    .strong(),
+            );
             ui.label(tr("© 2026 Niklas Iivari. All rights reserved."));
             ui.add_space(theme::space::M);
             theme::section_title(ui, p, tr("Privacy"));
             ui.add(egui::Label::new(tr(PRIVACY)).wrap());
             ui.add_space(theme::space::M);
             theme::section_title(ui, p, tr("Open-source software in Plassi"));
-            theme::hint(ui, p, tr("Plassi includes the following software and fonts, used under their licences."));
+            theme::hint(
+                ui,
+                p,
+                tr("Plassi includes the following software and fonts, used under their licences."),
+            );
             ui.add_space(theme::space::S);
-            egui::ScrollArea::vertical().max_height(360.0).show(ui, |ui| {
-                for section in sections() {
-                    egui::CollapsingHeader::new(&section.title).show(ui, |ui| section_body(ui, p, section));
-                }
-            });
+            egui::ScrollArea::vertical()
+                .max_height(360.0)
+                .show(ui, |ui| {
+                    for section in sections() {
+                        egui::CollapsingHeader::new(&section.title)
+                            .show(ui, |ui| section_body(ui, p, section));
+                    }
+                });
         });
 }
 
@@ -112,7 +126,10 @@ fn section_body(ui: &mut egui::Ui, p: Palette, section: &Section) {
                 ui.label(RichText::new(text).strong());
             }
             Block::Text(text) => {
-                ui.add(egui::Label::new(RichText::new(text).size(theme::text::SMALL).color(p.muted)).wrap());
+                ui.add(
+                    egui::Label::new(RichText::new(text).size(theme::text::SMALL).color(p.muted))
+                        .wrap(),
+                );
             }
             Block::Code(text) => {
                 ui.label(RichText::new(text).monospace().size(theme::text::CAPTION));
@@ -128,8 +145,18 @@ mod tests {
     #[test]
     fn notices_cover_key_crates_and_fonts() {
         assert!(NOTICES.len() > 10_000);
-        for name in ["egui", "eframe", "typst", "serde", "hypher", "epaint_default_fonts"] {
-            assert!(NOTICES.contains(&format!("{name} ")), "{name} missing from THIRD_PARTY_NOTICES.md");
+        for name in [
+            "egui",
+            "eframe",
+            "typst",
+            "serde",
+            "hypher",
+            "epaint_default_fonts",
+        ] {
+            assert!(
+                NOTICES.contains(&format!("{name} ")),
+                "{name} missing from THIRD_PARTY_NOTICES.md"
+            );
         }
         assert!(NOTICES.contains("Source Sans 3"));
         let titles: Vec<&str> = sections().iter().map(|s| s.title.as_str()).collect();
@@ -148,12 +175,20 @@ mod tests {
             .lines()
             .filter_map(|l| l.strip_prefix("name = \""))
             .filter_map(|l| l.strip_suffix('"'))
-            .filter(|n| n.starts_with("egui") || n.starts_with("epaint") || n.starts_with("typst") || *n == "eframe")
+            .filter(|n| {
+                n.starts_with("egui")
+                    || n.starts_with("epaint")
+                    || n.starts_with("typst")
+                    || *n == "eframe"
+            })
             .filter(|n| !matches!(*n, "egui_kittest" | "egui-wgpu"))
             .collect();
         assert!(!names.is_empty());
         for name in names {
-            assert!(NOTICES.contains(&format!("{name} ")), "{name} is in Cargo.lock but not in THIRD_PARTY_NOTICES.md");
+            assert!(
+                NOTICES.contains(&format!("{name} ")),
+                "{name} is in Cargo.lock but not in THIRD_PARTY_NOTICES.md"
+            );
         }
     }
 

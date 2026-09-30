@@ -82,7 +82,9 @@ fn solve(path: &str) -> Result<()> {
     let evaluation = score::evaluate(&project, &candidate.assignment);
     println!(
         "{}: wish penalty {}, {} hard violations",
-        candidate.solver_status.describe(), evaluation.wish_penalty, evaluation.hard_violations
+        candidate.solver_status.describe(),
+        evaluation.wish_penalty,
+        evaluation.hard_violations
     );
     project.candidates.push(candidate);
     io::save(Path::new(path), &project)
@@ -125,10 +127,7 @@ fn bench(path: &str, seconds: f64, runs: usize) -> Result<()> {
 
 fn list_suggestions(path: &str) -> Result<()> {
     let project = io::load(Path::new(path))?;
-    let name = |id: usize| {
-        project
-            .person_name(id).to_string()
-    };
+    let name = |id: usize| project.person_name(id).to_string();
     for s in suggest::suggestions(&project) {
         let target = match &s.target {
             suggest::SuggestedTarget::People(ids) => ids
@@ -165,7 +164,10 @@ fn export(path: &str, number: Option<usize>) -> Result<()> {
 
 /// Trials per bench, from `PLASSI_TRIALS` (default 5).
 fn bench_trials() -> u64 {
-    std::env::var("PLASSI_TRIALS").ok().and_then(|t| t.parse().ok()).unwrap_or(5)
+    std::env::var("PLASSI_TRIALS")
+        .ok()
+        .and_then(|t| t.parse().ok())
+        .unwrap_or(5)
 }
 
 #[cfg(test)]

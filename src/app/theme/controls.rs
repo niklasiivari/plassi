@@ -16,7 +16,10 @@ pub(super) fn field_visuals(ui: &mut egui::Ui) {
     let line = visuals.widgets.noninteractive.bg_stroke;
     let fill = visuals.text_edit_bg_color();
     let w = &mut visuals.widgets;
-    let hover = Stroke::new(1.0, super::blend(line.color, w.hovered.fg_stroke.color, 0.25));
+    let hover = Stroke::new(
+        1.0,
+        super::blend(line.color, w.hovered.fg_stroke.color, 0.25),
+    );
     w.inactive.bg_stroke = line;
     w.hovered.bg_stroke = hover;
     for state in [&mut w.inactive, &mut w.hovered, &mut w.active, &mut w.open] {
@@ -59,7 +62,10 @@ impl Combo {
             // egui grows the frame to the control height at the bottom only;
             // padding it evenly keeps the text centred like a field's.
             let text = ui.text_style_height(&egui::TextStyle::Button);
-            let padding = egui::vec2(super::space::M, ((super::CONTROL_HEIGHT - text) / 2.0).max(0.0));
+            let padding = egui::vec2(
+                super::space::M,
+                ((super::CONTROL_HEIGHT - text) / 2.0).max(0.0),
+            );
             ui.spacing_mut().button_padding = padding;
             self.0.show_ui(ui, add)
         })

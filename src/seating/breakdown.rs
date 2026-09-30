@@ -55,7 +55,11 @@ impl Scorer {
                 let term = &pr.terms[t];
                 let (class, penalty) = pr.term_outcome(t, &seat_of, &mut scratch);
                 let nearest = (term.required == 1)
-                    .then(|| term.targets.iter().min_by_key(|&&x| pr.distance(&seat_of, term.requester, x)))
+                    .then(|| {
+                        term.targets
+                            .iter()
+                            .min_by_key(|&&x| pr.distance(&seat_of, term.requester, x))
+                    })
                     .flatten()
                     .map(|&x| pr.people[x]);
                 TermResult {
@@ -74,7 +78,11 @@ impl Scorer {
             .iter()
             .map(|rule| {
                 let seat = seat_of[rule.person];
-                let cost = if seat == NONE { Some(0) } else { rule.cost[seat] };
+                let cost = if seat == NONE {
+                    Some(0)
+                } else {
+                    rule.cost[seat]
+                };
                 PlacementResult {
                     rule_id: rule.rule_id,
                     seated: seat != NONE,

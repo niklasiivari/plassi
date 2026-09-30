@@ -199,7 +199,15 @@ pub fn paint(painter: &egui::Painter, icon: Icon, c: Pos2, color: Color32) {
         Icon::Help => {
             painter.circle_stroke(c, 7.5, stroke);
             // The hook of the question mark, then its stem and dot.
-            painter.add(egui::Shape::line(arc(c + vec2(0.0, -2.2), 2.6, std::f32::consts::PI, std::f32::consts::TAU + 0.9), stroke));
+            painter.add(egui::Shape::line(
+                arc(
+                    c + vec2(0.0, -2.2),
+                    2.6,
+                    std::f32::consts::PI,
+                    std::f32::consts::TAU + 0.9,
+                ),
+                stroke,
+            ));
             let hook_end = c + vec2(0.0, -2.2) + vec2(0.9_f32.cos(), 0.9_f32.sin()) * 2.6;
             painter.line_segment([hook_end, c + vec2(0.0, 2.0)], stroke);
             painter.circle_filled(c + vec2(0.0, 4.6), 1.1, color);

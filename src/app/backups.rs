@@ -38,7 +38,11 @@ fn format_at_offset(stamp: u64, offset_minutes: i64) -> String {
     let minutes = (stamp / 60_000) as i64 + offset_minutes;
     let (days, minute_of_day) = (minutes.div_euclid(1440), minutes.rem_euclid(1440));
     let (year, month, day) = civil_date(days);
-    format!("{year:04}-{month:02}-{day:02} {:02}:{:02}", minute_of_day / 60, minute_of_day % 60)
+    format!(
+        "{year:04}-{month:02}-{day:02} {:02}:{:02}",
+        minute_of_day / 60,
+        minute_of_day % 60
+    )
 }
 
 /// Year, month and day of a day count since 1970-01-01 (Howard Hinnant's algorithm).
@@ -70,7 +74,11 @@ impl PlassiApp {
 
     /// A backup of the last saved state if none was taken for a while.
     pub(super) fn auto_backup(&mut self) {
-        if self.backups.last_auto.is_none_or(|at| at.elapsed() >= EVERY) {
+        if self
+            .backups
+            .last_auto
+            .is_none_or(|at| at.elapsed() >= EVERY)
+        {
             self.backup_now();
         }
     }
@@ -81,7 +89,13 @@ impl PlassiApp {
             ui.close();
         }
         let projects = self.file.library.projects();
-        let deleted: Vec<String> = self.file.library.backed_up().into_iter().filter(|n| !projects.contains(n)).collect();
+        let deleted: Vec<String> = self
+            .file
+            .library
+            .backed_up()
+            .into_iter()
+            .filter(|n| !projects.contains(n))
+            .collect();
         if !deleted.is_empty() && ui.button(tr("Deleted projects…")).clicked() {
             self.backups.view = Some(View::Deleted(deleted));
             ui.close();
@@ -95,7 +109,11 @@ impl PlassiApp {
             .into_iter()
             .filter_map(|stamp| {
                 let project = io::parse(&library.read_backup(&self.file.name, stamp)?).ok()?;
-                Some(Version { stamp, people: project.attendees.len(), options: project.candidates.len() })
+                Some(Version {
+                    stamp,
+                    people: project.attendees.len(),
+                    options: project.candidates.len(),
+                })
             })
             .collect();
         self.backups.view = Some(View::Versions(versions));
@@ -103,7 +121,9 @@ impl PlassiApp {
 
     /// The backup list, when open.
     pub(super) fn backups_window(&mut self, ctx: &egui::Context, p: Palette) {
-        let Some(view) = &self.backups.view else { return };
+        let Some(view) = &self.backups.view else {
+            return;
+        };
         let title = match view {
             View::Versions(_) => tr("Earlier versions"),
             View::Deleted(_) => tr("Deleted projects"),
@@ -118,12 +138,14 @@ impl PlassiApp {
             .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
             .show(ctx, |ui| {
                 ui.set_min_width(360.0);
-                egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
-                    action = match view {
-                        View::Versions(versions) => versions_list(ui, p, versions),
-                        View::Deleted(names) => deleted_list(ui, p, names),
-                    };
-                });
+                egui::ScrollArea::vertical()
+                    .max_height(420.0)
+                    .show(ui, |ui| {
+                        action = match view {
+                            View::Versions(versions) => versions_list(ui, p, versions),
+                            View::Deleted(names) => deleted_list(ui, p, names),
+                        };
+                    });
             });
         match action {
             Some(Restore::Version(stamp)) => self.restore_version(stamp),
@@ -137,12 +159,18 @@ impl PlassiApp {
     /// Replaces the project with a backup, as an undoable change.
     fn restore_version(&mut self, stamp: u64) {
         let bytes = self.file.library.read_backup(&self.file.name, stamp);
-        match bytes.ok_or_else(|| anyhow::anyhow!("the backup is gone")).and_then(|b| io::parse(&b)) {
+        match bytes
+            .ok_or_else(|| anyhow::anyhow!("the backup is gone"))
+            .and_then(|b| io::parse(&b))
+        {
             Ok(project) => {
                 self.backup_now();
                 self.project = project;
                 self.selected_candidate = 0;
-                self.commit(&fill("Restored the version from {}", &[&format_stamp(stamp)]));
+                self.commit(&fill(
+                    "Restored the version from {}",
+                    &[&format_stamp(stamp)],
+                ));
             }
             Err(error) => self.status = fill("Could not restore: {}", &[&format!("{error:#}")]),
         }
@@ -151,8 +179,14 @@ impl PlassiApp {
     /// Brings back a deleted project from its latest backup.
     fn restore_deleted(&mut self, name: &str) {
         let library = &self.file.library;
-        let bytes = library.backups(name).first().and_then(|&stamp| library.read_backup(name, stamp));
-        match bytes.ok_or_else(|| anyhow::anyhow!("no backup of {name}")).and_then(|b| io::parse(&b)) {
+        let bytes = library
+            .backups(name)
+            .first()
+            .and_then(|&stamp| library.read_backup(name, stamp));
+        match bytes
+            .ok_or_else(|| anyhow::anyhow!("no backup of {name}"))
+            .and_then(|b| io::parse(&b))
+        {
             Ok(project) => self.create_project(name, project),
             Err(error) => self.status = fill("Could not restore: {}", &[&format!("{error:#}")]),
         }
@@ -166,15 +200,26 @@ enum Restore {
 
 fn versions_list(ui: &mut egui::Ui, p: Palette, versions: &[Version]) -> Option<Restore> {
     if versions.is_empty() {
-        theme::hint(ui, p, tr("No earlier versions yet. One is kept every few minutes while you edit."));
+        theme::hint(
+            ui,
+            p,
+            tr("No earlier versions yet. One is kept every few minutes while you edit."),
+        );
     }
     let mut picked = None;
     for version in versions {
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
                 ui.label(format_stamp(version.stamp));
-                let counts = fill("{} people, {} options", &[&version.people, &version.options]);
-                ui.label(RichText::new(counts).color(p.muted).size(theme::text::SMALL));
+                let counts = fill(
+                    "{} people, {} options",
+                    &[&version.people, &version.options],
+                );
+                ui.label(
+                    RichText::new(counts)
+                        .color(p.muted)
+                        .size(theme::text::SMALL),
+                );
             });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.add(theme::secondary_button(tr("Restore"))).clicked() {
@@ -210,7 +255,10 @@ mod tests {
     #[test]
     fn formats_times_with_offset() {
         assert_eq!(format_at_offset(0, 0), "1970-01-01 00:00");
-        assert_eq!(format_at_offset(951_782_400_000 + 61_000, 0), "2000-02-29 00:01");
+        assert_eq!(
+            format_at_offset(951_782_400_000 + 61_000, 0),
+            "2000-02-29 00:01"
+        );
         assert_eq!(format_at_offset(1_790_000_000_000, 180), "2026-09-21 17:13");
         assert_eq!(format_at_offset(0, -60), "1969-12-31 23:00");
     }

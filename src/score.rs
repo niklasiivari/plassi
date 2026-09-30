@@ -92,7 +92,11 @@ pub fn evaluate(project: &Project, assignment: &BTreeMap<usize, String>) -> Eval
 }
 
 /// Like [`evaluate`], reusing a compiled scorer when scoring many charts.
-pub fn evaluate_with(scorer: &Scorer, project: &Project, assignment: &BTreeMap<usize, String>) -> Evaluation {
+pub fn evaluate_with(
+    scorer: &Scorer,
+    project: &Project,
+    assignment: &BTreeMap<usize, String>,
+) -> Evaluation {
     let breakdown = scorer.breakdown(assignment);
     let mut results: Vec<RuleResult> = project
         .rules
@@ -130,9 +134,18 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
             };
             (r.penalty, r.hard_violation, detail)
         }
-        RuleKind::Proximity { requester, target, .. } => {
-            let t = breakdown.terms.iter().find(|t| t.source == Source::Rule(rule.id))?;
-            (t.penalty, t.hard_violation, proximity_detail(project, *requester, target, t))
+        RuleKind::Proximity {
+            requester, target, ..
+        } => {
+            let t = breakdown
+                .terms
+                .iter()
+                .find(|t| t.source == Source::Rule(rule.id))?;
+            (
+                t.penalty,
+                t.hard_violation,
+                proximity_detail(project, *requester, target, t),
+            )
         }
         RuleKind::AvoidTableEnd { .. } => {
             let r = breakdown.ends.iter().find(|r| r.rule_id == rule.id)?;
@@ -145,13 +158,29 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
             (r.penalty, false, detail.into())
         }
     };
-    Some(RuleResult { rule_id: rule.id, label: crate::i18n::tr_any(&rule.label).to_string(), detail, penalty, hard_violation })
+    Some(RuleResult {
+        rule_id: rule.id,
+        label: crate::i18n::tr_any(&rule.label).to_string(),
+        detail,
+        penalty,
+        hard_violation,
+    })
 }
 
-fn proximity_detail(project: &Project, requester: usize, target: &crate::model::Target, t: &TermResult) -> String {
+fn proximity_detail(
+    project: &Project,
+    requester: usize,
+    target: &crate::model::Target,
+    t: &TermResult,
+) -> String {
     if t.seated_targets < t.required {
-        fill("only {} of {} wished people seated", &[&t.seated_targets, &t.required])
-    } else if let crate::model::Target::People { ids, .. } = target && ids.len() > 1 {
+        fill(
+            "only {} of {} wished people seated",
+            &[&t.seated_targets, &t.required],
+        )
+    } else if let crate::model::Target::People { ids, .. } = target
+        && ids.len() > 1
+    {
         let names = project.names_of(ids, Some(requester));
         fill("all of {}: {}", &[&names, &t.class.label()])
     } else if let Some(nearest) = t.nearest {
@@ -163,8 +192,11 @@ fn proximity_detail(project: &Project, requester: usize, target: &crate::model::
 
 /// Sums a preference's pair terms and says how many pairs miss.
 fn preference_result(preference: &Preference, breakdown: &Breakdown) -> PreferenceResult {
-    let pairs: Vec<&TermResult> =
-        breakdown.terms.iter().filter(|t| t.source == Source::Preference(preference.id)).collect();
+    let pairs: Vec<&TermResult> = breakdown
+        .terms
+        .iter()
+        .filter(|t| t.source == Source::Preference(preference.id))
+        .collect();
     let missed = pairs
         .iter()
         .filter(|t| match preference.kind {
@@ -176,7 +208,9 @@ fn preference_result(preference: &Preference, breakdown: &Breakdown) -> Preferen
     let detail = match (&preference.kind, missed) {
         (PreferenceKind::Together { .. }, 0) if penalty == 0 => tr("everyone close").into(),
         (PreferenceKind::Together { .. }, 0) => tr("all at one table").into(),
-        (PreferenceKind::Together { .. }, n) => fill("{} of {} pairs at different tables", &[&n, &pairs.len()]),
+        (PreferenceKind::Together { .. }, n) => {
+            fill("{} of {} pairs at different tables", &[&n, &pairs.len()])
+        }
         (PreferenceKind::Apart { .. }, 0) => tr("kept apart").into(),
         (PreferenceKind::Apart { .. }, 1) => tr("1 pair too close").into(),
         (PreferenceKind::Apart { .. }, n) => fill("{} pairs too close", &[&n]),
@@ -196,8 +230,12 @@ fn assignment_errors(project: &Project, assignment: &BTreeMap<usize, String>) ->
     let mut errors = Vec::new();
     for p in &project.attendees {
         match assignment.get(&p.id) {
-            Some(id) if !seats.contains(id) => errors.push(format!("{} has unknown seat {id}", p.name)),
-            Some(id) if used.insert(id, p.id).is_some() => errors.push(format!("seat {id} is assigned twice")),
+            Some(id) if !seats.contains(id) => {
+                errors.push(format!("{} has unknown seat {id}", p.name))
+            }
+            Some(id) if used.insert(id, p.id).is_some() => {
+                errors.push(format!("seat {id} is assigned twice"))
+            }
             Some(_) => {}
             None => errors.push(format!("{} has no seat", p.name)),
         }

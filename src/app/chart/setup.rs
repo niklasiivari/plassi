@@ -19,14 +19,23 @@ impl PlassiApp {
         let pending = self.project.notes.iter().filter(|n| !n.reviewed).count();
         let seats_label = match seats.cmp(&people) {
             _ if seats == 0 => tr("Set up tables").to_string(),
-            std::cmp::Ordering::Less => fill("Add seats: {} seats for {} people", &[&seats, &people]),
+            std::cmp::Ordering::Less => {
+                fill("Add seats: {} seats for {} people", &[&seats, &people])
+            }
             _ => fill("{} seats for {} people", &[&seats, &people]),
         };
         vec![
-            Step { label: fill("Import people ({})", &[&people]), done: people > 0, optional: false, page: Page::People },
+            Step {
+                label: fill("Import people ({})", &[&people]),
+                done: people > 0,
+                optional: false,
+                page: Page::People,
+            },
             Step {
                 label: match pending {
-                    _ if self.project.notes.is_empty() => tr("Sign-up notes: none to review").into(),
+                    _ if self.project.notes.is_empty() => {
+                        tr("Sign-up notes: none to review").into()
+                    }
                     0 => tr("Sign-up notes reviewed").into(),
                     n => fill("Review sign-up notes ({} left)", &[&n]),
                 },
@@ -34,7 +43,12 @@ impl PlassiApp {
                 optional: true,
                 page: Page::People,
             },
-            Step { label: seats_label, done: seats >= people && seats > 0, optional: false, page: Page::Room },
+            Step {
+                label: seats_label,
+                done: seats >= people && seats > 0,
+                optional: false,
+                page: Page::Room,
+            },
         ]
     }
 
@@ -42,7 +56,10 @@ impl PlassiApp {
     pub(super) fn setup_card(&mut self, ui: &mut egui::Ui, p: Palette, rect: Rect) {
         let steps = self.setup_steps();
         let ready = steps.iter().all(|s| s.done || s.optional);
-        let area = Rect::from_center_size(rect.center(), Vec2::new(380.0_f32.min(rect.width() - theme::space::XXL), 260.0));
+        let area = Rect::from_center_size(
+            rect.center(),
+            Vec2::new(380.0_f32.min(rect.width() - theme::space::XXL), 260.0),
+        );
         ui.scope_builder(egui::UiBuilder::new().max_rect(area), |ui| {
             theme::card(p).show(ui, |ui| {
                 ui.set_width(ui.available_width());
@@ -55,8 +72,16 @@ impl PlassiApp {
                             (false, false) => p.muted,
                         };
                         theme::status_dot(ui, color);
-                        let text = RichText::new(&step.label).color(if step.done { p.muted } else { p.text });
-                        if ui.add(egui::Label::new(text).sense(Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                        let text = RichText::new(&step.label).color(if step.done {
+                            p.muted
+                        } else {
+                            p.text
+                        });
+                        if ui
+                            .add(egui::Label::new(text).sense(Sense::click()))
+                            .on_hover_cursor(egui::CursorIcon::PointingHand)
+                            .clicked()
+                        {
                             self.page = step.page;
                         }
                     });
@@ -64,10 +89,15 @@ impl PlassiApp {
                 ui.add_space(theme::space::M);
                 ui.horizontal(|ui| {
                     let solve = ui.add_enabled(ready, theme::primary_button(tr("Solve"), p));
-                    if solve.on_disabled_hover_text(tr("Import people and set up enough seats first")).clicked() {
+                    if solve
+                        .on_disabled_hover_text(tr("Import people and set up enough seats first"))
+                        .clicked()
+                    {
                         self.start_solve(false);
                     }
-                    if self.project.attendees.is_empty() && ui.button(tr("Try with example data")).clicked() {
+                    if self.project.attendees.is_empty()
+                        && ui.button(tr("Try with example data")).clicked()
+                    {
                         self.load_example();
                     }
                 });
