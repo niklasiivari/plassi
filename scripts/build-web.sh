@@ -11,6 +11,23 @@
 set -eu
 cd "$(dirname "$0")/.."
 target=wasm32-unknown-unknown
+
+# Check the complete toolchain before building or removing the previous site.
+if ! command -v wasm-bindgen >/dev/null; then
+  echo "error: wasm-bindgen is required (match the version in Cargo.lock)" >&2
+  exit 1
+fi
+expected_bindgen=$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/"/, "", $3); print $3; exit }' Cargo.lock)
+actual_bindgen=$(wasm-bindgen --version | awk '{print $2}')
+if [ "$actual_bindgen" != "$expected_bindgen" ]; then
+  echo "error: wasm-bindgen $actual_bindgen does not match Cargo.lock ($expected_bindgen)" >&2
+  exit 1
+fi
+if ! rustup target list --installed | grep -qx "$target"; then
+  echo "error: Rust target $target is not installed; run: rustup target add $target" >&2
+  exit 1
+fi
+
 cargo build --profile web --target $target -p plassi -p plassi-typeset
 rm -rf dist
 wasm-bindgen --target web --no-typescript --out-dir dist --out-name plassi \
