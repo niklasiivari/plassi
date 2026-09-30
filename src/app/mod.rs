@@ -148,6 +148,7 @@ impl eframe::App for PlassiApp {
         let frame = theme::floating_panel_frame(p);
         let was_compact = self.sidebar_compact;
         let mut expanded = !was_compact;
+        let mut toggle_sidebar = false;
         egui::Panel::show_switched(
             ui,
             &mut expanded,
@@ -161,15 +162,17 @@ impl eframe::App for PlassiApp {
                 .exact_size(244.0)
                 .show_separator_line(true)
                 .frame(frame),
-            |ui, _| {
-                let padding = if self.sidebar_compact { theme::space::S } else { theme::space::M };
-                theme::panel_card(ui, p, padding, |ui| self.sidebar(ui, p));
+            |ui, expanded| {
+                let padding = if expanded { theme::space::M } else { theme::space::S };
+                theme::panel_card(ui, p, padding, |ui| {
+                    toggle_sidebar = self.sidebar(ui, p, expanded);
+                });
             },
         );
-        // The toggle inside the sidebar wins over the panel's own state.
-        if self.sidebar_compact == was_compact {
-            self.sidebar_compact = !expanded;
+        if toggle_sidebar {
+            expanded = !expanded;
         }
+        self.sidebar_compact = !expanded;
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg))
             .show(ui, |ui| match self.page {

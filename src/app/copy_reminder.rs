@@ -70,16 +70,10 @@ impl PlassiApp {
 
     /// Storage state and, when due, the download reminder (sidebar, laid out bottom up).
     pub(super) fn browser_storage(&mut self, ui: &mut egui::Ui, p: Palette) {
-        if platform::storage_persisted() == Some(false) {
-            ui.label(RichText::new(tr("The browser may clear this data")).size(theme::text::SMALL).color(p.warn))
-                .on_hover_text(tr(
-                    "This browser has not promised to keep Plassi's data. It may delete it when disk space runs low or when site data is cleared. Download a copy of the project to keep it safe.",
-                ));
-        }
         if !self.copy_due() {
             return;
         }
-        ui.add_space(theme::space::S);
+        ui.add_space(theme::space::L);
         theme::tinted_card(p, p.warn).show(ui, |ui| {
             // The sidebar's bottom area grows upwards, so the rows go in
             // reverse: buttons, explanation, title.
@@ -92,11 +86,6 @@ impl PlassiApp {
                         self.reset_copy_reminder();
                     }
                 });
-                ui.label(
-                    RichText::new(tr("It is kept only in this browser."))
-                        .size(theme::text::SMALL)
-                        .color(p.muted),
-                );
                 ui.label(RichText::new(tr("Download a copy of this project")).size(theme::text::SMALL).strong());
             });
         });

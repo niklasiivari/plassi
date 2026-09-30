@@ -3,16 +3,17 @@
 use super::*;
 use crate::i18n::{fill, tr};
 
-/// Interface language: a small button showing the other language's code.
+/// Interface language: a small button showing the selected language's code.
 pub(super) fn language_toggle(app: &mut PlassiApp, ui: &mut egui::Ui) {
     use crate::i18n::{self, Lang};
-    let next = match i18n::current() {
+    let current = i18n::current();
+    let next = match current {
         Lang::En => Lang::Fi,
         Lang::Fi => Lang::En,
     };
-    let button = egui::Button::new(RichText::new(next.code().to_uppercase()).size(theme::text::SMALL).strong())
+    let button = egui::Button::new(RichText::new(current.code().to_uppercase()).size(theme::text::SMALL).strong())
         .min_size(egui::vec2(theme::CONTROL_HEIGHT, theme::CONTROL_HEIGHT));
-    if ui.add(button).on_hover_text(format!("{} / Language / Kieli", next.name())).clicked() {
+    if ui.add(button).on_hover_text(fill("Switch language to {}", &[&next.name()])).clicked() {
         i18n::set(next);
         app.file.library.set_setting("language", next.code());
         app.file.revision += 1;
@@ -117,52 +118,49 @@ pub(super) fn page_scroll(ui: &mut egui::Ui, width: f32, add: impl FnOnce(&mut e
 
 impl PlassiApp {
     /// Page navigation, and file status and view controls at the bottom.
-    pub(super) fn sidebar(&mut self, ui: &mut egui::Ui, p: Palette) {
+    pub(super) fn sidebar(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
         ui.add_space(theme::space::M);
-        if !self.sidebar_compact {
+        if expanded {
             self.project_switcher(ui, p);
             ui.add_space(theme::space::S);
         }
-        self.navigation(ui, p);
-        let align = if self.sidebar_compact {
+        self.navigation(ui, p, expanded);
+        let align = if !expanded {
             egui::Align::Center
         } else {
             egui::Align::Min
         };
         ui.with_layout(egui::Layout::bottom_up(align), |ui| {
-            if self.sidebar_compact {
-                self.collapse_toggle(ui, p);
+            let mut toggle = false;
+            if !expanded {
+                toggle = self.collapse_toggle(ui, p, expanded);
                 theme_toggle(ui, p);
                 language_toggle(self, ui);
                 super::about::button(ui, p);
                 ui.add_space(theme::space::S);
                 self.sync_dot(ui, p).on_hover_text(self.sync_text());
-                return;
+            } else {
+                ui.horizontal(|ui| {
+                    toggle = self.collapse_toggle(ui, p, expanded);
+                    theme_toggle(ui, p);
+                    language_toggle(self, ui);
+                    super::about::button(ui, p);
+                });
+                ui.add_space(theme::space::M);
+                self.file_controls(ui, p);
             }
-            ui.horizontal(|ui| {
-                self.collapse_toggle(ui, p);
-                theme_toggle(ui, p);
-                language_toggle(self, ui);
-                super::about::button(ui, p);
-            });
-            ui.add_space(theme::space::M);
-            self.file_controls(ui, p);
-        });
+            toggle
+        })
+        .inner
     }
 
-    fn collapse_toggle(&mut self, ui: &mut egui::Ui, p: Palette) {
-        let tip = if self.sidebar_compact {
-            tr("Show labels")
-        } else {
-            tr("Icons only")
-        };
-        if theme::icon_button(ui, p, theme::Icon::Sidebar, tip, false).clicked() {
-            self.sidebar_compact = !self.sidebar_compact;
-        }
+    fn collapse_toggle(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
+        let tip = if expanded { tr("Icons only") } else { tr("Show labels") };
+        theme::icon_button(ui, p, theme::Icon::Sidebar, tip, false).clicked()
     }
 
     /// One item per page; badges show hard-rule violations and notes to review.
-    fn navigation(&mut self, ui: &mut egui::Ui, p: Palette) {
+    fn navigation(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) {
         let pending = self.project.notes.iter().filter(|n| !n.reviewed).count();
         let hard = self.evaluation().map_or(0, |e| e.hard_violations);
         let unmapped: usize = crate::catalog::Kind::ALL
@@ -204,7 +202,7 @@ impl PlassiApp {
             (Page::Print, theme::Icon::Print, tr("Print"), None),
         ];
         for (page, icon, label, badge) in pages {
-            let shown = (!self.sidebar_compact).then_some(label);
+            let shown = expanded.then_some(label);
             let item = nav_item(ui, p, self.page == page, icon, shown, badge);
             // Named for screen readers (and UI tests), also when only the icon shows.
             item.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, self.page == page, label));
@@ -216,12 +214,20 @@ impl PlassiApp {
 
     /// Open-file field, sync status and project size (laid out bottom up).
     fn file_controls(&mut self, ui: &mut egui::Ui, p: Palette) {
-        ui.horizontal(|ui| {
+        let sync = ui.horizontal(|ui| {
             self.sync_dot(ui, p);
             theme::hint(ui, p, self.sync_text());
-        })
-        .response
-        .on_hover_text(self.file.store.location());
+        }).response;
+        #[cfg(target_arch = "wasm32")]
+        {
+            let note = match platform::storage_persisted() {
+                Some(true) => tr("This browser will keep this project's data until you clear site data."),
+                _ => tr("This browser may remove this project's data when storage is needed or if you clear site data."),
+            };
+            sync.on_hover_text(note);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        sync.on_hover_text(self.file.store.location());
         #[cfg(target_arch = "wasm32")]
         self.browser_storage(ui, p);
         let (people, seats) = (self.project.attendees.len(), self.project.layout.seat_count());
@@ -296,7 +302,8 @@ impl PlassiApp {
                                     };
                                     ui.label(best);
                                 }
-                                let button = egui::Button::new(RichText::new(tr("Stop")).color(color).strong()).frame(false);
+                                let button = theme::danger_button(tr("Stop"), p)
+                                    .min_size(egui::vec2(0.0, theme::CHIP_HEIGHT));
                                 stop = ui.add(button).on_hover_text(tr("Stop now and keep the best seating found so far")).clicked();
                             });
                         } else {

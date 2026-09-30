@@ -20,9 +20,12 @@ pub enum Icon {
     Fit,
     ZoomIn,
     ZoomOut,
+    Plus,
     Undo,
     Redo,
     Close,
+    Edit,
+    Check,
     Focus,
     Sun,
     Moon,
@@ -128,9 +131,9 @@ pub fn paint(painter: &egui::Painter, icon: Icon, c: Pos2, color: Color32) {
                 line(corner, corner - vec2(0.0, 4.0 * sy));
             }
         }
-        Icon::ZoomIn | Icon::ZoomOut => {
+        Icon::ZoomIn | Icon::ZoomOut | Icon::Plus => {
             line(vec2(-6.0, 0.0), vec2(6.0, 0.0));
-            if icon == Icon::ZoomIn {
+            if matches!(icon, Icon::ZoomIn | Icon::Plus) {
                 line(vec2(0.0, -6.0), vec2(0.0, 6.0));
             }
         }
@@ -152,6 +155,16 @@ pub fn paint(painter: &egui::Painter, icon: Icon, c: Pos2, color: Color32) {
         Icon::Close => {
             line(vec2(-5.0, -5.0), vec2(5.0, 5.0));
             line(vec2(-5.0, 5.0), vec2(5.0, -5.0));
+        }
+        Icon::Edit => {
+            line(vec2(-5.0, 5.0), vec2(3.8, -3.8));
+            line(vec2(-6.0, 7.0), vec2(-4.0, 2.0));
+            line(vec2(-6.0, 7.0), vec2(-1.0, 5.0));
+            line(vec2(2.0, -5.0), vec2(5.0, -2.0));
+        }
+        Icon::Check => {
+            line(vec2(-6.0, 0.0), vec2(-2.0, 4.0));
+            line(vec2(-2.0, 4.0), vec2(6.0, -5.0));
         }
         Icon::Focus => {
             painter.circle_stroke(c, 4.5, stroke);
