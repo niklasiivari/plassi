@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Tests and lints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: System libraries for the desktop app
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev
+      - name: Tests (unit and UI)
+        run: cargo test --locked
+      - name: Clippy (desktop)
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Clippy (browser)
+        run: cargo clippy --locked --target wasm32-unknown-unknown -- -D warnings

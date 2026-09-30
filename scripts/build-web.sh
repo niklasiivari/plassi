@@ -27,4 +27,12 @@ fi
 cp web/index.html web/favicon.svg dist/
 cp THIRD_PARTY_NOTICES.md dist/
 ls -l dist/*.wasm dist/typeset/*.wasm
+# Cloudflare Pages refuses files over 25 MiB.
+for wasm in dist/plassi_bg.wasm dist/typeset/plassi_typeset_bg.wasm; do
+  size=$(wc -c < "$wasm")
+  if [ "$size" -gt 26214400 ]; then
+    echo "error: $wasm is $size bytes, over the 25 MiB file limit" >&2
+    exit 1
+  fi
+done
 echo "Built dist/. Try it: python3 -m http.server -d dist 8080"
