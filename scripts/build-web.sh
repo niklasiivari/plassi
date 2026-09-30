@@ -18,11 +18,14 @@ wasm-bindgen --target web --no-typescript --out-dir dist --out-name plassi \
 wasm-bindgen --target web --no-typescript --out-dir dist/typeset --out-name plassi_typeset \
   target/$target/web/plassi_typeset.wasm
 if command -v wasm-opt >/dev/null; then
+  # Both files at once. Only features every current browser has.
+  pids=""
   for wasm in dist/plassi_bg.wasm dist/typeset/plassi_typeset_bg.wasm; do
-    # Only features every current browser has.
     wasm-opt -Oz --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext \
-      --enable-mutable-globals --enable-reference-types --enable-multivalue --disable-compact-imports "$wasm" -o "$wasm"
+      --enable-mutable-globals --enable-reference-types --enable-multivalue --disable-compact-imports "$wasm" -o "$wasm" &
+    pids="$pids $!"
   done
+  for pid in $pids; do wait "$pid"; done
 fi
 cp web/index.html web/favicon.svg dist/
 cp THIRD_PARTY_NOTICES.md dist/
