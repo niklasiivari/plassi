@@ -261,6 +261,10 @@ pub fn start_web() {
                 eframe::WebOptions::default(),
                 Box::new(|cc| {
                     theme::install(&cc.egui_ctx);
+                    // Browsers choose their own chrome theme; eframe's web
+                    // backend cannot apply egui's SetTheme viewport command.
+                    cc.egui_ctx
+                        .options_mut(|options| options.sync_window_theme = false);
                     platform::request_persistence();
                     let mut app = PlassiApp::new();
                     // A start page from the address, e.g. ".../#people".
