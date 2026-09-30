@@ -55,7 +55,6 @@ pub fn solve_search(
     min_changed: usize,
     budget: Duration,
 ) -> Result<Search> {
-    project.validate()?;
     Search::new(
         project,
         Options {

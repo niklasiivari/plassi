@@ -111,11 +111,14 @@ fn bench(path: &str, seconds: f64, runs: usize) -> Result<()> {
                 seed: Some(trial * 1000),
             },
         )?;
-        let wishes = score::evaluate(&project, &outcome.assignment).wish_penalty;
+        let evaluation = score::evaluate(&project, &outcome.assignment);
         println!(
-            "trial {trial}: score {} (wishes {wishes}, policy {}), lower bound {}, {} iterations, {}/{} runs at best",
-            outcome.cost,
-            outcome.cost - wishes,
+            "trial {trial}: score {} (wishes {}, preferences {}, policy {}), {} hard violations, lower bound {}, {} iterations, {}/{} runs at best",
+            evaluation.penalty(),
+            evaluation.wish_penalty,
+            evaluation.preference_penalty,
+            evaluation.policy_penalty(),
+            evaluation.hard_violations,
             outcome.lower_bound,
             outcome.iterations,
             outcome.runs_at_best,

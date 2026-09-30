@@ -8,8 +8,6 @@ use super::*;
 
 /// Largest wish importance and distance cost; keeps scores far from overflow.
 const MAX_WEIGHT: i64 = 10_000;
-const MAX_COST: i64 = 100_000;
-
 /// Seats on one side of a table, at most.
 const MAX_SIDE_SEATS: usize = 500;
 
@@ -22,9 +20,19 @@ impl Project {
         if people.len() != self.attendees.len() {
             bail!("duplicate attendee ID");
         }
+        if self
+            .attendees
+            .iter()
+            .any(|p| p.id == usize::MAX || p.name.trim().is_empty())
+        {
+            bail!("attendees need a name and a usable ID");
+        }
         let known = self.layout.validate()?;
         let mut rule_ids = HashSet::new();
         for rule in &self.rules {
+            if rule.id == u64::MAX {
+                bail!("rule ID is out of range");
+            }
             if !rule_ids.insert(rule.id) {
                 bail!("duplicate rule ID {}", rule.id);
             }
@@ -33,10 +41,105 @@ impl Project {
         if self.notes.iter().any(|note| !people.contains(&note.person)) {
             return Err(anyhow!("import note refers to unknown person"));
         }
+        if !(0..=100).contains(&self.policy.organization_weight)
+            || !(-50..=50).contains(&self.policy.sprinkle)
+            || !(0..=2_000).contains(&self.policy.isolation_penalty)
+            || !(0..=2_000).contains(&self.policy.left_out_penalty)
+        {
+            bail!("seating policy values are outside their supported ranges");
+        }
         for candidate in &self.candidates {
             candidate.validate(&people)?;
         }
-        self.validate_preferences(&people)
+        self.validate_preferences(&people)?;
+        let (soft, hard) = self.score_bounds();
+        let encoded = hard
+            .saturating_mul(soft.saturating_add(1))
+            .saturating_add(soft);
+        if encoded > i128::from(i64::MAX / 4) {
+            bail!("project scores exceed the supported range");
+        }
+        Ok(())
+    }
+
+    /// Conservative bounds for soft penalties and possible hard violations.
+    /// The solver uses the soft bound plus one as its score radix.
+    pub(crate) fn score_bounds(&self) -> (i128, i128) {
+        let mut soft = 0_i128;
+        let mut hard = 0_i128;
+        let people = self.attendees.len() as i128;
+
+        for rule in self.rules.iter().filter(|rule| rule.enabled) {
+            match &rule.kind {
+                RuleKind::Placement {
+                    penalty,
+                    hard: is_hard,
+                    ..
+                } => {
+                    if *is_hard {
+                        hard += 1;
+                    } else {
+                        soft = soft.saturating_add(i128::from(*penalty));
+                    }
+                }
+                RuleKind::AvoidTableEnd {
+                    end_penalty,
+                    near_end_penalty,
+                    ..
+                } => {
+                    soft = soft.saturating_add(i128::from((*end_penalty).max(*near_end_penalty)));
+                }
+                RuleKind::Proximity {
+                    costs,
+                    weight,
+                    max_class,
+                    ..
+                } => {
+                    soft = soft.saturating_add(
+                        i128::from(costs.0[CLASSES - 1]).saturating_mul(i128::from(*weight)),
+                    );
+                    if max_class.is_some() {
+                        hard += 1;
+                    }
+                }
+            }
+        }
+
+        for preference in self.active_preferences() {
+            let count = preference.kind.people().len() as i128;
+            let pairs = count.saturating_mul(count.saturating_sub(1)) / 2;
+            let pair_cost = match &preference.kind {
+                crate::preferences::PreferenceKind::Together { costs, .. } => {
+                    i128::from(costs.0[CLASSES - 1])
+                        .saturating_mul(i128::from(preference.strength.weight()) * 2)
+                }
+                crate::preferences::PreferenceKind::Apart { .. } => {
+                    i128::from(ProximityCosts::WISH[DistanceClass::Far])
+                        .saturating_mul(i128::from(preference.strength.weight()))
+                }
+            };
+            soft = soft.saturating_add(pairs.saturating_mul(pair_cost));
+            if preference.strength.hard() {
+                hard = hard.saturating_add(pairs);
+            }
+        }
+
+        let pairs = people.saturating_mul(people.saturating_sub(1)) / 2;
+        let policy_pair =
+            i128::from(self.policy.organization_weight) + i128::from(self.policy.sprinkle).abs();
+        soft = soft
+            .saturating_add(pairs.saturating_mul(policy_pair))
+            .saturating_add(people.saturating_mul(i128::from(self.policy.isolation_penalty)))
+            .saturating_add(people.saturating_mul(i128::from(self.policy.left_out_penalty)))
+            .saturating_add(people.saturating_mul(5_000));
+        (soft, hard)
+    }
+
+    pub(crate) fn score_radix(&self) -> i64 {
+        self.score_bounds()
+            .0
+            .saturating_add(1)
+            .min(i128::from(i64::MAX / 4)) as i64
     }
 }
 
@@ -139,8 +242,8 @@ impl Rule {
                 if !people.contains(person) {
                     bail!("rule {} refers to unknown person", self.id);
                 }
-                if *penalty < 0 {
-                    bail!("rule {} has negative penalty", self.id);
+                if !(0..=MAX_DISTANCE_COST).contains(penalty) {
+                    bail!("rule {} has invalid placement penalty", self.id);
                 }
                 match area {
                     Area::Seat(id) if !layout.seats.contains(id) => {
@@ -163,8 +266,8 @@ impl Rule {
                 if !people.contains(person) {
                     bail!("rule {} refers to unknown person", self.id);
                 }
-                if *end_penalty < 0 || *near_end_penalty < 0 {
-                    bail!("rule {} has a negative penalty", self.id);
+                if !(0..=10_000).contains(end_penalty) || !(0..=10_000).contains(near_end_penalty) {
+                    bail!("rule {} has an invalid table-end penalty", self.id);
                 }
                 Ok(())
             }
@@ -181,7 +284,7 @@ impl Rule {
                 if !(0..=MAX_WEIGHT).contains(weight)
                     || !costs.is_ordered()
                     || costs.0[0] < 0
-                    || costs.0[CLASSES - 1] > MAX_COST
+                    || costs.0[CLASSES - 1] > MAX_DISTANCE_COST
                 {
                     bail!("rule {} has invalid proximity costs", self.id);
                 }

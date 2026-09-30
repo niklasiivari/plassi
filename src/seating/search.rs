@@ -34,7 +34,9 @@ pub struct Options<'a> {
 
 pub struct Outcome {
     pub assignment: BTreeMap<usize, String>,
+    /// Total soft penalty, without the internal hard-rule radix.
     pub cost: i64,
+    pub hard_violations: usize,
     pub lower_bound: i64,
     pub runs: usize,
     pub runs_at_best: usize,
@@ -44,7 +46,7 @@ pub struct Outcome {
 
 impl Outcome {
     pub fn optimal(&self) -> bool {
-        self.cost <= self.lower_bound
+        self.hard_violations == 0 && self.cost <= self.lower_bound
     }
 
     pub fn status(&self, seconds: f64) -> SolverStatus {
@@ -66,6 +68,7 @@ impl Outcome {
 pub struct Progress {
     best: Arc<AtomicI64>,
     stop: Arc<AtomicBool>,
+    hard_cost: i64,
 }
 
 impl Default for Progress {
@@ -73,6 +76,7 @@ impl Default for Progress {
         Self {
             best: Arc::new(AtomicI64::new(i64::MAX)),
             stop: Arc::new(AtomicBool::new(false)),
+            hard_cost: HARD,
         }
     }
 }
@@ -86,7 +90,7 @@ impl Progress {
     /// The best (score, broken hard rules) so far, once a run has one.
     pub fn best(&self) -> Option<(i64, i64)> {
         let cost = self.best.load(Ordering::Relaxed);
-        (cost != i64::MAX).then_some((cost % HARD, cost / HARD))
+        (cost != i64::MAX).then_some((cost % self.hard_cost, cost / self.hard_cost))
     }
 
     /// Asks the search to finish now with what it has.
@@ -121,6 +125,13 @@ pub struct Search {
 
 impl Search {
     pub fn new(project: &Project, options: Options) -> anyhow::Result<Self> {
+        project.validate()?;
+        if options
+            .differ_from
+            .is_some_and(|(_, minimum)| minimum > project.attendees.len())
+        {
+            anyhow::bail!("minimum number of changed people exceeds the attendee count");
+        }
         let seats = project.layout.seat_count();
         if seats == 0 {
             anyhow::bail!(tr("define the room layout before solving"));
@@ -147,7 +158,10 @@ impl Search {
         }
         let start: Option<Vec<usize>> = options.start.map(|a| pr.state_of(a).0);
         let seed = options.seed.unwrap_or_else(rand::random);
-        let progress = Progress::default();
+        let progress = Progress {
+            hard_cost: pr.hard_cost,
+            ..Default::default()
+        };
         let runs: Vec<(Run, StdRng)> = (0..options.runs.max(1))
             .map(|r| {
                 let mut rng = StdRng::seed_from_u64(seed.wrapping_add(r as u64));
@@ -254,7 +268,8 @@ impl Search {
                 .filter(|(_, s)| **s != NONE)
                 .map(|(p, s)| (*p, pr.seat_ids[*s].clone()))
                 .collect(),
-            cost: best.cost,
+            cost: best.cost % pr.hard_cost,
+            hard_violations: (best.cost / pr.hard_cost) as usize,
             lower_bound: self.lower_bound,
             runs: scores.len(),
             runs_at_best: scores.iter().filter(|s| **s == best.cost).count(),

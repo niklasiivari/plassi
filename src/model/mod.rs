@@ -352,6 +352,7 @@ pub enum DistanceClass {
 
 /// Number of distance classes.
 pub const CLASSES: usize = 6;
+pub(crate) const MAX_DISTANCE_COST: i64 = 100_000;
 /// Rows apart that still count as `Near` on a long table.
 pub const NEAR_ROWS: usize = 2;
 

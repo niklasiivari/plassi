@@ -35,6 +35,112 @@ fn fixture() -> Project {
 }
 
 #[test]
+fn project_validation_rejects_out_of_range_scoring_values() {
+    let mut project = fixture();
+    project.policy.sprinkle = i64::MIN;
+    assert!(project.validate().is_err());
+
+    project.policy = SeatingPolicy::default();
+    project.policy.left_out_penalty = -1;
+    assert!(project.validate().is_err());
+
+    project.policy = SeatingPolicy::default();
+    project.policy.organization_weight = 101;
+    assert!(project.validate().is_err());
+
+    project.policy = SeatingPolicy::default();
+    project.policy.isolation_penalty = 2_001;
+    assert!(project.validate().is_err());
+
+    project.policy = SeatingPolicy::default();
+    project.preferences.push(crate::preferences::Preference {
+        id: 1,
+        kind: crate::preferences::PreferenceKind::Together {
+            people: vec![0, 1],
+            costs: ProximityCosts([-1, 0, 0, 0, 0, 0]),
+        },
+        strength: crate::preferences::Strength::Important,
+        enabled: true,
+    });
+    assert!(project.validate().is_err());
+}
+
+#[test]
+fn project_validation_rejects_reserved_maximum_ids() {
+    let mut project = fixture();
+    project.attendees[0].id = usize::MAX;
+    assert!(project.validate().is_err());
+
+    let mut project = fixture();
+    project.rules.push(Rule {
+        id: u64::MAX,
+        label: "reserved".into(),
+        source: String::new(),
+        enabled: true,
+        kind: RuleKind::Placement {
+            person: 0,
+            area: Area::Seat("table-a:left:0".into()),
+            must_be: true,
+            hard: false,
+            penalty: 1,
+        },
+    });
+    assert!(project.validate().is_err());
+
+    let mut project = fixture();
+    project.preferences.push(crate::preferences::Preference {
+        id: u64::MAX,
+        kind: crate::preferences::PreferenceKind::together(vec![0, 1]),
+        strength: crate::preferences::Strength::Important,
+        enabled: true,
+    });
+    assert!(project.validate().is_err());
+}
+
+#[test]
+fn progress_keeps_large_soft_scores_separate_from_hard_violations() {
+    let mut project = fixture();
+    project.policy.organization_weight = 0;
+    project.policy.sprinkle = 0;
+    project.policy.isolation_penalty = 0;
+    project.policy.left_out_penalty = 0;
+    project.rules.push(Rule {
+        id: 1,
+        label: "expensive wish".into(),
+        source: "test".into(),
+        enabled: true,
+        kind: RuleKind::Proximity {
+            requester: 0,
+            target: Target::People { ids: vec![1] },
+            costs: ProximityCosts([100_000; CLASSES]),
+            weight: 11,
+            weight_mode: WeightMode::Fixed,
+            max_class: None,
+        },
+    });
+    let search = crate::seating::Search::new(
+        &project,
+        crate::seating::Options {
+            start: None,
+            fixed: Default::default(),
+            differ_from: None,
+            budget: web_time::Duration::ZERO,
+            runs: 1,
+            seed: Some(1),
+        },
+    )
+    .expect("search");
+
+    assert_eq!(search.progress().best(), Some((1_100_000, 0)));
+    let outcome = search.finish();
+    let evaluation = crate::score::evaluate(&project, &outcome.assignment);
+    assert_eq!(outcome.cost, 1_100_000);
+    assert_eq!(outcome.hard_violations, 0);
+    assert_eq!(evaluation.penalty(), outcome.cost);
+    assert_eq!(evaluation.hard_violations, outcome.hard_violations);
+}
+
+#[test]
 fn vertical_table_neighbours() {
     let project = fixture();
     let seats = project.layout.seats();
@@ -845,6 +951,7 @@ fn report_score_matches_solver_score() {
     let evaluation = crate::score::evaluate(&project, &outcome.assignment);
     assert_eq!(evaluation.hard_violations, 0);
     assert_eq!(evaluation.penalty(), outcome.cost);
+    assert_eq!(evaluation.hard_violations, outcome.hard_violations);
 }
 
 #[test]
@@ -1030,7 +1137,8 @@ fn progress_reports_the_best_cost_found() {
     search.run_to_end();
     let outcome = search.finish();
     let (score, hard) = progress.best().unwrap();
-    assert_eq!(score + hard * 1_000_000, outcome.cost);
+    assert_eq!(score, outcome.cost);
+    assert_eq!(hard as usize, outcome.hard_violations);
 }
 
 #[test]

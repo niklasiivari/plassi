@@ -11,7 +11,7 @@ use anyhow::{Result, bail};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::model::{DistanceClass, Project, ProximityCosts};
+use crate::model::{DistanceClass, MAX_DISTANCE_COST, Project, ProximityCosts};
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct Preference {
@@ -214,6 +214,9 @@ impl Project {
     pub(crate) fn validate_preferences(&self, people: &HashSet<usize>) -> Result<()> {
         let mut ids = HashSet::new();
         for preference in &self.preferences {
+            if preference.id == u64::MAX {
+                bail!("preference ID is out of range");
+            }
             if !ids.insert(preference.id) {
                 bail!("duplicate preference ID {}", preference.id);
             }
@@ -227,6 +230,13 @@ impl Project {
             }
             if members.iter().any(|p| !people.contains(p)) {
                 bail!("preference {} refers to an unknown person", preference.id);
+            }
+            if let PreferenceKind::Together { costs, .. } = &preference.kind
+                && (!costs.is_ordered()
+                    || costs.0[0] < 0
+                    || costs.0[crate::model::CLASSES - 1] > MAX_DISTANCE_COST)
+            {
+                bail!("preference {} has invalid distance costs", preference.id);
             }
         }
         Ok(())

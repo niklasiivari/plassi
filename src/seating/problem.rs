@@ -97,6 +97,8 @@ pub(super) struct PlacementRule {
 
 /// A project compiled to indices, with the full score and its parts.
 pub(super) struct Problem {
+    /// Radix separating hard violations from the total soft penalty.
+    pub(super) hard_cost: i64,
     pub(super) people: Vec<usize>,
     pub(super) seat_ids: Vec<String>,
     pub(super) n_seats: usize,
@@ -173,6 +175,7 @@ impl Problem {
             .map(|p| (!constrained[p] && !fixed[p]).then(|| set_id(&org, p)))
             .collect();
         let mut problem = Self {
+            hard_cost: project.score_radix(),
             ends,
             fixed,
             constrained,
@@ -260,7 +263,7 @@ impl Problem {
         let (class, penalty) = self.term_outcome(t, seat_of, scratch);
         penalty
             + if self.terms[t].forbidden[class as usize] {
-                HARD
+                self.hard_cost
             } else {
                 0
             }
@@ -271,7 +274,7 @@ impl Problem {
         if s == NONE {
             0
         } else {
-            self.placement[p][s].unwrap_or(HARD)
+            self.placement[p][s].unwrap_or(self.hard_cost)
         }
     }
 
@@ -420,7 +423,13 @@ impl Problem {
         let placement: i64 = self
             .placement
             .iter()
-            .map(|row| row.iter().flatten().copied().min().unwrap_or(HARD))
+            .map(|row| {
+                row.iter()
+                    .flatten()
+                    .copied()
+                    .min()
+                    .unwrap_or(self.hard_cost)
+            })
             .sum();
         wishes + placement
     }
