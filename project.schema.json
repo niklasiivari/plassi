@@ -975,6 +975,7 @@
     "Target": {
       "oneOf": [
         {
+          "description": "Every named person is part of the wish.",
           "type": "object",
           "properties": {
             "People": {
@@ -987,16 +988,10 @@
                     "format": "uint",
                     "minimum": 0
                   }
-                },
-                "required": {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
                 }
               },
               "required": [
-                "ids",
-                "required"
+                "ids"
               ]
             }
           },
