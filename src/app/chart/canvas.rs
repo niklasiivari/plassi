@@ -260,6 +260,11 @@ impl PlassiApp {
                 actions.hovered_person = scene.occupant.get(&seat.id).copied();
             }
             let person = scene.occupant.get(&seat.id).copied();
+            if let Some(attendee) = person.and_then(|id| self.project.person(id)) {
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &attendee.name)
+                });
+            }
             let is_drop = self.chart.dragged_person.is_some()
                 && pointer.is_some_and(|pos| screen.contains(pos));
             if is_drop {
@@ -396,10 +401,17 @@ impl PlassiApp {
             self.people.roster = Some(edit);
             self.page = crate::app::Page::People;
         }
-        if let Some(person) = actions.pick
-            && !self.chart.multi.remove(&person)
-        {
-            self.chart.multi.insert(person);
+        if let Some(person) = actions.pick {
+            let seed = self.chart.multi.is_empty()
+                .then_some(self.selected_person)
+                .flatten()
+                .filter(|id| self.project.person(*id).is_some());
+            if let Some(selected) = seed {
+                self.chart.multi.insert(selected);
+            }
+            if Some(person) != seed && !self.chart.multi.remove(&person) {
+                self.chart.multi.insert(person);
+            }
         }
         if actions.hovered_person != self.chart.hovered_person {
             self.chart.hovered_person = actions.hovered_person;

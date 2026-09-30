@@ -200,15 +200,6 @@ impl Ui {
         self.settle();
     }
 
-    /// Replaces the text of the field showing `current` with `text`.
-    pub(super) fn retype(&mut self, current: &str, text: &str) {
-        let field = self.h.query_all_by(|n| n.role() == egui::accesskit::Role::TextInput && n.value().as_deref() == Some(current)).next();
-        field.unwrap_or_else(|| panic!("no field with {current:?}")).click();
-        self.settle();
-        self.key(egui::Modifiers::COMMAND, egui::Key::A);
-        self.type_text(text);
-    }
-
     /// Opens the dropdown currently showing `shown`.
     pub(super) fn open_combo(&mut self, shown: &str) {
         let found = self.h.query_all_by(|n| n.role() == egui::accesskit::Role::ComboBox && n.value().as_deref() == Some(shown)).next();

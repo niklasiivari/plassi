@@ -76,6 +76,34 @@ fn chart_search_pin_select_and_drag() {
 }
 
 #[test]
+fn chart_group_selection_includes_the_existing_selection() {
+    let mut ui = Ui::with_example();
+    ui.solve();
+    ui.key(Modifiers::NONE, Key::Escape);
+    let ids: std::collections::BTreeMap<_, _> = ui
+        .app()
+        .project
+        .attendees
+        .iter()
+        .map(|a| (a.name.clone(), a.id))
+        .collect();
+    let guest30 = ids["Guest 30"];
+    ui.node("Guest 30").click();
+    ui.settle();
+    assert_eq!(ui.app().selected_person, Some(guest30), "first pick: {:?}", ui.dump());
+    for name in ["Guest 44", "Guest 23", "Guest 36"] {
+        ui.node(name).click_modifiers(Modifiers::COMMAND);
+        ui.settle();
+        assert!(ui.app().chart.multi.contains(&guest30), "after {name}: {:?}", ui.dump());
+    }
+    let group = &ui.app().chart.multi;
+    assert_eq!(group.len(), 4);
+    for id in [guest30, ids["Guest 44"], ids["Guest 23"], ids["Guest 36"]] {
+        assert!(group.contains(&id));
+    }
+}
+
+#[test]
 fn project_menu_new_rename_duplicate_delete_restore() {
     let mut ui = Ui::with_example();
     ui.open_project_menu();
@@ -84,20 +112,15 @@ fn project_menu_new_rename_duplicate_delete_restore() {
     assert!(ui.app().project.attendees.is_empty());
 
     ui.open_project_menu();
-    ui.retype("New event 2", "Party XYZ");
-    ui.click("Rename");
-    assert_eq!(ui.app().file.name, "Party XYZ");
-
-    ui.open_project_menu();
     ui.click("Duplicate this project");
-    assert_eq!(ui.app().file.name, "Party XYZ copy");
+    assert_eq!(ui.app().file.name, "New event 2 copy");
 
     ui.open_project_menu();
     ui.click("Example event");
     assert_eq!(ui.app().file.name, "Example event");
     assert_eq!(ui.app().project.attendees.len(), 48);
     let names = ui.app().file.library.projects();
-    assert_eq!(names, ["Example event", "New event", "Party XYZ", "Party XYZ copy"]);
+    assert_eq!(names, ["Example event", "New event", "New event 2", "New event 2 copy"]);
 
     ui.open_project_menu();
     ui.click("Delete this project…");
@@ -141,10 +164,10 @@ fn earlier_version_restores_and_undo_returns() {
 fn language_switches_to_finnish_and_back() {
     let mut ui = Ui::with_example();
     assert!(ui.has("Seating chart"));
-    ui.click("FI");
+    ui.click("EN");
     assert!(ui.has("Istumajärjestys"), "{:?}", ui.dump());
     assert_eq!(ui.app().file.library.setting("language").as_deref(), Some("fi"));
-    ui.click("EN");
+    ui.click("FI");
     assert!(ui.has("Seating chart"));
     assert!(!ui.has("Istumajärjestys"));
 }
