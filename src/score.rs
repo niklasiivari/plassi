@@ -130,9 +130,9 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
             };
             (r.penalty, r.hard_violation, detail)
         }
-        RuleKind::Proximity { .. } => {
+        RuleKind::Proximity { requester, target, .. } => {
             let t = breakdown.terms.iter().find(|t| t.source == Source::Rule(rule.id))?;
-            (t.penalty, t.hard_violation, proximity_detail(project, t))
+            (t.penalty, t.hard_violation, proximity_detail(project, *requester, target, t))
         }
         RuleKind::AvoidTableEnd { .. } => {
             let r = breakdown.ends.iter().find(|r| r.rule_id == rule.id)?;
@@ -148,9 +148,15 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
     Some(RuleResult { rule_id: rule.id, label: crate::i18n::tr_any(&rule.label).to_string(), detail, penalty, hard_violation })
 }
 
-fn proximity_detail(project: &Project, t: &TermResult) -> String {
+fn proximity_detail(project: &Project, requester: usize, target: &crate::model::Target, t: &TermResult) -> String {
     if t.seated_targets < t.required {
         fill("only {} of {} wished people seated", &[&t.seated_targets, &t.required])
+    } else if let crate::model::Target::People { ids, required: 1 } = target
+        && ids.len() > 1
+        && let Some(nearest) = t.nearest
+    {
+        let names = project.names_of(ids, Some(requester));
+        fill("one of {} · nearest {}: {}", &[&names, &project.person_name(nearest), &t.class.label()])
     } else if let Some(nearest) = t.nearest {
         format!("{}: {}", project.person_name(nearest), t.class.label())
     } else {

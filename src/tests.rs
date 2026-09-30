@@ -108,6 +108,34 @@ fn group_and_direction_are_preserved() {
 }
 
 #[test]
+fn proximity_detail_lists_alternative_wish_targets() {
+    let mut project = fixture();
+    project.rules.push(Rule {
+        id: 1,
+        label: "either friend".into(),
+        source: String::new(),
+        enabled: true,
+        kind: RuleKind::Proximity {
+            requester: 0,
+            target: Target::People { ids: vec![1, 2], required: 1 },
+            costs: ProximityCosts::WISH,
+            weight: 10,
+            weight_mode: WeightMode::Fixed,
+            max_class: None,
+        },
+    });
+    let assignment = BTreeMap::from([
+        (0, "table-a:left:0".into()),
+        (1, "table-a:left:1".into()),
+        (2, "table-a:right:1".into()),
+        (3, "table-a:right:0".into()),
+    ]);
+    let result = crate::score::evaluate(&project, &assignment);
+    assert!(result.results[0].detail.contains("Person 1, Person 2"));
+    assert!(result.results[0].detail.contains("nearest Person 1: beside"));
+}
+
+#[test]
 fn requester_budget_is_shared_across_wishes() {
     let mut project = fixture();
     for (id, target) in [(1, 1), (2, 2)] {
