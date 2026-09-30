@@ -38,8 +38,8 @@ pub fn project() -> Project {
         add(&mut project, pair, vec![pair + 1], true);
         add(&mut project, pair + 1, vec![pair], true);
     }
-    for (from, to) in [(20, vec![21, 22]), (21, vec![20]), (30, vec![31]), (40, vec![12])] {
-        add(&mut project, from, to, false);
+    for (from, to) in [(20, 21), (20, 22), (21, 20), (30, 31), (40, 12)] {
+        add(&mut project, from, vec![to], false);
     }
     // Sign-up text still to review, as it would come from a form.
     for (person, wish) in [(14, 15), (25, 26), (33, 20)] {

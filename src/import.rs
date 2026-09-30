@@ -448,10 +448,7 @@ pub fn wish_rule(id: u64, requester: usize, targets: Vec<usize>, avec: bool, sou
         enabled: true,
         kind: RuleKind::Proximity {
             requester,
-            target: Target::People {
-                ids: targets,
-                required: 1,
-            },
+            target: Target::People { ids: targets },
             costs: if avec {
                 ProximityCosts::AVEC
             } else {

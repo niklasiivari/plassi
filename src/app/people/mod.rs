@@ -19,7 +19,7 @@ use rule_card::*;
 
 use eframe::egui::{self, Color32, RichText, Sense};
 
-use crate::model::{ImportField, RuleKind, Target, WeightMode};
+use crate::model::{ImportField, RuleKind, Target};
 
 use super::PlassiApp;
 use super::theme::{self, Palette};

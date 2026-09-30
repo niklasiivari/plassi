@@ -124,7 +124,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Zoom in (scroll wheel)", "Lähennä (rulla)"),
     ("Zoom out (scroll wheel)", "Loitonna (rulla)"),
     ("Zoom percentage (20–300)", "Zoomausprosentti (20–300)"),
-    ("one of {} · nearest {}: {}", "yksi näistä: {} · lähin {}: {}"),
+    ("all of {}: {}", "kaikki: {}: {}"),
     ("Redo (Ctrl+Shift+Z)", "Tee uudelleen (Ctrl+Shift+Z)"),
     ("Redo: {} (Ctrl+Shift+Z)", "Tee uudelleen: {} (Ctrl+Shift+Z)"),
     ("Undo (Ctrl+Z)", "Kumoa (Ctrl+Z)"),

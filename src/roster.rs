@@ -87,11 +87,10 @@ pub fn remove(project: &mut Project, id: usize) {
         }
         RuleKind::Proximity { requester, .. } if *requester == id => false,
         RuleKind::Proximity {
-            target: Target::People { ids, required },
+            target: Target::People { ids },
             ..
         } => {
             ids.retain(|t| *t != id);
-            *required = (*required).min(ids.len());
             !ids.is_empty()
         }
         RuleKind::Proximity { .. } => true,

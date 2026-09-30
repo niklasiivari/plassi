@@ -70,7 +70,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("People", "Ihmisiä"),
     ("A tag", "Tunniste"),
     ("An organization", "Järjestö"),
-    ("Being near any one of them satisfies the wish; you can raise “needs” afterwards.", "Toive täyttyy, kun hän on kenen tahansa heistä lähellä; ”tarvitsee”-määrää voi nostaa jälkikäteen."),
+    ("Each selected person is included in the wish.", "Jokainen valittu henkilö sisältyy toiveeseen."),
     ("Choose…", "Valitse…"),
     // Sign-up text
     ("Sign-up text", "Ilmoittautumisteksti"),
@@ -102,6 +102,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     (" or ", " tai "),
     ("Avec {}", "Avec {}"),
     ("Sit near {}", "Istu lähellä: {}"),
+    ("All of {}", "Kaikki: {}"),
     ("Sit with {} people", "Istu järjestön {} väen kanssa"),
     ("Import or update from a spreadsheet", "Tuo tai päivitä taulukosta"),
     (

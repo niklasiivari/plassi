@@ -26,7 +26,7 @@ impl Confidence {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum SuggestedTarget {
-    /// Near any one of these people.
+    /// People explicitly named in the note.
     People(Vec<usize>),
     Organization(String),
 }
@@ -143,16 +143,6 @@ pub fn for_note(project: &Project, note_index: usize) -> Vec<Suggestion> {
             )
         })
         .collect();
-    if let Some(alternatives) = alternatives(&found, &text) {
-        result.insert(
-            0,
-            suggestion(
-                SuggestedTarget::People(alternatives),
-                Confidence::Medium,
-                tr("names joined with “or” — any one of them").into(),
-            ),
-        );
-    }
     for (org, confidence, reason) in mentioned_organizations(project, requester, &text) {
         result.push(Suggestion {
             avec: false,
@@ -292,17 +282,6 @@ fn wished_people(project: &Project, requester: usize) -> BTreeSet<usize> {
         })
         .flatten()
         .collect()
-}
-
-/// "A tai B" / "A or B": the confidently named people, if the note offers a choice.
-fn alternatives(found: &[(usize, Confidence, String)], text: &NoteText) -> Option<Vec<usize>> {
-    let alternatives: Vec<usize> = found
-        .iter()
-        .filter(|(_, c, _)| *c <= Confidence::Medium)
-        .map(|(id, _, _)| *id)
-        .collect();
-    (alternatives.len() > 1 && (text.padded.contains(" tai ") || text.padded.contains(" or ")))
-        .then_some(alternatives)
 }
 
 /// Every way an organization can be written, with the category it means:

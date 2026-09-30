@@ -57,7 +57,7 @@ The platform differences live in `src/platform/` (`native.rs`, `web.rs`); the re
 
 The app keeps showing the last valid project if an external edit is incomplete or invalid, and it will not overwrite that edit. Its own saves use a temporary file and rename.
 
-Interpret each wish **from the requester's perspective**. A one-way wish creates one rule. Mutual wishes create two rules. `Target::People` accepts one or several person IDs; `required: 1` means at least one of them should be close, while a larger `required` asks for that many nearby people. `Target::Tag` works the same way for a group. Add exact group tags to attendees before using them in rules. Do not guess identities from ambiguous names or conditional remarks.
+Interpret each wish **from the requester's perspective**. A one-way wish creates one rule. Mutual wishes create two rules. `Target::People` contains every named person the requester wants nearby; a multi-person target means all of them. `Target::Tag` and `Target::Organization` can specify how many members should be nearby. Add exact group tags to attendees before using them in rules. Do not guess identities from ambiguous names or conditional remarks.
 
 Use `weight_mode: "ShareRequesterBudget"` for ordinary wishes. The app divides their weight across that requester's enabled shared-budget rules, so five individual wishes have no greater combined budget than one wish. Use `"Fixed"` for stronger individual requirements such as an avec. The default distance penalties are:
 

@@ -191,10 +191,9 @@ impl Rule {
         people: &HashSet<usize>,
     ) -> Result<()> {
         match target {
-            Target::People { ids, required } => {
+            Target::People { ids } => {
                 let distinct = ids.iter().collect::<HashSet<_>>().len() == ids.len();
-                if *required == 0
-                    || *required > ids.len()
+                if ids.is_empty()
                     || !distinct
                     || ids
                         .iter()

@@ -108,16 +108,16 @@ fn group_and_direction_are_preserved() {
 }
 
 #[test]
-fn proximity_detail_lists_alternative_wish_targets() {
+fn multi_person_wish_counts_every_named_person() {
     let mut project = fixture();
     project.rules.push(Rule {
         id: 1,
-        label: "either friend".into(),
+        label: "friends".into(),
         source: String::new(),
         enabled: true,
         kind: RuleKind::Proximity {
             requester: 0,
-            target: Target::People { ids: vec![1, 2], required: 1 },
+            target: Target::People { ids: vec![1, 2] },
             costs: ProximityCosts::WISH,
             weight: 10,
             weight_mode: WeightMode::Fixed,
@@ -131,8 +131,8 @@ fn proximity_detail_lists_alternative_wish_targets() {
         (3, "table-a:right:0".into()),
     ]);
     let result = crate::score::evaluate(&project, &assignment);
-    assert!(result.results[0].detail.contains("Person 1, Person 2"));
-    assert!(result.results[0].detail.contains("nearest Person 1: beside"));
+    assert_eq!(result.results[0].detail, "all of Person 1, Person 2: diagonal");
+    assert!(result.results[0].penalty > 0, "both named people count toward the wish");
 }
 
 #[test]
@@ -146,10 +146,7 @@ fn requester_budget_is_shared_across_wishes() {
             enabled: true,
             kind: RuleKind::Proximity {
                 requester: 0,
-                target: Target::People {
-                    ids: vec![target],
-                    required: 1,
-                },
+                target: Target::People { ids: vec![target] },
                 costs: ProximityCosts::WISH,
                 weight: 10,
                 weight_mode: WeightMode::ShareRequesterBudget,
@@ -185,10 +182,7 @@ fn solver_obeys_hard_seat_and_finds_beside() {
         enabled: true,
         kind: RuleKind::Proximity {
             requester: 0,
-            target: Target::People {
-                ids: vec![1],
-                required: 1,
-            },
+            target: Target::People { ids: vec![1] },
             costs: ProximityCosts::AVEC,
             weight: 100,
             weight_mode: WeightMode::Fixed,
@@ -268,10 +262,7 @@ fn solver_matches_exhaustive_score_for_group_and_avoidance() {
         enabled: true,
         kind: RuleKind::Proximity {
             requester: 3,
-            target: Target::People {
-                ids: vec![0],
-                required: 1,
-            },
+            target: Target::People { ids: vec![0] },
             costs: ProximityCosts::WISH,
             weight: 5,
             weight_mode: WeightMode::ShareRequesterBudget,
@@ -399,6 +390,9 @@ fn suggests_names_hidden_in_notes() {
         reviewed: false,
     });
     let found = crate::suggest::for_note(&project, 0);
+    assert!(found.iter().all(|s| {
+        !matches!(&s.target, crate::suggest::SuggestedTarget::People(ids) if ids.len() > 1)
+    }));
     let people: Vec<_> = found
         .iter()
         .filter_map(|s| match &s.target {

@@ -21,13 +21,15 @@ Plassi has a spreadsheet template. Keep your sign-ups in these columns (any orde
 | Drinks | Juoma | Drink choice |
 | Allergies | Allergiat | Allergies and diets |
 
+An **Avec** is a partner-level wish: it has stronger default distance costs and keeps its full importance. Ordinary seating wishes have lower default costs and share the requester's importance across their wishes.
+
 On People & wishes, "Copy header row" puts the header on the clipboard for the first row of your sheet, "Download template" saves a .csv with the header and an example row, and "Export people" saves everyone in these columns to edit and import back.
 
 To import, paste the rows (header row included) or drop a .csv/.tsv file. Before anything changes, a preview lists each column with its first values and what it will be imported as. Template headers (English or Finnish, any case) are recognised exactly. Nothing else is guessed: any other column is kept as extra info until you choose what it is from its menu (or "Ignore"). Your choices are remembered in the project, so importing the same sheet again maps those columns the same way. The command-line `import` only understands template headers. People are matched by name, so importing again updates them and keeps rules, the room and options. New sign-up text becomes unreviewed notes.
 
 ## Suggested wishes
 
-The app reads unreviewed sign-up notes and suggests wishes: full names inside longer text (sure), misspelled names or a lone surname (likely), a lone unique first name (maybe), names joined with "tai"/"or" (one wish satisfied by either person), and organization names such as "XYZ" (a wish to sit with that organization's members, `Target::Organization`). Each suggestion has an Add button; the overview can add all full-name matches at once.
+The app reads unreviewed sign-up notes and suggests wishes: full names inside longer text (sure), misspelled names or a lone surname (likely), a lone unique first name (maybe), and organization names such as "XYZ" (a wish to sit with that organization's members, `Target::Organization`). Every named person is a separate wish; when a note names several people, add each intended wish. Each suggestion has an Add button; the overview can add all full-name matches at once.
 
 ## Groups and hand editing
 

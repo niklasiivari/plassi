@@ -251,10 +251,8 @@ pub enum WeightMode {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum Target {
-    People {
-        ids: Vec<usize>,
-        required: usize,
-    },
+    /// Every named person is part of the wish.
+    People { ids: Vec<usize> },
     Tag {
         tag: String,
         required: usize,
@@ -619,9 +617,8 @@ impl Rule {
 impl Target {
     pub fn required(&self) -> usize {
         match self {
-            Target::People { required, .. }
-            | Target::Tag { required, .. }
-            | Target::Organization { required, .. } => *required,
+            Target::People { ids, .. } => ids.len(),
+            Target::Tag { required, .. } | Target::Organization { required, .. } => *required,
         }
     }
 }

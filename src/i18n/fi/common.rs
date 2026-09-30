@@ -146,7 +146,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("sure", "varma"),
     ("likely", "todennäköinen"),
     ("maybe", "ehkä"),
-    ("names joined with “or” — any one of them", "nimet yhdistetty sanalla ”tai” — kuka tahansa heistä"),
     ("full name in text", "koko nimi tekstissä"),
     ("full name, surname first", "koko nimi, sukunimi ensin"),
     ("name, maybe misspelled", "nimi, ehkä kirjoitettu väärin"),

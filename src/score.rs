@@ -151,12 +151,9 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
 fn proximity_detail(project: &Project, requester: usize, target: &crate::model::Target, t: &TermResult) -> String {
     if t.seated_targets < t.required {
         fill("only {} of {} wished people seated", &[&t.seated_targets, &t.required])
-    } else if let crate::model::Target::People { ids, required: 1 } = target
-        && ids.len() > 1
-        && let Some(nearest) = t.nearest
-    {
+    } else if let crate::model::Target::People { ids, .. } = target && ids.len() > 1 {
         let names = project.names_of(ids, Some(requester));
-        fill("one of {} · nearest {}: {}", &[&names, &project.person_name(nearest), &t.class.label()])
+        fill("all of {}: {}", &[&names, &t.class.label()])
     } else if let Some(nearest) = t.nearest {
         format!("{}: {}", project.person_name(nearest), t.class.label())
     } else {

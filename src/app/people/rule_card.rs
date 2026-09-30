@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use super::*;
 use crate::i18n::{fill, tr};
-use crate::model::{Area, DistanceClass, ProximityCosts, Rule};
+use crate::model::{Area, DistanceClass, ProximityCosts, Rule, RuleKind, WeightMode};
 use crate::score::RuleResult;
 
 /// Attendee names by ID, for chips and pickers.
@@ -200,6 +200,22 @@ fn wish_editor(
     filter: &mut String,
     effective: i64,
 ) -> bool {
+    let was_avec = match &rule.kind {
+        RuleKind::Proximity { costs, .. } => costs.is_avec(),
+        _ => return false,
+    };
+    let mut selected_kind = None;
+    ui.horizontal(|ui| {
+        let mut avec = was_avec;
+        ui.selectable_value(&mut avec, false, tr("Seating wish"));
+        ui.selectable_value(&mut avec, true, tr("Avec"));
+        if avec != was_avec {
+            selected_kind = Some(avec);
+        }
+    });
+    if let Some(avec) = selected_kind {
+        set_avec_kind(rule, avec);
+    }
     let RuleKind::Proximity {
         target,
         costs,
@@ -209,29 +225,43 @@ fn wish_editor(
         requester,
     } = &mut rule.kind
     else {
-        return false;
+        return selected_kind.is_some();
     };
-    let mut changed = false;
-    ui.horizontal(|ui| {
-        let was_avec = costs.is_avec();
-        let mut avec = was_avec;
-        ui.selectable_value(&mut avec, false, tr("Seating wish"));
-        ui.selectable_value(&mut avec, true, tr("Avec"));
-        if avec != was_avec {
-            *costs = if avec {
-                ProximityCosts::AVEC
-            } else {
-                ProximityCosts::WISH
-            };
-            rule.label = if avec { "Avec" } else { "Seating wish" }.into();
-            changed = true;
-        }
-    });
+    let mut changed = selected_kind.is_some();
     changed |= target_editor(ui, target, *requester, names, filter);
     changed |= importance_editor(ui, p, weight, weight_mode, effective);
     changed |= limit_editor(ui, max_class);
     changed |= costs_editor(ui, p, costs);
     changed
+}
+
+/// Selects the complete default profile for one of the two wish kinds.
+fn set_avec_kind(rule: &mut Rule, avec: bool) {
+    let RuleKind::Proximity {
+        costs,
+        weight,
+        weight_mode,
+        ..
+    } = &mut rule.kind
+    else {
+        return;
+    };
+    *costs = if avec {
+        ProximityCosts::AVEC
+    } else {
+        ProximityCosts::WISH
+    };
+    *weight = if avec {
+        ProximityCosts::AVEC_WEIGHT
+    } else {
+        ProximityCosts::WISH_WEIGHT
+    };
+    *weight_mode = if avec {
+        WeightMode::Fixed
+    } else {
+        WeightMode::ShareRequesterBudget
+    };
+    rule.label = if avec { "Avec" } else { "Seating wish" }.into();
 }
 
 fn target_editor(
@@ -245,7 +275,7 @@ fn target_editor(
         ui.label(tr("Near"));
         let mut changed = false;
         match target {
-            Target::People { ids, required } => {
+            Target::People { ids } => {
                 let mut remove = None;
                 for t in ids.iter() {
                     let name = names.get(t).cloned().unwrap_or_default();
@@ -258,7 +288,6 @@ fn target_editor(
                     && ids.len() > 1
                 {
                     ids.retain(|x| *x != t);
-                    *required = (*required).min(ids.len());
                     changed = true;
                 }
                 if let Some(t) = person_picker(ui, "rule-picker", names, filter, requester)
@@ -266,13 +295,6 @@ fn target_editor(
                 {
                     ids.push(t);
                     changed = true;
-                }
-                if ids.len() > 1 {
-                    ui.label(tr("needs"));
-                    changed |= ui
-                        .add(egui::DragValue::new(required).range(1..=ids.len()))
-                        .changed();
-                    ui.label(fill("of {}", &[&ids.len()]));
                 }
             }
             Target::Organization { name, required } => {
@@ -372,4 +394,44 @@ pub(in crate::app) fn costs_editor(ui: &mut egui::Ui, p: Palette, costs: &mut Pr
         costs.make_ordered();
     }
     changed
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn switching_avec_and_wish_applies_the_matching_default_profile() {
+        let mut rule = crate::import::wish_rule(1, 0, vec![1], false, "");
+
+        set_avec_kind(&mut rule, true);
+        let RuleKind::Proximity {
+            costs,
+            weight,
+            weight_mode,
+            ..
+        } = &rule.kind
+        else {
+            panic!("wish rule expected");
+        };
+        assert_eq!(*costs, ProximityCosts::AVEC);
+        assert_eq!(*weight, ProximityCosts::AVEC_WEIGHT);
+        assert_eq!(*weight_mode, WeightMode::Fixed);
+        assert_eq!(rule.label, "Avec");
+
+        set_avec_kind(&mut rule, false);
+        let RuleKind::Proximity {
+            costs,
+            weight,
+            weight_mode,
+            ..
+        } = &rule.kind
+        else {
+            panic!("wish rule expected");
+        };
+        assert_eq!(*costs, ProximityCosts::WISH);
+        assert_eq!(*weight, ProximityCosts::WISH_WEIGHT);
+        assert_eq!(*weight_mode, WeightMode::ShareRequesterBudget);
+        assert_eq!(rule.label, "Seating wish");
+    }
 }

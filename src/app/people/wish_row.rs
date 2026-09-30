@@ -5,7 +5,7 @@ use crate::i18n::{fill, tr};
 use crate::model::{Area, Project, ProximityCosts, Rule};
 use crate::score::{Outcome, RuleResult};
 
-/// "Avec with X", "Sit near Y or Z (high importance)", …
+/// "Avec with X", "Sit near Y and Z (high importance)", …
 pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<String>) {
     let name = |id: &usize| {
         project
@@ -49,13 +49,13 @@ pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<Stri
             ..
         } => {
             let who = match target {
-                Target::People { ids, required } if *required > 1 => {
+                Target::People { ids, .. } if ids.len() > 1 => {
                     fill(
-                        "{} of {}",
-                        &[required, &ids.iter().map(name).collect::<Vec<_>>().join(", ")],
+                        "All of {}",
+                        &[&ids.iter().map(name).collect::<Vec<_>>().join(", ")],
                     )
                 }
-                Target::People { ids, .. } => ids.iter().map(name).collect::<Vec<_>>().join(tr(" or ")),
+                Target::People { ids, .. } => ids.iter().map(name).collect::<Vec<_>>().join(", "),
                 Target::Organization { name, .. } => fill("people from {}", &[name]),
                 Target::Tag { tag, .. } => fill("group “{}”", &[tag]),
             };

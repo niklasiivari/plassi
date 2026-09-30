@@ -176,11 +176,7 @@ fn people_targets(
         }
     });
     if draft.targets.len() > 1 {
-        theme::hint(
-            ui,
-            p,
-            tr("Being near any one of them satisfies the wish; you can raise “needs” afterwards."),
-        );
+        theme::hint(ui, p, tr("Each selected person is included in the wish."));
     }
 }
 
