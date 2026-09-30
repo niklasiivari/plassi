@@ -122,23 +122,20 @@ pub fn panel_frame(p: Palette) -> egui::Frame {
         .inner_margin(Margin::same(space::L as i8))
 }
 
-/// Background of a side panel whose content floats as a card: the page
-/// colour with a gutter around the card (see [`panel_card`]).
+/// Background of a side panel: the light surface, edge to edge. Panels are
+/// set apart from their neighbours by a hairline (egui's separator line).
 pub fn floating_panel_frame(p: Palette) -> egui::Frame {
-    egui::Frame::new()
-        .fill(p.bg)
-        .inner_margin(Margin::same(space::M as i8))
+    egui::Frame::new().fill(p.surface)
 }
 
-/// The card that fills a [`floating_panel_frame`]; `padding` is the space
-/// inside it.
+/// A side panel's content area; `padding` is the space around the content.
 pub fn panel_card<R>(
     ui: &mut egui::Ui,
-    p: Palette,
+    _p: Palette,
     padding: f32,
     add: impl FnOnce(&mut egui::Ui) -> R,
 ) -> R {
-    card(p)
+    egui::Frame::new()
         .inner_margin(Margin::same(padding as i8))
         .show(ui, |ui| {
             ui.set_min_size(ui.available_size());

@@ -141,7 +141,7 @@ impl PlassiApp {
             .resizable(true)
             .default_size(theme::PANEL_WIDTH + 2.0 * theme::space::M)
             .size_range(300.0..=540.0)
-            .show_separator_line(false)
+            .show_separator_line(true)
             .frame(theme::floating_panel_frame(p))
             .show_collapsible(ui, &mut open, |ui| {
                 theme::panel_card(ui, p, theme::space::L, |ui| {

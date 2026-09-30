@@ -81,13 +81,9 @@ impl PlassiApp {
         }
         ui.add_space(theme::space::S);
         theme::tinted_card(p, p.warn).show(ui, |ui| {
-            ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                ui.label(RichText::new(tr("Download a copy of this project")).size(theme::text::SMALL));
-                ui.label(
-                    RichText::new(tr("It is kept only in this browser."))
-                        .size(theme::text::SMALL)
-                        .color(p.muted),
-                );
+            // The sidebar's bottom area grows upwards, so the rows go in
+            // reverse: buttons, explanation, title.
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                 ui.horizontal(|ui| {
                     if ui.add(theme::primary_button(tr("Download"), p)).clicked() {
                         self.download_project();
@@ -96,6 +92,12 @@ impl PlassiApp {
                         self.reset_copy_reminder();
                     }
                 });
+                ui.label(
+                    RichText::new(tr("It is kept only in this browser."))
+                        .size(theme::text::SMALL)
+                        .color(p.muted),
+                );
+                ui.label(RichText::new(tr("Download a copy of this project")).size(theme::text::SMALL).strong());
             });
         });
     }

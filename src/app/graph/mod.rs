@@ -154,7 +154,7 @@ impl PlassiApp {
         egui::Panel::right("graph-panel")
             .resizable(false)
             .exact_size(theme::PANEL_WIDTH + 2.0 * theme::space::M)
-            .show_separator_line(false)
+            .show_separator_line(true)
             .frame(theme::floating_panel_frame(p))
             .show(ui, |ui| {
                 theme::panel_card(ui, p, theme::space::L, |ui| {

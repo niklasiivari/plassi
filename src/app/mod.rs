@@ -154,12 +154,12 @@ impl eframe::App for PlassiApp {
             egui::Panel::left("nav-compact")
                 .resizable(false)
                 .exact_size(84.0)
-                .show_separator_line(false)
+                .show_separator_line(true)
                 .frame(frame),
             egui::Panel::left("nav")
                 .resizable(false)
                 .exact_size(244.0)
-                .show_separator_line(false)
+                .show_separator_line(true)
                 .frame(frame),
             |ui, _| {
                 let padding = if self.sidebar_compact { theme::space::S } else { theme::space::M };
