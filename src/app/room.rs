@@ -252,17 +252,13 @@ impl PlassiApp {
         let mut changed = false;
         ui.horizontal_wrapped(|ui| {
             seat_picker(ui, "tag-seat", &mut self.room.selected_seat, seats);
-            let tags = self
-                .project
-                .layout
-                .seat_tags
-                .entry(self.room.selected_seat.clone())
-                .or_default();
-            tags.retain(|tag| {
-                let keep = !ui.add(theme::tag_button(tag)).clicked();
-                changed |= !keep;
-                keep
-            });
+            if let Some(tags) = self.project.layout.seat_tags.get_mut(&self.room.selected_seat) {
+                tags.retain(|tag| {
+                    let keep = !ui.add(theme::tag_button(tag)).clicked();
+                    changed |= !keep;
+                    keep
+                });
+            }
             ui.add(
                 theme::field(&mut self.room.new_tag)
                     .hint_text(tr("new tag"))
@@ -270,6 +266,7 @@ impl PlassiApp {
             );
             let tag = self.room.new_tag.trim().to_owned();
             if ui.button(tr("Add tag")).clicked() && !tag.is_empty() {
+                let tags = self.project.layout.seat_tags.entry(self.room.selected_seat.clone()).or_default();
                 if !tags.contains(&tag) {
                     tags.push(tag);
                     changed = true;
