@@ -37,21 +37,31 @@ pub(super) fn outcome_row(
     });
 }
 
-pub(super) fn stat_tile(ui: &mut egui::Ui, p: Palette, label: &str, value: String, color: Color32) {
-    theme::inset(p).show(ui, |ui| {
-        ui.set_width(ui.available_width());
-        ui.label(
-            RichText::new(label)
-                .size(theme::text::CAPTION)
-                .color(p.muted),
-        );
-        ui.label(
-            RichText::new(value)
-                .size(theme::text::PAGE)
-                .strong()
-                .color(color),
-        );
-    });
+pub(super) fn stat_tile(
+    ui: &mut egui::Ui,
+    p: Palette,
+    label: &str,
+    value: String,
+    color: Color32,
+) -> egui::Response {
+    theme::inset(p)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                ui.label(
+                    RichText::new(label)
+                        .size(theme::text::CAPTION)
+                        .color(p.muted),
+                );
+                ui.label(
+                    RichText::new(value)
+                        .size(theme::text::PAGE)
+                        .strong()
+                        .color(color),
+                );
+            });
+        })
+        .response
 }
 
 fn stat_grid(ui: &mut egui::Ui, p: Palette, scene: &Scene, evaluation: &Evaluation) {
@@ -79,7 +89,8 @@ fn stat_grid(ui: &mut egui::Ui, p: Palette, scene: &Scene, evaluation: &Evaluati
             tr("Hard rules broken"),
             hard.to_string(),
             good_if(hard == 0),
-        );
+        )
+        .on_hover_text(tr("Broken hard rules"));
     });
     ui.columns(2, |cols| {
         stat_tile(

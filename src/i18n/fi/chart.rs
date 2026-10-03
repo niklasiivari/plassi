@@ -92,7 +92,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     // Inspector
     ("Wishes met", "Toteutuneet toiveet"),
-    ("Hard rules broken", "Ehdottomia sääntöjä rikottu"),
+    ("Hard rules broken", "Sääntörikkomukset"),
+    ("Broken hard rules", "Rikotut ehdottomat säännöt"),
     ("Sitting alone", "Istuu yksin"),
     ("Gaps mid-table", "Aukkoja pöydissä"),
     ("Some wishes not met", "Osa toiveista ei toteudu"),
