@@ -34,6 +34,8 @@ Import a repository → `niklasiivari/plassi`):
 - Build command: `./scripts/cf-build.sh`
 - Deploy command: `npx wrangler deploy`
 - Enable preview builds: off, unless you want a build for every branch.
+- Add your custom domain in Cloudflare before deploying with `workers_dev: false`;
+  this keeps the app reachable when the generated `workers.dev` URL is disabled.
 
 Every push to `main` then builds and deploys, unless automatic builds are
 turned off in the project's build settings. Builds count against
