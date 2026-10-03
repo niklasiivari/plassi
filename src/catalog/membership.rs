@@ -8,6 +8,9 @@ impl Project {
     /// Ticket charge plus every selected food and drink charge, in euro cents.
     /// Unmapped or unpriced selections leave the total unknown.
     pub fn attendee_price_cents(&self, attendee: &Attendee) -> Option<u64> {
+        if let Some(cents) = attendee.price_override_cents {
+            return Some(u64::from(cents));
+        }
         let mut total = 0u64;
         let mut has_selection = false;
         for kind in [Kind::Ticket, Kind::Food, Kind::Drink] {

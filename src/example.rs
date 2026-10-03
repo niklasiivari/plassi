@@ -39,6 +39,7 @@ pub fn project() -> Project {
             } else {
                 String::new()
             },
+            price_override_cents: None,
             extra: Default::default(),
         })
         .collect();

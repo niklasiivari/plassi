@@ -13,6 +13,7 @@ fn fixture() -> Project {
             food: String::new(),
             drink: String::new(),
             allergies: String::new(),
+            price_override_cents: None,
             extra: Default::default(),
             tags: if id == 1 || id == 2 {
                 vec!["friends".into()]
@@ -446,6 +447,7 @@ fn spare_seats_come_from_table_bottoms_in_pairs() {
         food: String::new(),
         drink: String::new(),
         allergies: String::new(),
+        price_override_cents: None,
         extra: Default::default(),
     });
     let usable =
@@ -793,6 +795,7 @@ fn synthetic_project(people: usize, wishes: usize) -> Project {
             food: String::new(),
             drink: String::new(),
             allergies: String::new(),
+            price_override_cents: None,
             extra: Default::default(),
         })
         .collect();
@@ -1265,7 +1268,17 @@ fn attendee_prices_sum_mapped_ticket_food_and_drink_without_guessing() {
     project.attendees[0].food.clear();
     project.attendees[0].drink.clear();
     assert_eq!(project.attendee_price_cents(&project.attendees[0]), None);
+    project.attendees[0].price_override_cents = Some(1234);
+    assert_eq!(
+        project.attendee_price_cents(&project.attendees[0]),
+        Some(1234)
+    );
+    project.attendees[0].price_override_cents = Some(0);
+    assert_eq!(project.attendee_price_cents(&project.attendees[0]), Some(0));
     let decoded: crate::model::Project =
         serde_json::from_str(&serde_json::to_string(&project).unwrap()).unwrap();
     assert_eq!(decoded.catalog, project.catalog);
+    assert_eq!(decoded.attendees[0].price_override_cents, Some(0));
+    project.attendees[0].price_override_cents = None;
+    assert_eq!(project.attendee_price_cents(&project.attendees[0]), None);
 }

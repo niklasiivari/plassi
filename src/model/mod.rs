@@ -22,6 +22,9 @@ pub struct Attendee {
     pub drink: String,
     #[serde(default)]
     pub allergies: String,
+    /// Override the attendee's total charge in euro cents.
+    #[serde(default)]
+    pub price_override_cents: Option<u32>,
     /// Other spreadsheet columns, by header.
     #[serde(default)]
     pub extra: BTreeMap<String, String>,

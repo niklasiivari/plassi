@@ -1,6 +1,10 @@
 //! Finnish text: common.
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
+    ("Price", "Hinta"),
+    ("Not set", "Ei asetettu"),
+    ("Override total", "Korvaa yhteishinta"),
+    (" (override)", " (korvattu)"),
     ("Price contribution", "Hinnan osuus"),
     (
         "Added to the ticket, food and drink total. Set 0 for included choices.",

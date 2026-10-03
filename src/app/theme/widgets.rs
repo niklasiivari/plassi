@@ -436,3 +436,32 @@ pub fn initials(name: &str) -> String {
         [first, .., last] => first.chars().take(1).chain(last.chars().take(1)).collect(),
     }
 }
+
+/// Optional euro amount stored as exact cents, shared by categories and overrides.
+pub fn price_input(ui: &mut egui::Ui, label: &str, price: &mut Option<u32>) -> bool {
+    let mut changed = false;
+    ui.horizontal(|ui| {
+        let mut enabled = price.is_some();
+        if ui.checkbox(&mut enabled, label).changed() {
+            *price = enabled.then_some(0);
+            changed = true;
+        }
+        if let Some(cents) = price {
+            let mut euros = f64::from(*cents) / 100.0;
+            if ui
+                .add(
+                    egui::DragValue::new(&mut euros)
+                        .speed(0.1)
+                        .range(0.0..=1_000_000.0)
+                        .fixed_decimals(2)
+                        .suffix(" €"),
+                )
+                .changed()
+            {
+                *cents = (euros * 100.0).round() as u32;
+                changed = true;
+            }
+        }
+    });
+    changed
+}

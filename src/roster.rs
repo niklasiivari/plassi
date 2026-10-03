@@ -35,6 +35,7 @@ impl NewAttendee {
             food: self.food,
             drink: self.drink,
             allergies: self.allergies,
+            price_override_cents: None,
             extra: BTreeMap::new(),
         }
     }

@@ -392,6 +392,7 @@ fn upsert_attendee(
                 food: String::new(),
                 drink: String::new(),
                 allergies: String::new(),
+                price_override_cents: None,
                 extra: BTreeMap::new(),
             });
             summary.added += 1;

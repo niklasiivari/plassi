@@ -48,7 +48,24 @@ impl PlassiApp {
             .map(String::as_str)
             .collect();
         let tags = custom_tags.join(", ");
+        let price = self
+            .project
+            .attendee_price_cents(a)
+            .map(|cents| {
+                format!(
+                    "{}.{:02} €{}",
+                    cents / 100,
+                    cents % 100,
+                    if a.price_override_cents.is_some() {
+                        tr(" (override)")
+                    } else {
+                        ""
+                    }
+                )
+            })
+            .unwrap_or_else(|| tr("Not set").to_string());
         let mut rows = vec![
+            (tr("Price"), price.as_str()),
             (tr("Food"), food.as_str()),
             (tr("Drinks"), drink.as_str()),
             (tr("Allergies / diet"), a.allergies.as_str()),
@@ -82,6 +99,10 @@ impl PlassiApp {
             .num_columns(2)
             .spacing([theme::space::XL, theme::space::S])
             .show(ui, |ui| {
+                ui.label(RichText::new(tr("Price")).color(p.muted));
+                changed |=
+                    theme::price_input(ui, tr("Override total"), &mut a.price_override_cents);
+                ui.end_row();
                 for (label, value) in [
                     (tr("Food"), &mut a.food),
                     (tr("Drinks"), &mut a.drink),

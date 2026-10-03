@@ -191,6 +191,16 @@
         "participant_group": {
           "type": "string"
         },
+        "price_override_cents": {
+          "description": "Override the attendee's total charge in euro cents.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
         "tags": {
           "type": "array",
           "items": {
