@@ -51,76 +51,71 @@ impl PlassiApp {
                 // Clicks inside keep the menu open (the delete confirmation); every action closes it itself.
                 let config = egui::containers::menu::MenuConfig::new()
                     .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside);
-                let (button, _) = egui::containers::menu::MenuButton::new(label)
-                    .config(config)
-                    .ui(ui, |ui| {
-                        ui.set_min_width(240.0);
-                        theme::section_title(ui, p, tr("Projects"));
-                        for name in self.file.library.projects() {
-                            if ui.selectable_label(name == current, &name).clicked()
-                                && name != current
-                            {
-                                self.switch_project(&name);
-                                ui.close();
-                            }
-                        }
-                        ui.separator();
-                        if ui.button(tr("New project")).clicked() {
-                            self.create_project(tr("New event"), Project::new());
-                            ui.close();
-                        }
-                        if ui
-                            .button(tr("Duplicate this project"))
-                            .on_hover_text(tr(
-                                "A copy to try something without touching the original",
-                            ))
-                            .clicked()
-                        {
-                            let copy = self.project.clone();
-                            self.create_project(&format!("{current} copy"), copy);
-                            ui.close();
-                        }
-                        self.file_actions(ui);
-                        self.backup_menu_items(ui);
-                        ui.separator();
-                        if self.projects.confirm_delete {
-                            ui.label(
-                                RichText::new(fill(
-                                    "Delete {}? A backup stays under Deleted projects.",
-                                    &[&current],
-                                ))
-                                .color(p.bad),
-                            );
-                            ui.horizontal(|ui| {
-                                if ui.add(theme::danger_button(tr("Delete"), p)).clicked() {
-                                    self.projects.confirm_delete = false;
-                                    self.delete_project();
+                let (button, _) = ui
+                    .scope(|ui| {
+                        ui.spacing_mut().button_padding.x += theme::space::M;
+                        egui::containers::menu::MenuButton::new(label)
+                            .config(config)
+                            .ui(ui, |ui| {
+                                ui.set_min_width(240.0);
+                                theme::section_title(ui, p, tr("Projects"));
+                                for name in self.file.library.projects() {
+                                    if ui.selectable_label(name == current, &name).clicked()
+                                        && name != current
+                                    {
+                                        self.switch_project(&name);
+                                        ui.close();
+                                    }
+                                }
+                                ui.separator();
+                                if ui.button(tr("New project")).clicked() {
+                                    self.create_project(tr("New event"), Project::new());
                                     ui.close();
                                 }
-                                if ui.button(tr("Keep it")).clicked() {
-                                    self.projects.confirm_delete = false;
+                                if ui.button(tr("Rename project")).clicked() {
+                                    self.projects.rename = current.clone();
+                                    self.projects.editing_name = true;
+                                    self.projects.focus_name = true;
+                                    ui.close();
                                 }
-                            });
-                        } else if ui.button(tr("Delete this project…")).clicked() {
-                            self.projects.confirm_delete = true;
-                        }
-                    });
-                let chevron = button.rect.right_center() + egui::vec2(theme::space::M, 0.0);
+                                if ui.button(tr("Duplicate this project")).clicked() {
+                                    let copy = self.project.clone();
+                                    self.create_project(&format!("{current} copy"), copy);
+                                    ui.close();
+                                }
+                                self.file_actions(ui);
+                                self.backup_menu_items(ui);
+                                ui.separator();
+                                if self.projects.confirm_delete {
+                                    ui.label(
+                                        RichText::new(fill(
+                                            "Delete {}? A backup stays under Deleted projects.",
+                                            &[&current],
+                                        ))
+                                        .color(p.bad),
+                                    );
+                                    ui.horizontal(|ui| {
+                                        if ui.add(theme::danger_button(tr("Delete"), p)).clicked() {
+                                            self.projects.confirm_delete = false;
+                                            self.delete_project();
+                                            ui.close();
+                                        }
+                                        if ui.button(tr("Keep it")).clicked() {
+                                            self.projects.confirm_delete = false;
+                                        }
+                                    });
+                                } else if ui.button(tr("Delete this project…")).clicked() {
+                                    self.projects.confirm_delete = true;
+                                }
+                            })
+                    })
+                    .inner;
+                let chevron = button.rect.right_center() - egui::vec2(theme::space::S, 0.0);
                 theme::paint_icon(ui.painter(), theme::Icon::ChevronDown, chevron, p.muted);
                 if button.clicked() {
                     self.projects.rename = current.clone();
                 }
                 button.on_hover_text(tr("Switch between events, or start a new one"));
-                let rename =
-                    theme::icon_button(ui, p, theme::Icon::Edit, tr("Rename project"), false);
-                rename.widget_info(|| {
-                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tr("Rename project"))
-                });
-                if rename.clicked() {
-                    self.projects.rename = current;
-                    self.projects.editing_name = true;
-                    self.projects.focus_name = true;
-                }
             });
         }
     }

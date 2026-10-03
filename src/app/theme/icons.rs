@@ -24,7 +24,6 @@ pub enum Icon {
     Undo,
     Redo,
     Close,
-    Edit,
     Check,
     Focus,
     Sun,
@@ -155,12 +154,6 @@ pub fn paint(painter: &egui::Painter, icon: Icon, c: Pos2, color: Color32) {
         Icon::Close => {
             line(vec2(-5.0, -5.0), vec2(5.0, 5.0));
             line(vec2(-5.0, 5.0), vec2(5.0, -5.0));
-        }
-        Icon::Edit => {
-            line(vec2(-5.0, 5.0), vec2(3.8, -3.8));
-            line(vec2(-6.0, 7.0), vec2(-4.0, 2.0));
-            line(vec2(-6.0, 7.0), vec2(-1.0, 5.0));
-            line(vec2(2.0, -5.0), vec2(5.0, -2.0));
         }
         Icon::Check => {
             line(vec2(-6.0, 0.0), vec2(-2.0, 4.0));
