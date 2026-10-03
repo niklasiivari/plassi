@@ -123,6 +123,7 @@ impl PlassiApp {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     delete = ui.add(theme::ghost_button(tr("Delete"), p)).clicked();
                     if ui.add(theme::small_button(tr("Edit"))).clicked() {
+                        self.people.picker_filter.clear();
                         self.people.editing_rule = Some(rule_id);
                     }
                 });

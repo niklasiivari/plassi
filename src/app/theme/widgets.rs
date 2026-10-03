@@ -325,6 +325,10 @@ pub fn key_hint(ui: &mut egui::Ui, p: Palette, keys: &str, action: &str) {
 pub struct Field<'t>(egui::TextEdit<'t>);
 
 impl<'t> Field<'t> {
+    pub fn id(self, id: egui::Id) -> Self {
+        Self(self.0.id(id))
+    }
+
     pub fn hint_text(self, hint: impl Into<egui::WidgetText>) -> Self {
         Self(self.0.hint_text(hint))
     }

@@ -28,7 +28,7 @@ impl PlassiApp {
             ui.add_space(theme::space::S);
             match &mut draft.near {
                 DraftTarget::People => {
-                    people_targets(ui, p, draft, &names, &mut self.people.picker_filter)
+                    people_targets(ui, p, draft, &names, &mut self.people.draft_picker_filter)
                 }
                 DraftTarget::Tag(tag) => choice(
                     ui,
@@ -45,6 +45,7 @@ impl PlassiApp {
                     tr("No organizations"),
                 ),
             }
+            ui.add_space(theme::space::M);
             ui.add(
                 theme::field(&mut draft.source)
                     .hint_text(tr("Original note (optional)"))
@@ -163,21 +164,15 @@ fn people_targets(
     names: &std::collections::BTreeMap<usize, String>,
     filter: &mut String,
 ) {
-    ui.horizontal_wrapped(|ui| {
-        let mut remove = None;
-        for t in &draft.targets {
-            let name = names.get(t).cloned().unwrap_or_default();
-            if ui.add(theme::tag_button(&name)).clicked() {
-                remove = Some(*t);
-            }
-        }
-        draft.targets.retain(|x| Some(*x) != remove);
-        if let Some(t) = person_picker(ui, "draft-picker", names, filter, draft.person)
-            && !draft.targets.contains(&t)
-        {
-            draft.targets.push(t);
-        }
-    });
+    person_picker(
+        ui,
+        "draft-picker",
+        names,
+        filter,
+        draft.person,
+        &mut draft.targets,
+        true,
+    );
     if draft.targets.len() > 1 {
         theme::hint(ui, p, tr("Sit near all selected people."));
     }

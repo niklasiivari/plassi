@@ -10,40 +10,87 @@ use crate::score::RuleResult;
 /// Attendee names by ID, for chips and pickers.
 type Names = BTreeMap<usize, String>;
 
-/// A searchable "add person" dropdown. Returns the picked attendee.
+/// Selected chips and a searchable checklist, shared by new and existing wishes.
 pub(super) fn person_picker(
     ui: &mut egui::Ui,
     salt: &str,
     names: &Names,
     filter: &mut String,
-    exclude: usize,
-) -> Option<usize> {
-    let mut picked = None;
-    theme::combo(salt, tr("+ Add person"))
-        .height(320.0)
-        .show_ui(ui, |ui| {
-            ui.add(
-                theme::field(filter)
-                    .hint_text(tr("Search"))
-                    .desired_width(220.0),
-            )
-            .request_focus();
+    requester: usize,
+    selected: &mut Vec<usize>,
+    allow_empty: bool,
+) -> bool {
+    let mut changed = false;
+    ui.push_id(salt, |ui| {
+        if !selected.is_empty() {
+            ui.horizontal_wrapped(|ui| {
+                let mut remove = None;
+                for id in selected.iter() {
+                    let name = names.get(id).map_or("", String::as_str);
+                    if ui
+                        .add_enabled(allow_empty || selected.len() > 1, theme::tag_button(name))
+                        .on_hover_text(tr("Remove"))
+                        .clicked()
+                    {
+                        remove = Some(*id);
+                    }
+                }
+                if let Some(id) = remove {
+                    selected.retain(|t| *t != id);
+                    changed = true;
+                }
+            });
+        }
+        ui.add(
+            theme::field(filter)
+                .id(ui.make_persistent_id("search"))
+                .hint_text(tr("Search people"))
+                .desired_width(f32::INFINITY),
+        );
+        let p = theme::palette(ui.ctx());
+        theme::inset(p).show(ui, |ui| {
+            ui.set_width(ui.available_width());
             let needle = crate::app::search::Needle::new(filter);
             let mut matches: Vec<_> = names
                 .iter()
-                .filter(|(id, n)| **id != exclude && needle.matches(n))
+                .filter(|(id, name)| **id != requester && needle.matches(name))
                 .collect();
             matches.sort_by(|a, b| a.1.cmp(b.1));
-            for (id, name) in matches {
-                if ui.selectable_label(false, name).clicked() {
-                    picked = Some(*id);
-                }
-            }
+            egui::ScrollArea::vertical()
+                .id_salt("matches")
+                .max_height(180.0)
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    if matches.is_empty() {
+                        theme::hint(ui, p, tr("No matching people"));
+                    }
+                    for (id, name) in matches {
+                        let mut checked = selected.contains(id);
+                        let enabled = !checked || allow_empty || selected.len() > 1;
+                        ui.push_id(id, |ui| {
+                            if ui
+                                .add_enabled_ui(enabled, |ui| {
+                                    ui.add_sized(
+                                        [ui.available_width(), theme::CONTROL_HEIGHT],
+                                        egui::Checkbox::new(&mut checked, name),
+                                    )
+                                })
+                                .inner
+                                .changed()
+                            {
+                                if checked {
+                                    selected.push(*id);
+                                } else {
+                                    selected.retain(|t| t != id);
+                                }
+                                changed = true;
+                            }
+                        });
+                    }
+                });
         });
-    if picked.is_some() {
-        filter.clear();
-    }
-    picked
+    });
+    changed
 }
 
 impl PlassiApp {
@@ -281,32 +328,15 @@ fn target_editor(
     names: &Names,
     filter: &mut String,
 ) -> bool {
+    if let Target::People { ids } = target {
+        ui.label(tr("Near"));
+        return person_picker(ui, "rule-picker", names, filter, requester, ids, false);
+    }
     ui.horizontal_wrapped(|ui| {
         ui.label(tr("Near"));
         let mut changed = false;
         match target {
-            Target::People { ids } => {
-                let mut remove = None;
-                for t in ids.iter() {
-                    let name = names.get(t).cloned().unwrap_or_default();
-                    let chip = theme::tag_button(&name);
-                    if ui.add(chip).on_hover_text(tr("Remove")).clicked() {
-                        remove = Some(*t);
-                    }
-                }
-                if let Some(t) = remove
-                    && ids.len() > 1
-                {
-                    ids.retain(|x| *x != t);
-                    changed = true;
-                }
-                if let Some(t) = person_picker(ui, "rule-picker", names, filter, requester)
-                    && !ids.contains(&t)
-                {
-                    ids.push(t);
-                    changed = true;
-                }
-            }
+            Target::People { .. } => unreachable!("people use the checklist above"),
             Target::Organization { name, required } => {
                 ui.label(tr("people from"));
                 changed |= ui.add(theme::field(name).desired_width(140.0)).changed();

@@ -113,6 +113,7 @@ impl PlassiApp {
             .config(egui::containers::menu::MenuConfig::new().style(theme::menu_style))
             .ui(ui, |ui| {
                 if ui.button(tr("Sit near…")).clicked() {
+                    self.people.draft_picker_filter.clear();
                     self.people.wish_draft = Some(WishDraft {
                         person: id,
                         avec: false,

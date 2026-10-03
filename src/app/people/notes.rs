@@ -54,6 +54,7 @@ impl PlassiApp {
             }
             ui.horizontal(|ui| {
                 if ui.button(tr("+ Create wish")).clicked() {
+                    self.people.draft_picker_filter.clear();
                     self.people.wish_draft = Some(WishDraft {
                         person: note.person,
                         avec: note.field == ImportField::Avec,

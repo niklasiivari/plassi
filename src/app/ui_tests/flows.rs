@@ -1,6 +1,7 @@
 //! The flows, one test each.
 
 use eframe::egui::{Key, Modifiers, PointerButton};
+use egui_kittest::kittest::{NodeT, Queryable};
 
 use super::harness::Ui;
 
@@ -287,6 +288,137 @@ fn people_filters_and_bulk_group() {
         "{}",
         ui.app().status
     );
+}
+
+#[test]
+fn wish_checklist_keeps_selections_when_searching_and_saves_all_people() {
+    use crate::model::{RuleKind, Target};
+    use eframe::egui::accesskit::Role;
+
+    let mut ui = Ui::with_example();
+    ui.go_to("People & wishes");
+    ui.click("Guest 01");
+    ui.click("+ Add");
+    ui.click("Sit near…");
+    let before = ui.app().project.rules.len();
+    assert!(
+        ui.h.query_by_role_and_label(Role::CheckBox, "Guest 01")
+            .is_none()
+    );
+
+    // The list search, wish search and source note are the three text inputs.
+    ui.h.query_all_by_role(Role::TextInput)
+        .nth(1)
+        .unwrap()
+        .click();
+    ui.settle();
+    ui.type_text("gUeSt 0");
+    for name in ["Guest 02", "Guest 03"] {
+        ui.h.get_by_role_and_label(Role::CheckBox, name).click();
+        ui.settle();
+    }
+    assert_eq!(
+        ui.app().people.wish_draft.as_ref().unwrap().targets.len(),
+        2
+    );
+    assert_eq!(ui.app().people.draft_picker_filter, "gUeSt 0");
+    ui.click("Guest 02  ×");
+    assert_eq!(
+        ui.app().people.wish_draft.as_ref().unwrap().targets.len(),
+        1
+    );
+
+    ui.app_mut().people.draft_picker_filter = "nobody matches".into();
+    ui.settle();
+    assert!(ui.has("No matching people"));
+    assert!(ui.has("Guest 03  ×"));
+    ui.click("Guest 03  ×");
+    assert!(
+        ui.app()
+            .people
+            .wish_draft
+            .as_ref()
+            .unwrap()
+            .targets
+            .is_empty()
+    );
+
+    ui.app_mut().people.draft_picker_filter = "Guest 0".into();
+    ui.settle();
+    for name in ["Guest 02", "Guest 03"] {
+        ui.h.get_by_role_and_label(Role::CheckBox, name).click();
+        ui.settle();
+    }
+    ui.click("Add wish");
+    assert_eq!(ui.app().project.rules.len(), before + 1);
+    let rule = ui.app().project.rules.last().unwrap();
+    let RuleKind::Proximity {
+        target: Target::People { ids },
+        costs,
+        ..
+    } = &rule.kind
+    else {
+        panic!("a seating wish for people");
+    };
+    assert_eq!(ids.len(), 2);
+    assert!(!costs.is_avec());
+    let id = rule.id;
+    let saved = serde_json::to_value(rule).unwrap();
+    let ui = ui.reopen();
+    let restored = ui.app().project.rules.iter().find(|r| r.id == id).unwrap();
+    assert_eq!(serde_json::to_value(restored).unwrap(), saved);
+}
+
+#[test]
+fn existing_wish_checklist_can_change_people_but_cannot_empty_a_rule() {
+    use crate::model::{RuleKind, Target};
+    use eframe::egui::accesskit::Role;
+
+    let mut ui = Ui::with_example();
+    ui.go_to("People & wishes");
+    ui.click("Guest 01");
+    ui.choose("Edit");
+    let id = ui.app().people.editing_rule.unwrap();
+    let rule = ui.app().project.rules.iter().find(|r| r.id == id).unwrap();
+    let RuleKind::Proximity {
+        target: Target::People { ids },
+        ..
+    } = &rule.kind
+    else {
+        panic!("a wish for people");
+    };
+    assert_eq!(ids.len(), 1);
+    let original = ui.app().project.person_name(ids[0]).to_string();
+    assert!(
+        ui.h.get_by_role_and_label(Role::CheckBox, &original)
+            .accesskit_node()
+            .is_disabled()
+    );
+    ui.h.get_by_role_and_label(Role::CheckBox, "Guest 03")
+        .click();
+    ui.settle();
+    ui.h.get_by_role_and_label(Role::CheckBox, &original)
+        .click();
+    ui.settle();
+    let rule = ui.app().project.rules.iter().find(|r| r.id == id).unwrap();
+    let RuleKind::Proximity {
+        target: Target::People { ids },
+        ..
+    } = &rule.kind
+    else {
+        panic!("a wish for people");
+    };
+    assert_eq!(ids.len(), 1);
+    assert_eq!(ui.app().project.person_name(ids[0]), "Guest 03");
+    assert!(
+        ui.h.get_by_role_and_label(Role::CheckBox, "Guest 03")
+            .accesskit_node()
+            .is_disabled()
+    );
+    ui.app()
+        .project
+        .validate()
+        .expect("edited project stays valid");
 }
 
 #[test]

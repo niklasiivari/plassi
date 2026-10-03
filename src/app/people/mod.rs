@@ -47,8 +47,10 @@ pub(in crate::app) struct PeopleState {
     pub(in crate::app) picked: std::collections::BTreeSet<usize>,
     /// People in the list as last shown, for "select all".
     pub(in crate::app) shown: Vec<usize>,
-    /// Filter text of the open person picker.
+    /// Search in the existing wish editor.
     pub(in crate::app) picker_filter: String,
+    /// Search in the new-wish form, independent of the existing wish editor.
+    pub(in crate::app) draft_picker_filter: String,
     pub(in crate::app) wish_draft: Option<WishDraft>,
     pub(in crate::app) new_tag: String,
     /// Spreadsheet text pasted for import.

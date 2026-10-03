@@ -4,6 +4,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     // List
     ("People & wishes", "Ihmiset ja toiveet"),
     ("+ Add person", "+ Lisää henkilö"),
+    ("Search people", "Etsi henkilöitä"),
+    ("No matching people", "Ei hakutuloksia"),
     ("Search name or organization", "Hae nimellä tai järjestöllä"),
     ("All {}", "Kaikki {}"),
     ("Unreviewed {}", "Tarkistamatta {}"),
