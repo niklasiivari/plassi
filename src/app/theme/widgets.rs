@@ -135,10 +135,10 @@ pub fn floating(p: Palette) -> egui::Frame {
         .inner_margin(Margin::same(space::XS as i8 + 2))
 }
 
-/// The status toast: dark on light (and light on dark), floating.
+/// A status toast that follows the active theme, floating above the canvas.
 pub fn toast_frame(p: Palette) -> egui::Frame {
     egui::Frame::new()
-        .fill(p.text)
+        .fill(p.surface_hi)
         .corner_radius(radius::LG)
         .shadow(shadow_lg(p))
         .inner_margin(Margin::symmetric(space::L as i8 - 2, space::M as i8))

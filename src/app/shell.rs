@@ -341,7 +341,7 @@ impl PlassiApp {
                 ui.set_opacity(alpha);
                 theme::toast_frame(p).show(ui, |ui| {
                     ui.set_max_width(420.0);
-                    let color = p.surface;
+                    let color = p.text;
                     ui.visuals_mut().override_text_color = Some(color);
                     let mut stop = false;
                     if let Some(job) = &self.solving {

@@ -83,13 +83,37 @@ pub(super) fn button(ui: &mut egui::Ui, p: Palette) {
 
 fn window(ctx: &egui::Context, p: Palette, open: &mut bool) {
     egui::Window::new(tr("About Plassi"))
-        .open(open)
+        .title_bar(false)
         .collapsible(false)
         .resizable(false)
         .frame(theme::card(p))
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx, |ui| {
             ui.set_width(560.0);
+            let header_width = ui.available_width();
+            ui.horizontal(|ui| {
+                ui.add_space(theme::CONTROL_HEIGHT);
+                ui.allocate_ui_with_layout(
+                    egui::vec2(
+                        (header_width - 2.0 * theme::CONTROL_HEIGHT).max(0.0),
+                        theme::CONTROL_HEIGHT,
+                    ),
+                    egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
+                    |ui| {
+                        ui.label(
+                            RichText::new(tr("About Plassi"))
+                                .size(theme::text::BODY)
+                                .strong(),
+                        );
+                    },
+                );
+                if theme::icon_button(ui, p, theme::Icon::Close, tr("Close about window"), false)
+                    .clicked()
+                {
+                    *open = false;
+                }
+            });
+            ui.separator();
             ui.label(
                 RichText::new(format!("Plassi {}", env!("CARGO_PKG_VERSION")))
                     .size(theme::text::TITLE)
@@ -132,7 +156,10 @@ fn section_body(ui: &mut egui::Ui, p: Palette, section: &Section) {
                 );
             }
             Block::Code(text) => {
-                ui.label(RichText::new(text).monospace().size(theme::text::CAPTION));
+                ui.add(
+                    egui::Label::new(RichText::new(text).monospace().size(theme::text::CAPTION))
+                        .wrap(),
+                );
             }
         }
     }

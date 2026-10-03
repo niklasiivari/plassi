@@ -125,10 +125,12 @@ pub(super) fn help_button(ui: &mut egui::Ui, p: Palette, page: HelpPage) -> bool
             .pivot(egui::Align2::RIGHT_TOP)
             .fixed_pos(button.rect.right_bottom() + egui::vec2(0.0, theme::space::XS))
             .show(ui.ctx(), |ui| {
-                theme::floating(p).show(ui, |ui| {
-                    ui.set_width(320.0);
-                    tour = panel(ui, p, page);
-                });
+                theme::floating(p)
+                    .inner_margin(egui::Margin::same(theme::space::M as i8))
+                    .show(ui, |ui| {
+                        ui.set_width(320.0);
+                        tour = panel(ui, p, page);
+                    });
             });
         let clicked_outside = ui.input(|i| i.pointer.any_click())
             && !button.clicked()

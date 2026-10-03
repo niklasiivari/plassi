@@ -83,6 +83,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("New name", "Uusi nimi"),
     ("Rename project", "Nimeä projekti uudelleen"),
+    ("Close about window", "Sulje tietoja-ikkuna"),
     ("Save project name", "Tallenna projektin nimi"),
     ("Cancel rename", "Peru nimen muuttaminen"),
     ("Switch language to {}", "Vaihda kieleksi {}"),
