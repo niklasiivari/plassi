@@ -279,6 +279,8 @@ impl PlassiApp {
         {
             self.chart.view.camera.zoom_by(1.25);
         }
+        // This toolbar lays out from right to left, so the suffix comes first.
+        ui.label(RichText::new("%").size(theme::text::SMALL).color(p.muted));
         let zoom = ui
             .add(
                 theme::field(&mut self.chart.zoom_entry)
@@ -296,7 +298,6 @@ impl PlassiApp {
         if !zoom.has_focus() {
             self.chart.zoom_entry = format!("{:.0}", self.chart.view.camera.zoom_target() * 100.0);
         }
-        ui.label(RichText::new("%").size(theme::text::SMALL).color(p.muted));
         if theme::icon_button(
             ui,
             p,
