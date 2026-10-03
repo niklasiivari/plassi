@@ -55,11 +55,12 @@
   let room-rows = calc.max(1, data.rows.len())
   // Height left for the tables on the first page.
   let avail = 128mm / room-rows
-  let row-h = calc.min(12mm, avail / (rows + 1.6))
-  let size = calc.min(12pt, row-h * 0.52)
+  let row-h = calc.min(9mm, avail / (rows + 1.6))
+  let size = calc.min(10.5pt, row-h * 0.5)
   let gap = 10mm
+  let band = 9mm
   let table-w = (269mm - gap * (tables - 1)) / tables
-  let name-w = (table-w - 6mm) / 2
+  let name-w = (table-w - band) / 2 - 2mm
   let person(p) = {
     if p == none {
       text(size: 8pt, style: "italic", fill: muted, t("Empty", "tyhjä"))
@@ -79,20 +80,21 @@
         align(center, text(font: serif, size: 12pt, weight: "semibold", fill: accent, tbl.label))
         v(3pt)
         let n = tbl.rows.len()
-        block(
-          width: 100%,
-          table(
-            columns: (1fr, 1fr),
-            rows: (row-h,) * n,
-            inset: (x: 3mm, y: 0pt),
-            align: center + horizon,
-            stroke: (x, y) => (
-              top: if y == 0 { 0.7pt + ink } else { none },
-              bottom: if y == n - 1 { 0.7pt + ink } else { none },
-              right: if x == 0 { 0.5pt + accent } else { none },
-            ),
-            ..tbl.rows.map(r => (person(r.left), person(r.right))).flatten(),
-          ),
+        let body = block(
+          width: 100%, height: 100%, radius: 3pt, fill: tint, stroke: 0.5pt + hair,
+          grid(rows: (row-h,) * n, ..tbl.rows.map(r => align(center + horizon, text(size: 6pt, fill: muted, str(r.n))))),
+        )
+        let cells = ()
+        for (i, r) in tbl.rows.enumerate() {
+          cells.push(align(right + horizon, person(r.left)))
+          if i == 0 { cells.push(grid.cell(rowspan: n, body)) }
+          cells.push(align(left + horizon, person(r.right)))
+        }
+        grid(
+          columns: (1fr, band, 1fr),
+          rows: (row-h,) * n,
+          column-gutter: 2.5mm,
+          ..cells,
         )
       })
     ))
