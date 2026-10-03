@@ -24,14 +24,14 @@ impl PlassiApp {
             }
             _ => fill("{} seats for {} people", &[&seats, &people]),
         };
-        vec![
-            Step {
-                label: fill("Import people ({})", &[&people]),
-                done: people > 0,
-                optional: false,
-                page: Page::People,
-            },
-            Step {
+        let mut steps = vec![Step {
+            label: fill("Import people ({})", &[&people]),
+            done: people > 0,
+            optional: false,
+            page: Page::People,
+        }];
+        if people > 0 || !self.project.notes.is_empty() {
+            steps.push(Step {
                 label: match pending {
                     _ if self.project.notes.is_empty() => {
                         tr("Sign-up notes: none to review").into()
@@ -42,14 +42,15 @@ impl PlassiApp {
                 done: pending == 0,
                 optional: true,
                 page: Page::People,
-            },
-            Step {
-                label: seats_label,
-                done: seats >= people && seats > 0,
-                optional: false,
-                page: Page::Room,
-            },
-        ]
+            });
+        }
+        steps.push(Step {
+            label: seats_label,
+            done: seats >= people && seats > 0,
+            optional: false,
+            page: Page::Room,
+        });
+        steps
     }
 
     /// A card in the middle of the canvas listing what is left before solving.
@@ -64,6 +65,11 @@ impl PlassiApp {
             theme::card(p).show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 theme::section_title(ui, p, tr("Before the first chart"));
+                ui.label(
+                    RichText::new(tr("Import people, then set up enough seats before solving"))
+                        .size(theme::text::SMALL)
+                        .color(p.muted),
+                );
                 for step in &steps {
                     ui.horizontal(|ui| {
                         let color = match (step.done, step.optional) {

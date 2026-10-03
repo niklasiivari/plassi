@@ -252,6 +252,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Ennen ensimmäistä istumajärjestystä",
     ),
     (
+        "Import people, then set up enough seats before solving",
+        "Tuo ensin ihmiset ja määritä sitten riittävästi paikkoja",
+    ),
+    (
         "Import people and set up enough seats first",
         "Tuo ensin ihmiset ja määritä riittävästi paikkoja",
     ),

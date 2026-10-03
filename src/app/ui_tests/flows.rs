@@ -8,6 +8,7 @@ use super::harness::Ui;
 fn empty_project_offers_example() {
     let mut ui = Ui::open();
     assert!(ui.has("BEFORE THE FIRST CHART"), "{:?}", ui.dump());
+    assert!(!ui.has("Sign-up notes: none to review"), "{:?}", ui.dump());
     ui.click("Try with example data");
     assert_eq!(ui.app().project.attendees.len(), 48);
     assert!(!ui.app().project.layout.seats().is_empty());
@@ -178,6 +179,17 @@ fn project_menu_new_rename_duplicate_delete_restore() {
     ui.click("Restore");
     assert_eq!(ui.app().file.name, "Example event");
     assert_eq!(ui.app().project.attendees.len(), 48);
+}
+
+#[test]
+fn project_can_be_renamed_from_the_project_menu() {
+    let mut ui = Ui::with_example();
+    ui.open_project_menu();
+    ui.click("Rename project");
+    ui.key(Modifiers::COMMAND, Key::A);
+    ui.type_text("Banquet");
+    ui.key(Modifiers::NONE, Key::Enter);
+    assert_eq!(ui.app().file.name, "Banquet");
 }
 
 #[test]
