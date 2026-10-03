@@ -38,8 +38,8 @@ impl PrintKind {
     pub fn title(self) -> &'static str {
         match self {
             PrintKind::Chart => tr("Seating chart"),
-            PrintKind::Kitchen => tr("Kitchen list"),
-            PrintKind::Bar => tr("Bar list"),
+            PrintKind::Kitchen => tr("Kitchen chart"),
+            PrintKind::Bar => tr("Bar chart"),
             PrintKind::Door => tr("Door list"),
         }
     }

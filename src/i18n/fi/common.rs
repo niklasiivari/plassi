@@ -243,8 +243,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Nice to have", "Olisi kiva"),
     ("Important", "Tärkeä"),
     ("Must", "Pakollinen"),
-    ("Kitchen list", "Keittiölista"),
-    ("Bar list", "Baarilista"),
+    ("Kitchen chart", "Keittiökartta"),
+    ("Bar chart", "Baarikartta"),
     ("Door list", "Ovilista"),
     (
         "For the wall: every table with names, plus an alphabetical index to find your seat.",
