@@ -271,7 +271,7 @@ impl PlassiApp {
         let zoom = ui
             .add(
                 theme::field(&mut self.chart.zoom_entry)
-                    .desired_width(42.0)
+                    .desired_width(52.0)
                     .horizontal_align(egui::Align::Center),
             )
             .on_hover_text(tr("Zoom percentage (20–300)"));
