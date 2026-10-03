@@ -164,7 +164,7 @@
   set page(paper: "a4", margin: (x: 16mm, top: 14mm, bottom: 16mm), footer: footer)
   header(t("Door list", "Ovilista"), compact: true)
 
-  table(
+  let column(people) = table(
     columns: (1fr, auto),
     stroke: (x, y) => if y > 0 { (bottom: 0.4pt + hair) },
     inset: (x: 4pt, y: 3pt),
@@ -173,7 +173,7 @@
       ..(t("Name", "Nimi"), t("Price", "Hinta"))
         .map(h => text(size: 7.5pt, tracking: 0.12em, fill: muted, weight: "semibold", upper(h))),
     ),
-    ..data.people.map(p => (
+    ..people.map(p => (
       text(weight: "semibold", p.name),
       if p.price_cents == none { text(fill: muted, t("Not set", "Ei asetettu")) } else {
         let cents = p.price_cents
@@ -181,6 +181,13 @@
         str(calc.floor(cents / 100)) + (if fi { "," } else { "." }) + (if fraction.len() == 1 { "0" } else { "" }) + fraction + " €"
       },
     )).flatten(),
+  )
+  let n = data.people.len()
+  let per = calc.ceil(n / 2)
+  grid(
+    columns: (1fr, 1fr),
+    column-gutter: 10mm,
+    ..range(2).map(i => column(data.people.slice(calc.min(n, i * per), calc.min(n, (i + 1) * per)))),
   )
 }
 
