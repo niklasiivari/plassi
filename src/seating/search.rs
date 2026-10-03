@@ -130,15 +130,15 @@ impl Search {
             .differ_from
             .is_some_and(|(_, minimum)| minimum > project.attendees.len())
         {
-            anyhow::bail!("minimum number of changed people exceeds the attendee count");
+            anyhow::bail!(tr("More seat changes requested than there are people"));
         }
         let seats = project.layout.seat_count();
         if seats == 0 {
-            anyhow::bail!(tr("define the room layout before solving"));
+            anyhow::bail!(tr("Set up tables first"));
         }
         if seats < project.attendees.len() {
             anyhow::bail!(fill(
-                "room has {} seats for {} attendees",
+                "Only {} seats for {} people",
                 &[&seats, &project.attendees.len()]
             ));
         }
@@ -152,7 +152,7 @@ impl Search {
         {
             let name = project.person_name(pr.people[p]);
             anyhow::bail!(fill(
-                "no seat is allowed for {} by the hard placement rules",
+                "No allowed seat for {}. Check placement rules.",
                 &[&name]
             ));
         }

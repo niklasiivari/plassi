@@ -46,7 +46,7 @@ impl NewAttendee {
 pub fn add(project: &mut Project, person: NewAttendee) -> Result<usize> {
     let name = person.name.trim();
     if name.is_empty() {
-        bail!(tr("the new attendee needs a name"));
+        bail!(tr("Enter a name"));
     }
     if project
         .attendees
@@ -58,7 +58,7 @@ pub fn add(project: &mut Project, person: NewAttendee) -> Result<usize> {
     let seat_count = project.layout.seat_count();
     if project.attendees.len() >= seat_count {
         bail!(fill(
-            "all {} seats are taken — add seats on the Room layout page first",
+            "All {} seats are full. Add seats in Room layout.",
             &[&seat_count]
         ));
     }
@@ -110,7 +110,7 @@ pub fn remove(project: &mut Project, id: usize) {
 pub fn replace(project: &mut Project, old: usize, person: NewAttendee) -> Result<usize> {
     let name = person.name.trim();
     if name.is_empty() {
-        bail!(tr("the new attendee needs a name"));
+        bail!(tr("Enter a name"));
     }
     if project
         .attendees

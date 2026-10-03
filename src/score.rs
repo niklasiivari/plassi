@@ -251,10 +251,10 @@ fn missed_area(area: &Area, must_be: bool) -> String {
         (Area::Row(x), true) => fill("outside row {}", &[x]),
         (Area::RowCenter(x), true) => fill("outside center of row {}", &[x]),
         (Area::Tag(x), true) => fill("outside seat tag {}", &[x]),
-        (Area::Seat(x), false) => fill("inside excluded seat {}", &[x]),
-        (Area::Table(x), false) => fill("inside excluded table {}", &[x]),
-        (Area::Row(x), false) => fill("inside excluded row {}", &[x]),
-        (Area::RowCenter(x), false) => fill("inside excluded center of row {}", &[x]),
-        (Area::Tag(x), false) => fill("inside excluded seat tag {}", &[x]),
+        (Area::Seat(x), false) => fill("in forbidden seat {}", &[x]),
+        (Area::Table(x), false) => fill("at forbidden table {}", &[x]),
+        (Area::Row(x), false) => fill("in forbidden row {}", &[x]),
+        (Area::RowCenter(x), false) => fill("in forbidden row centre {}", &[x]),
+        (Area::Tag(x), false) => fill("in forbidden seats tagged {}", &[x]),
     }
 }

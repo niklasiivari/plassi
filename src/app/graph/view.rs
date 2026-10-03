@@ -50,7 +50,7 @@ impl PlassiApp {
             return;
         };
         if graph.people.is_empty() {
-            let text = tr("No wishes yet — add some on People & wishes");
+            let text = tr("Add wishes on People & wishes");
             painter.text(
                 rect.center(),
                 Align2::CENTER_CENTER,
@@ -154,8 +154,7 @@ impl PlassiApp {
                 {
                     self.graph.fit_pending = true;
                 }
-                if theme::icon_button(ui, p, theme::Icon::Shuffle, tr("Re-arrange"), false)
-                    .clicked()
+                if theme::icon_button(ui, p, theme::Icon::Shuffle, tr("Rearrange"), false).clicked()
                     && let Some(layout) = &mut self.graph.layout
                 {
                     layout.shake();

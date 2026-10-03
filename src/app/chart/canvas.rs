@@ -340,9 +340,7 @@ impl PlassiApp {
                     };
                     if ui
                         .button(pick)
-                        .on_hover_text(tr(
-                            "Or Ctrl-click. Select two or more to group them or keep them apart.",
-                        ))
+                        .on_hover_text(tr("Ctrl-click to select multiple people."))
                         .clicked()
                     {
                         actions.pick = Some(id);
@@ -503,7 +501,7 @@ impl PlassiApp {
             badge(
                 painter,
                 at,
-                &fill("Click someone to swap with {}  ·  Esc to cancel", &[&name]),
+                &fill("Choose who swaps with {} · Esc to cancel", &[&name]),
                 p.accent,
                 p,
             );

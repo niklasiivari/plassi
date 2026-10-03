@@ -79,9 +79,9 @@ impl PlassiApp {
                                     self.projects.focus_name = true;
                                     ui.close();
                                 }
-                                if ui.button(tr("Duplicate this project")).clicked() {
+                                if ui.button(tr("Duplicate project")).clicked() {
                                     let copy = self.project.clone();
-                                    self.create_project(&format!("{current} copy"), copy);
+                                    self.create_project(&fill("{} (copy)", &[&current]), copy);
                                     ui.close();
                                 }
                                 self.file_actions(ui);
@@ -90,7 +90,7 @@ impl PlassiApp {
                                 if self.projects.confirm_delete {
                                     ui.label(
                                         RichText::new(fill(
-                                            "Delete {}? A backup stays under Deleted projects.",
+                                            "Delete {}? Restore it from Deleted projects.",
                                             &[&current],
                                         ))
                                         .color(p.bad),
@@ -101,11 +101,11 @@ impl PlassiApp {
                                             self.delete_project();
                                             ui.close();
                                         }
-                                        if ui.button(tr("Keep it")).clicked() {
+                                        if ui.button(tr("Cancel")).clicked() {
                                             self.projects.confirm_delete = false;
                                         }
                                     });
-                                } else if ui.button(tr("Delete this project…")).clicked() {
+                                } else if ui.button(tr("Delete project…")).clicked() {
                                     self.projects.confirm_delete = true;
                                 }
                             })
@@ -137,11 +137,11 @@ impl PlassiApp {
 
     #[cfg(target_arch = "wasm32")]
     fn file_actions(&mut self, ui: &mut egui::Ui) {
-        if ui.button(tr("Load a project file…")).clicked() {
+        if ui.button(tr("Open project file…")).clicked() {
             self.file.upload = platform::FilePick::open(".json");
             ui.close();
         }
-        if ui.button(tr("Download this project")).clicked() {
+        if ui.button(tr("Download project")).clicked() {
             self.download_project();
             ui.close();
         }

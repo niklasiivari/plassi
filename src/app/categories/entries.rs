@@ -7,11 +7,7 @@ impl PlassiApp {
     pub(super) fn category_entries(&mut self, ui: &mut egui::Ui, p: Palette, kind: Kind) -> bool {
         theme::section_title(ui, p, kind.plural());
         if self.project.catalog.list(kind).is_empty() {
-            theme::hint(
-                ui,
-                p,
-                tr("No categories yet. Create them from the spellings that aren't mapped."),
-            );
+            theme::hint(ui, p, tr("No categories yet"));
             return false;
         }
         let counts: Vec<usize> = (0..self.project.catalog.list(kind).len())
@@ -51,8 +47,8 @@ impl PlassiApp {
                         });
                     });
                     if kind != Kind::Organization {
-                        changed |= theme::price_input(ui, tr("Price contribution"), &mut category.price_cents);
-                        theme::hint(ui, p, tr("Added to the ticket, food and drink total. Set 0 for included choices."));
+                        changed |= theme::price_input(ui, tr("Price"), &mut category.price_cents);
+                        theme::hint(ui, p, tr("Added to the ticket total. Use 0 if included."));
                     }
                     changed |= alias_chips(ui, p, &mut category.aliases);
                     changed |= add_spelling(ui, category, &spellings);
@@ -75,12 +71,12 @@ fn alias_chips(ui: &mut egui::Ui, p: Palette, aliases: &mut Vec<String>) -> bool
     }
     let mut remove = None;
     ui.horizontal_wrapped(|ui| {
-        theme::hint(ui, p, tr("Also written as"));
+        theme::hint(ui, p, tr("Other spellings"));
         for (i, alias) in aliases.iter().enumerate() {
             let chip = theme::tag_button(alias);
             if ui
                 .add(chip)
-                .on_hover_text(tr("Unmap this spelling"))
+                .on_hover_text(tr("Remove from category"))
                 .clicked()
             {
                 remove = Some(i);

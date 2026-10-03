@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Plassi</title>
-  <meta name="description" content="Seating planner for events: import sign-ups, seat guests by their wishes, print place lists. Runs in your browser; your data stays on your device.">
+  <meta name="description" content="Plan event seating and print table charts. Your data stays on your device.">
   <meta name="theme-color" content="#F2F0EA" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1A1914" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -39,23 +39,37 @@
 <body>
   <canvas id="plassi"></canvas>
   <div id="loading" class="screen" role="status">
-    <div><div class="spinner"></div><p class="muted">Loading Plassi…</p></div>
+    <div><div class="spinner"></div><p class="muted" data-copy="loading">Loading Plassi…</p></div>
   </div>
   <div id="failed" class="screen" role="alert">
     <div>
-      <p>This browser can't run Plassi.</p>
-      <p class="muted">Use a current desktop Chrome, Edge, Firefox or Safari. If you use one already, check that JavaScript and WebGL are turned on, then reload the page.</p>
+      <p data-copy="failed">This browser can't run Plassi.</p>
+      <p class="muted" data-copy="browser">Use an up-to-date desktop browser with JavaScript and WebGL enabled.</p>
     </div>
   </div>
   <div id="narrow" class="screen">
     <div>
-      <p>Plassi is made for desktop browsers.</p>
-      <p class="muted">On a small or touch screen the seating chart and lists are hard to use.</p>
-      <p><a href="#" id="continue">Continue anyway</a></p>
+      <p data-copy="screen">A larger screen is recommended.</p>
+      <p><a href="#" id="continue" data-copy="continue">Continue anyway</a></p>
     </div>
   </div>
-  <noscript><div class="screen" style="z-index:2"><p>Plassi needs JavaScript. Turn it on and reload the page.</p></div></noscript>
+  <noscript><div class="screen" style="z-index:2"><div><p lang="en">Enable JavaScript to use Plassi.</p><p lang="fi">Ota JavaScript käyttöön, jotta voit käyttää Plassia.</p></div></div></noscript>
   <script>
+    let language = navigator.language || "en";
+    try { language = localStorage.getItem("plassi:language") || language; } catch {}
+    if (language.toLowerCase().startsWith("fi")) {
+      document.documentElement.lang = "fi";
+      const copy = {
+        loading: "Ladataan Plassia…",
+        failed: "Plassi ei toimi tässä selaimessa.",
+        browser: "Käytä ajan tasalla olevaa työpöytäselainta, jossa JavaScript ja WebGL ovat käytössä.",
+        screen: "Suurempaa näyttöä suositellaan.",
+        continue: "Jatka silti",
+      };
+      for (const element of document.querySelectorAll("[data-copy]")) {
+        element.textContent = copy[element.dataset.copy];
+      }
+    }
     // Small or touch screens: a note first, unless the visitor chose to continue.
     if (matchMedia("(max-width: 899px), (pointer: coarse)").matches) {
       document.body.classList.add("narrow");

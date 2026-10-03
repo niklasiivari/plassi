@@ -69,7 +69,7 @@ impl Ui {
     /// The app with the example project open.
     pub(super) fn with_example() -> Self {
         let mut ui = Self::open();
-        ui.click("Try with example data");
+        ui.click("Try example");
         ui
     }
 

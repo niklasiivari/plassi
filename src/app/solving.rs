@@ -74,7 +74,7 @@ impl PlassiApp {
         ) {
             Ok(search) => {
                 self.start_job(search, self.improve_time, kind);
-                self.status = tr("Improving around your edits…").into();
+                self.status = tr("Improving…").into();
             }
             Err(error) => self.status = fill("Cannot improve: {}", &[&format!("{error:#}")]),
         }
@@ -102,7 +102,7 @@ impl PlassiApp {
         ) {
             Ok(search) => {
                 self.start_job(search, self.solve_time, kind);
-                self.status = tr("Searching further…").into();
+                self.status = tr("Searching…").into();
             }
             Err(error) => self.status = fill("Cannot search: {}", &[&format!("{error:#}")]),
         }
@@ -131,8 +131,7 @@ impl PlassiApp {
         };
         let job = self.solving.take().expect("job just polled");
         if job.revision != self.file.revision {
-            self.status =
-                tr("The project changed during the search; its result was discarded").into();
+            self.status = tr("Project changed; search result discarded").into();
             return;
         }
         let elapsed = job.started.elapsed().min(job.budget);
@@ -162,7 +161,7 @@ impl PlassiApp {
         self.selected_candidate = self.project.candidates.len() - 1;
         self.page = Page::Chart;
         self.commit(&fill(
-            "Saved option: score {}, hard violations {}",
+            "Saved: score {} · {} hard rules broken",
             &[&evaluation.penalty(), &evaluation.hard_violations],
         ));
     }

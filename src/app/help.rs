@@ -33,44 +33,41 @@ impl HelpPage {
     pub(super) fn bullets(self) -> &'static [&'static str] {
         match self {
             HelpPage::Chart => &[
-                "The chart shows one option: who sits where.",
-                "Solve finds a chart; Different option and Improve make new options from it.",
-                "Each chip is an option with its wishes met. Its score counts what is unmet, so lower is better.",
-                "Drag a card to move or swap people. Ctrl-click several people to group them (G) or keep them apart.",
-                "Click a person to see their wishes in the side panel.",
+                "Solve: new chart. Improve: keep manual seats.",
+                "Choose an option. Lower scores are better.",
+                "Drag to move or swap. Ctrl-click to select.",
+                "Select a person to see wishes.",
             ],
             HelpPage::People => &[
-                "The guest list and each person's wishes and rules.",
-                "Paste spreadsheet rows, or drop a .csv/.tsv file, to add or update people.",
-                "Select a person on the left to edit their wishes.",
-                "Review sign-up text to turn notes into wishes.",
+                "Paste rows or drop a CSV/TSV file.",
+                "Select a person to edit wishes.",
+                "Review notes and add wishes.",
             ],
             HelpPage::Graph => &[
-                "Who wished to sit with whom, as a graph.",
-                "Line colours show how well each wish is met in the selected option.",
-                "Drag people to rearrange the picture; click to select.",
-                "Scroll to zoom, drag the background to pan.",
+                "Colours show whether wishes are met.",
+                "Drag to rearrange the view.",
+                "Scroll to zoom; drag the background to pan.",
             ],
             HelpPage::Categories => &[
-                "Categories such as food, drinks and allergies, taken from the sheet.",
-                "Merge spellings of the same value into one entry.",
-                "The counts go on the printed lists.",
+                "Group meals, drinks and other entries.",
+                "Merge different names for the same thing.",
+                "Categories are used in PDFs.",
             ],
             HelpPage::Policy => &[
-                "Rules for everyone, mostly for people without wishes of their own.",
-                "They are weighed against wishes when you solve.",
-                "Changes apply at the next Solve or Improve.",
+                "Set rules for the whole event.",
+                "Solve again to apply changes.",
+                "Reset to restore defaults.",
             ],
             HelpPage::Room => &[
-                "The tables and seats of the room.",
-                "Quick setup makes a room of equal tables in one step.",
-                "Changing tables or seats removes the existing options.",
-                "Seat tags and relationships are for special seats.",
+                "Set up tables and seats.",
+                "Quick setup creates equal tables.",
+                "Changing seats clears seating options.",
+                "Set tags and custom distances for special seats.",
             ],
             HelpPage::Print => &[
-                "A4 PDFs of the selected option: seating chart, place cards and lists.",
-                "Event details appear on the prints.",
-                "In the browser the files are downloaded; on desktop they are saved next to the project file.",
+                "Create A4 PDFs for the selected option.",
+                "Event details appear on each PDF.",
+                "Browser: download. Desktop: save beside the project.",
             ],
         }
     }
@@ -79,11 +76,11 @@ impl HelpPage {
     pub(super) fn shortcuts(self) -> &'static [(&'static str, &'static str)] {
         match self {
             HelpPage::Chart => &[
-                ("Ctrl+F", "Find a person"),
-                ("F", "Fit the room to the window"),
-                ("P", "Pin the selected person"),
-                ("G", "Group the picked people"),
-                ("Esc", "Cancel or clear the selection"),
+                ("Ctrl+F", "Find person"),
+                ("F", "Fit to window"),
+                ("P", "Pin person"),
+                ("G", "Group selection"),
+                ("Esc", "Cancel / clear selection"),
                 ("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"),
             ],
             HelpPage::Graph

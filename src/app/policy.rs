@@ -13,9 +13,7 @@ impl PlassiApp {
             p,
             crate::app::help::HelpPage::Policy,
             tr("Seating policy"),
-            Some(tr(
-                "Rules for everyone, mostly for people without wishes of their own. They are weighed against wishes when you solve.",
-            )),
+            Some(tr("Rules for the whole event.")),
         );
         let before = self.project.policy.clone();
         let policy = &mut self.project.policy;
@@ -25,16 +23,16 @@ impl PlassiApp {
             ui,
             p,
             tr("Organizations"),
-            tr("Who unconstrained people sit next to (beside or opposite)."),
+            tr("Neighbours for people without wishes."),
             |ui| {
                 ui.horizontal(|ui| {
                     for (value, label) in [
                         (
                             OrganizationMixing::SameOrganization,
-                            tr("With their own organization"),
+                            tr("Same organization"),
                         ),
                         (OrganizationMixing::Mixed, tr("Mix organizations")),
-                        (OrganizationMixing::Indifferent, tr("Don't care")),
+                        (OrganizationMixing::Indifferent, tr("No preference")),
                     ] {
                         ui.selectable_value(&mut policy.organization, value, label);
                     }
@@ -55,10 +53,8 @@ impl PlassiApp {
         section(
             ui,
             p,
-            tr("Wish groups and unconstrained people"),
-            tr(
-                "Should people without wishes be sprinkled among the wish groups, or kept to themselves?",
-            ),
+            tr("People without wishes"),
+            tr("Seat them among wish groups or separately."),
             |ui| {
                 ui.horizontal(|ui| {
                     theme::hint(ui, p, tr("Keep separate"));
@@ -67,18 +63,12 @@ impl PlassiApp {
                         egui::Slider::new(&mut policy.sprinkle, -50..=50).show_value(false),
                     );
                     settled &= !r.dragged();
-                    theme::hint(ui, p, tr("Sprinkle in"));
+                    theme::hint(ui, p, tr("Mix in"));
                 });
                 let text = match policy.sprinkle {
                     0 => tr("Neutral").to_string(),
-                    s if s > 0 => fill(
-                        "Sprinkle in: each pair of adjacent unconstrained people costs {}",
-                        &[&s],
-                    ),
-                    s => fill(
-                        "Keep separate: each unconstrained person next to a wish group costs {}",
-                        &[&-s],
-                    ),
+                    s if s > 0 => fill("Adjacent people without wishes: {} points", &[&s]),
+                    s => fill("Beside a wish group: {} points", &[&-s]),
                 };
                 theme::hint(ui, p, text);
             },
@@ -87,8 +77,8 @@ impl PlassiApp {
         section(
             ui,
             p,
-            tr("Nobody sits alone"),
-            tr("Cost for anyone with no one beside or opposite them."),
+            tr("Avoid sitting alone"),
+            tr("Penalty for having nobody beside or opposite."),
             |ui| {
                 ui.horizontal(|ui| {
                     let r = theme::slider(
@@ -103,10 +93,8 @@ impl PlassiApp {
         section(
             ui,
             p,
-            tr("Nobody loses every wish"),
-            tr(
-                "Extra cost for anyone none of whose wishes is near them (same table, two rows or closer).",
-            ),
+            tr("At least one wish"),
+            tr("Penalty if no wish is within two rows at the same table."),
             |ui| {
                 ui.horizontal(|ui| {
                     let r = theme::slider(
@@ -122,7 +110,7 @@ impl PlassiApp {
             ui,
             p,
             tr("Empty seats"),
-            tr("Where spare seats go when there are more seats than people."),
+            tr("Where spare seats go."),
             |ui| {
                 ui.horizontal(|ui| {
                     ui.selectable_value(
@@ -145,7 +133,7 @@ impl PlassiApp {
                 *policy = SeatingPolicy::default();
             }
             let scale = fill(
-                "For reference: an ordinary wish seated at another table costs {}; an avec costs {}.",
+                "Another table: wish {} points · avec {} points",
                 &[
                     &crate::model::ProximityCosts::far_penalty(false),
                     &crate::model::ProximityCosts::far_penalty(true),
@@ -159,7 +147,7 @@ impl PlassiApp {
             self.policy_dirty |= changed;
         } else if changed || std::mem::take(&mut self.policy_dirty) {
             self.policy_dirty = false;
-            self.commit(tr("Changed the seating policy; solve again to apply it"));
+            self.commit(tr("Policy saved; solve again to apply"));
         }
     }
 }

@@ -160,7 +160,7 @@ impl PlassiApp {
     fn restore_version(&mut self, stamp: u64) {
         let bytes = self.file.library.read_backup(&self.file.name, stamp);
         match bytes
-            .ok_or_else(|| anyhow::anyhow!("the backup is gone"))
+            .ok_or_else(|| anyhow::anyhow!(tr("Backup not found")))
             .and_then(|b| io::parse(&b))
         {
             Ok(project) => {
@@ -184,7 +184,7 @@ impl PlassiApp {
             .first()
             .and_then(|&stamp| library.read_backup(name, stamp));
         match bytes
-            .ok_or_else(|| anyhow::anyhow!("no backup of {name}"))
+            .ok_or_else(|| anyhow::anyhow!(fill("No backup for {}", &[&name])))
             .and_then(|b| io::parse(&b))
         {
             Ok(project) => self.create_project(name, project),
@@ -203,7 +203,7 @@ fn versions_list(ui: &mut egui::Ui, p: Palette, versions: &[Version]) -> Option<
         theme::hint(
             ui,
             p,
-            tr("No earlier versions yet. One is kept every few minutes while you edit."),
+            tr("No versions yet. Saved every few minutes while editing."),
         );
     }
     let mut picked = None;
@@ -233,7 +233,7 @@ fn versions_list(ui: &mut egui::Ui, p: Palette, versions: &[Version]) -> Option<
 }
 
 fn deleted_list(ui: &mut egui::Ui, p: Palette, names: &[String]) -> Option<Restore> {
-    theme::hint(ui, p, tr("Restoring opens the project's latest backup."));
+    theme::hint(ui, p, tr("Restores the latest backup."));
     let mut picked = None;
     for name in names {
         ui.horizontal(|ui| {

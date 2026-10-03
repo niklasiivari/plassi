@@ -7,9 +7,9 @@ use super::harness::Ui;
 #[test]
 fn empty_project_offers_example() {
     let mut ui = Ui::open();
-    assert!(ui.has("BEFORE THE FIRST CHART"), "{:?}", ui.dump());
-    assert!(!ui.has("Sign-up notes: none to review"), "{:?}", ui.dump());
-    ui.click("Try with example data");
+    assert!(ui.has("GET STARTED"), "{:?}", ui.dump());
+    assert!(!ui.has("No notes"), "{:?}", ui.dump());
+    ui.click("Try example");
     assert_eq!(ui.app().project.attendees.len(), 48);
     assert!(!ui.app().project.layout.seats().is_empty());
     assert_eq!(ui.app().file.name, "Example event");
@@ -142,8 +142,8 @@ fn project_menu_new_rename_duplicate_delete_restore() {
     assert!(ui.app().project.attendees.is_empty());
 
     ui.open_project_menu();
-    ui.click("Duplicate this project");
-    assert_eq!(ui.app().file.name, "New event 2 copy");
+    ui.click("Duplicate project");
+    assert_eq!(ui.app().file.name, "New event 2 (copy)");
 
     ui.open_project_menu();
     ui.click("Example event");
@@ -156,12 +156,12 @@ fn project_menu_new_rename_duplicate_delete_restore() {
             "Example event",
             "New event",
             "New event 2",
-            "New event 2 copy"
+            "New event 2 (copy)"
         ]
     );
 
     ui.open_project_menu();
-    ui.click("Delete this project…");
+    ui.click("Delete project…");
     assert!(ui.has_text("Delete Example event?"), "{:?}", ui.dump());
     ui.click("Delete");
     assert!(
@@ -243,7 +243,7 @@ fn print_page_saves_four_pdfs() {
         "{:?}",
         ui.dump()
     );
-    ui.click("Save all four PDFs");
+    ui.click("Save all PDFs");
     ui.wait_until(60, |app| app.printing.job.is_none());
     let folder = ui.dir.path().join("projects");
     let pdfs = std::fs::read_dir(&folder)
@@ -278,12 +278,12 @@ fn people_filters_and_bulk_group() {
         ui.node(name).click_modifiers(Modifiers::COMMAND);
         ui.settle();
     }
-    assert!(ui.has("2 picked"), "{:?}", ui.dump());
+    assert!(ui.has("2 selected"), "{:?}", ui.dump());
     ui.click("Group together");
     let project = &ui.app().project;
     assert_eq!(project.preferences.len(), preferences + 1);
     assert!(
-        ui.app().status.contains("Grouped 2 people together"),
+        ui.app().status.contains("Grouped 2 people"),
         "{}",
         ui.app().status
     );
@@ -314,7 +314,7 @@ fn invalid_late_change_keeps_the_form_and_entered_details() {
 fn opening_advanced_room_editor_does_not_create_empty_seat_tags() {
     let mut ui = Ui::with_example();
     ui.go_to("Room layout");
-    ui.click("Advanced: seat tags and seat relationships");
+    ui.click("Advanced: tags and distances");
     ui.settle();
 
     assert!(ui.app().project.layout.seat_tags.is_empty());
@@ -327,14 +327,10 @@ fn people_import_from_pasted_sheet() {
     let copied = ui.click_and_copied("Copy header row");
     assert_eq!(copied, Some(crate::import::header_row()));
 
-    ui.click_text_box(); // hinted "Paste the rows here, header row included…"
+    ui.click_text_box(); // hinted "Paste rows with column headers…"
     ui.type_text("Full name\tOrganization\nX Y\tABC\nZ W\tXYZ\n");
     assert!(ui.has("Template column"), "{:?}", ui.dump());
-    assert!(
-        ui.has("Not in the template: choose what it is"),
-        "{:?}",
-        ui.dump()
-    );
+    assert!(ui.has("Choose a field"), "{:?}", ui.dump());
 
     // No guessing: say which column holds the names.
     ui.open_combo("Kept as extra info");
@@ -343,11 +339,11 @@ fn people_import_from_pasted_sheet() {
     // Leave the organization out.
     ui.open_combo("Organization");
     ui.choose("Ignore");
-    assert!(ui.has("Set by you"), "{:?}", ui.dump());
+    assert!(ui.has("Selected"), "{:?}", ui.dump());
     ui.h.run_steps(3);
-    assert!(ui.has("Set by you"), "stays marked after the change");
+    assert!(ui.has("Selected"), "stays marked after the change");
 
-    ui.click("Update attendees");
+    ui.click("Import");
     let project = &ui.app().project;
     let names: Vec<&str> = project.attendees.iter().map(|a| a.name.as_str()).collect();
     assert_eq!(names, ["X Y", "Z W"]);

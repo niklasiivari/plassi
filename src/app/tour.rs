@@ -32,27 +32,27 @@ const STEPS: [(Target, &str, &str); 5] = [
     (
         Target::Options,
         "Options and scores",
-        "Each chip is one option. It shows how many wishes are fully met; the score counts what is unmet, so lower is better.",
+        "Choose an option. Lower scores are better.",
     ),
     (
         Target::Canvas,
         "Move and swap",
-        "Drag a card onto a free seat to move someone, or onto another person to swap them. Scores update right away.",
+        "Drag to move or swap. Scores update immediately.",
     ),
     (
         Target::Panel,
-        "Status stripes",
-        "The stripe on a card shows the person's status: all wishes met, some not met, or a hard rule broken. The legend in the side panel lists the colours.",
+        "Status colours",
+        "Stripes show wishes and rule violations.",
     ),
     (
         Target::Canvas,
         "Group or keep apart",
-        "Ctrl-click several people, then group them (G) or keep them apart from the side panel.",
+        "Ctrl-click to select, then group (G) or keep apart.",
     ),
     (
         Target::Panel,
         "Side panel",
-        "Click a person to see their wishes, how each is met and suggested swaps here.",
+        "Select a person for wishes and suggested swaps.",
     ),
 ];
 

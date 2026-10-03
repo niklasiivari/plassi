@@ -61,7 +61,7 @@ impl PlassiApp {
         let Some(moves) = self.chart.group_moves.peek(&key).cloned() else {
             if ui
                 .button(tr("Find places for this group"))
-                .on_hover_text(tr("Suggest blocks of seats where the whole group fits; the people there swap into the group's old seats"))
+                .on_hover_text(tr("Swap the group with people in nearby seats"))
                 .clicked()
             {
                 let project = &self.project;
@@ -80,11 +80,7 @@ impl PlassiApp {
             return;
         };
         if moves.is_empty() {
-            theme::hint(
-                ui,
-                p,
-                tr("No block of seats fits this group without breaking rules."),
-            );
+            theme::hint(ui, p, tr("No valid seats for this group"));
         }
         let mut apply = None;
         self.chart.group_preview = None;

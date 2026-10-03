@@ -32,22 +32,22 @@ impl PlassiApp {
                 }
                 DraftTarget::Tag(tag) => choice(
                     ui,
-                    tr("Everyone tagged"),
+                    tr("Tag"),
                     tag,
                     &tags,
-                    tr("No tags yet — add them to people under Details."),
+                    tr("Add tags under Details first."),
                 ),
                 DraftTarget::Organization(org) => choice(
                     ui,
-                    tr("Everyone from"),
+                    tr("Organization"),
                     org,
                     &organizations,
-                    tr("No organizations yet."),
+                    tr("No organizations"),
                 ),
             }
             ui.add(
                 theme::field(&mut draft.source)
-                    .hint_text(tr("Source text (optional)"))
+                    .hint_text(tr("Original note (optional)"))
                     .desired_width(f32::INFINITY),
             );
             ui.add_space(theme::space::S);
@@ -121,7 +121,7 @@ impl PlassiApp {
 fn draft_kind(ui: &mut egui::Ui, draft: &mut WishDraft) {
     ui.horizontal(|ui| {
         ui.selectable_value(&mut draft.avec, false, tr("Seating wish"));
-        ui.selectable_value(&mut draft.avec, true, tr("Avec (partner)"));
+        ui.selectable_value(&mut draft.avec, true, tr("Avec"));
     });
     if draft.avec {
         draft.near = DraftTarget::People;
@@ -143,15 +143,11 @@ fn draft_kind(ui: &mut egui::Ui, draft: &mut WishDraft) {
         {
             draft.near = DraftTarget::People;
         }
-        if ui
-            .selectable_label(is(&draft.near, 1), tr("A tag"))
-            .clicked()
-            && !is(&draft.near, 1)
-        {
+        if ui.selectable_label(is(&draft.near, 1), tr("Tag")).clicked() && !is(&draft.near, 1) {
             draft.near = DraftTarget::Tag(String::new());
         }
         if ui
-            .selectable_label(is(&draft.near, 2), tr("An organization"))
+            .selectable_label(is(&draft.near, 2), tr("Organization"))
             .clicked()
             && !is(&draft.near, 2)
         {
@@ -183,7 +179,7 @@ fn people_targets(
         }
     });
     if draft.targets.len() > 1 {
-        theme::hint(ui, p, tr("Each selected person is included in the wish."));
+        theme::hint(ui, p, tr("Sit near all selected people."));
     }
 }
 

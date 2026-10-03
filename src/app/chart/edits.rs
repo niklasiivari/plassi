@@ -75,7 +75,7 @@ pub(super) fn preview_move(
     let seats = project.layout.seats();
     if gaps(&seats, &next).len() > gaps(&seats, assignment).len() {
         return Some(DropPreview::blocked(
-            tr("Would leave an empty seat mid-table; swap with someone instead").into(),
+            tr("Would leave a gap; swap seats instead").into(),
         ));
     }
     let scorer = crate::seating::Scorer::new(project);
@@ -231,7 +231,7 @@ impl PlassiApp {
         match seat {
             Some(seat) => {
                 self.project.pin(person, seat);
-                self.commit(&fill("Pinned {} — the solver won't move them", &[&name]));
+                self.commit(&fill("Pinned {}", &[&name]));
             }
             None => {
                 self.project.unpin(person);
@@ -299,7 +299,7 @@ impl PlassiApp {
                 crate::preferences::PreferenceKind::together(people),
                 crate::preferences::Strength::Important,
             );
-            self.commit(tr("Added your preference; solve or improve to apply it"));
+            self.commit(tr("Preference added; solve again to apply"));
         }
     }
 }

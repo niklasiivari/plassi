@@ -32,9 +32,7 @@ impl PlassiApp {
             p,
             crate::app::help::HelpPage::Categories,
             tr("Categories"),
-            Some(tr(
-                "What people wrote, mapped to one category each, so different spellings of the same thing count as one.",
-            )),
+            Some(tr("Merge names and set prices.")),
         );
         self.kind_tabs(ui, p);
         ui.add_space(theme::space::XL);
@@ -80,9 +78,9 @@ impl PlassiApp {
                 }
                 let tab = theme::chip(label, p, active);
                 let hint = if unmapped > 0 {
-                    fill("{} spellings not mapped yet", &[&unmapped])
+                    fill("{} uncategorized entries", &[&unmapped])
                 } else {
-                    tr("All mapped").into()
+                    tr("All categorized").into()
                 };
                 if ui.add(tab).on_hover_text(hint).clicked() {
                     self.categories.kind = kind;

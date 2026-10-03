@@ -12,9 +12,10 @@ use crate::i18n::tr;
 const NOTICES: &str = include_str!("../../THIRD_PARTY_NOTICES.md");
 
 #[cfg(target_arch = "wasm32")]
-const PRIVACY: &str = "Plassi keeps your projects in this browser, on this device. Nothing is sent to any server: no accounts, no tracking, no cookies.";
+const PRIVACY: &str =
+    "Stored only in this browser on this device. No accounts, tracking or cookies.";
 #[cfg(not(target_arch = "wasm32"))]
-const PRIVACY: &str = "Plassi keeps your projects in files on this computer. Nothing is sent to any server: no accounts, no tracking.";
+const PRIVACY: &str = "Stored only in files on this computer. No accounts or tracking.";
 
 /// One `## ` part of the notices file.
 struct Section {
@@ -124,18 +125,14 @@ fn window(ctx: &egui::Context, p: Palette, open: &mut bool) {
             theme::section_title(ui, p, tr("Privacy"));
             ui.add(egui::Label::new(tr(PRIVACY)).wrap());
             ui.add_space(theme::space::M);
-            theme::section_title(ui, p, tr("Open-source software in Plassi"));
-            theme::hint(
-                ui,
-                p,
-                tr("Plassi includes the following software and fonts, used under their licences."),
-            );
+            theme::section_title(ui, p, tr("Licences"));
+            theme::hint(ui, p, tr("Software and fonts"));
             ui.add_space(theme::space::S);
             egui::ScrollArea::vertical()
                 .max_height(360.0)
                 .show(ui, |ui| {
                     for section in sections() {
-                        egui::CollapsingHeader::new(&section.title)
+                        egui::CollapsingHeader::new(crate::i18n::tr_any(&section.title))
                             .show(ui, |ui| section_body(ui, p, section));
                     }
                 });

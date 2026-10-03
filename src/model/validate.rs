@@ -14,39 +14,39 @@ const MAX_SIDE_SEATS: usize = 500;
 impl Project {
     pub fn validate(&self) -> Result<()> {
         if self.version != 1 {
-            bail!("unsupported project version {}", self.version);
+            bail!(fill("Unsupported project version: {}", &[&self.version]));
         }
         let people: HashSet<_> = self.attendees.iter().map(|p| p.id).collect();
         if people.len() != self.attendees.len() {
-            bail!("duplicate attendee ID");
+            bail!(tr("Duplicate person ID"));
         }
         if self
             .attendees
             .iter()
             .any(|p| p.id == usize::MAX || p.name.trim().is_empty())
         {
-            bail!("attendees need a name and a usable ID");
+            bail!(tr("Each person needs a name and valid ID"));
         }
         let known = self.layout.validate()?;
         let mut rule_ids = HashSet::new();
         for rule in &self.rules {
             if rule.id == u64::MAX {
-                bail!("rule ID is out of range");
+                bail!(tr("Invalid rule ID"));
             }
             if !rule_ids.insert(rule.id) {
-                bail!("duplicate rule ID {}", rule.id);
+                bail!(fill("Duplicate rule ID: {}", &[&rule.id]));
             }
             rule.validate(&people, &known)?;
         }
         if self.notes.iter().any(|note| !people.contains(&note.person)) {
-            return Err(anyhow!("import note refers to unknown person"));
+            return Err(anyhow!(tr("Note refers to a missing person")));
         }
         if !(0..=100).contains(&self.policy.organization_weight)
             || !(-50..=50).contains(&self.policy.sprinkle)
             || !(0..=2_000).contains(&self.policy.isolation_penalty)
             || !(0..=2_000).contains(&self.policy.left_out_penalty)
         {
-            bail!("seating policy values are outside their supported ranges");
+            bail!(tr("Seating policy value out of range"));
         }
         for candidate in &self.candidates {
             candidate.validate(&people)?;
@@ -57,7 +57,7 @@ impl Project {
             .saturating_mul(soft.saturating_add(1))
             .saturating_add(soft);
         if encoded > i128::from(i64::MAX / 4) {
-            bail!("project scores exceed the supported range");
+            bail!(tr("Scores are too large; reduce weights or penalties"));
         }
         Ok(())
     }
@@ -148,11 +148,11 @@ impl Candidate {
     /// allowed (the room may have changed); they show up as assignment errors.
     fn validate(&self, people: &HashSet<usize>) -> Result<()> {
         if let Some(person) = self.assignment.keys().find(|p| !people.contains(p)) {
-            bail!("{} seats unknown person {person}", self.name);
+            bail!(fill("{}: person {} is missing", &[&self.name, &person]));
         }
         let mut taken = HashSet::new();
         if let Some(seat) = self.assignment.values().find(|s| !taken.insert(*s)) {
-            bail!("{} puts two people on seat {seat}", self.name);
+            bail!(fill("{}: seat {} has two people", &[&self.name, &seat]));
         }
         Ok(())
     }
@@ -172,31 +172,31 @@ impl Layout {
         let mut tables = HashSet::new();
         for row in &self.rows {
             if row.id.is_empty() || !rows.insert(&row.id) {
-                bail!("empty or duplicate row ID: {}", row.id);
+                bail!(fill("Empty or duplicate row ID: {}", &[&row.id]));
             }
             for table in &row.tables {
                 if table.id.is_empty() || !tables.insert(&table.id) {
-                    bail!("empty or duplicate table ID: {}", table.id);
+                    bail!(fill("Empty or duplicate table ID: {}", &[&table.id]));
                 }
                 // Seat IDs are "table:side:index".
                 if table.id.contains(':') {
-                    bail!("table ID {} may not contain ':'", table.id);
+                    bail!(fill("Table ID {} cannot contain ':'", &[&table.id]));
                 }
                 if table.left.max(table.right) > MAX_SIDE_SEATS {
-                    bail!(
-                        "table {} has more than {MAX_SIDE_SEATS} seats on a side",
-                        table.id
-                    );
+                    bail!(fill(
+                        "Table {} exceeds {} seats per side",
+                        &[&table.id, &MAX_SIDE_SEATS]
+                    ));
                 }
             }
         }
         let all_seats = self.seats();
         let seats: HashSet<String> = all_seats.iter().map(|s| s.id.clone()).collect();
         if seats.len() != all_seats.len() {
-            bail!("duplicate seat ID");
+            bail!(tr("Duplicate seat ID"));
         }
         if let Some(id) = self.seat_tags.keys().find(|id| !seats.contains(*id)) {
-            bail!("tags refer to unknown seat {id}");
+            bail!(fill("Tags refer to missing seat {}", &[&id]));
         }
         self.validate_relations(&seats)?;
         Ok(LayoutIds {
@@ -213,16 +213,18 @@ impl Layout {
                 || !seats.contains(&relation.a)
                 || !seats.contains(&relation.b)
             {
-                bail!(
-                    "relation refers to missing or identical seats: {} / {}",
-                    relation.a,
-                    relation.b
-                );
+                bail!(fill(
+                    "Distance needs two different existing seats: {} / {}",
+                    &[&relation.a, &relation.b]
+                ));
             }
             let mut pair = [relation.a.as_str(), relation.b.as_str()];
             pair.sort();
             if !pairs.insert(pair) {
-                bail!("duplicate seat relation {} / {}", relation.a, relation.b);
+                bail!(fill(
+                    "Duplicate seat distance: {} / {}",
+                    &[&relation.a, &relation.b]
+                ));
             }
         }
         Ok(())
@@ -240,20 +242,20 @@ impl Rule {
                 ..
             } => {
                 if !people.contains(person) {
-                    bail!("rule {} refers to unknown person", self.id);
+                    bail!(fill("Rule {}: person is missing", &[&self.id]));
                 }
                 if !(0..=MAX_DISTANCE_COST).contains(penalty) {
-                    bail!("rule {} has invalid placement penalty", self.id);
+                    bail!(fill("Rule {}: invalid placement penalty", &[&self.id]));
                 }
                 match area {
                     Area::Seat(id) if !layout.seats.contains(id) => {
-                        bail!("rule {} refers to unknown seat {}", self.id, id)
+                        bail!(fill("Rule {}: seat {} is missing", &[&self.id, &id]))
                     }
                     Area::Table(id) if !layout.tables.contains(id) => {
-                        bail!("rule {} refers to unknown table {}", self.id, id)
+                        bail!(fill("Rule {}: table {} is missing", &[&self.id, &id]))
                     }
                     Area::Row(id) | Area::RowCenter(id) if !layout.rows.contains(id) => {
-                        bail!("rule {} refers to unknown row {}", self.id, id)
+                        bail!(fill("Rule {}: row {} is missing", &[&self.id, &id]))
                     }
                     _ => Ok(()),
                 }
@@ -264,10 +266,10 @@ impl Rule {
                 near_end_penalty,
             } => {
                 if !people.contains(person) {
-                    bail!("rule {} refers to unknown person", self.id);
+                    bail!(fill("Rule {}: person is missing", &[&self.id]));
                 }
                 if !(0..=10_000).contains(end_penalty) || !(0..=10_000).contains(near_end_penalty) {
-                    bail!("rule {} has an invalid table-end penalty", self.id);
+                    bail!(fill("Rule {}: invalid table-end penalty", &[&self.id]));
                 }
                 Ok(())
             }
@@ -279,14 +281,17 @@ impl Rule {
                 ..
             } => {
                 if !people.contains(requester) {
-                    bail!("rule {} refers to unknown requester", self.id);
+                    bail!(fill("Rule {}: requester is missing", &[&self.id]));
                 }
                 if !(0..=MAX_WEIGHT).contains(weight)
                     || !costs.is_ordered()
                     || costs.0[0] < 0
                     || costs.0[CLASSES - 1] > MAX_DISTANCE_COST
                 {
-                    bail!("rule {} has invalid proximity costs", self.id);
+                    bail!(fill(
+                        "Rule {}: invalid weight or distance costs",
+                        &[&self.id]
+                    ));
                 }
                 self.validate_target(target, *requester, people)
             }
@@ -308,7 +313,10 @@ impl Rule {
                         .iter()
                         .any(|id| !people.contains(id) || *id == requester)
                 {
-                    bail!("rule {} has invalid targets", self.id);
+                    bail!(fill(
+                        "Rule {}: choose other people without duplicates",
+                        &[&self.id]
+                    ));
                 }
             }
             Target::Tag {
@@ -317,7 +325,7 @@ impl Rule {
             }
             | Target::Organization { required, name } => {
                 if *required == 0 || name.trim().is_empty() {
-                    bail!("rule {} has invalid tag target", self.id);
+                    bail!(fill("Rule {}: name and count are required", &[&self.id]));
                 }
             }
         }

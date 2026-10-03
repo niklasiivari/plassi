@@ -25,9 +25,7 @@ impl PlassiApp {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui
                     .add(theme::secondary_button(tr("+ Add person")))
-                    .on_hover_text(tr(
-                        "A walk-in: add them and seat them in the best free seat",
-                    ))
+                    .on_hover_text(tr("Add a person"))
                     .clicked()
                 {
                     self.people.roster = Some(roster::RosterEdit::Add(Default::default()));
@@ -36,13 +34,7 @@ impl PlassiApp {
         });
         ui.add_space(theme::space::M);
         if self.project.attendees.is_empty() {
-            theme::hint(
-                ui,
-                p,
-                tr(
-                    "No people yet. Paste your sign-up sheet on the right, or add people one by one.",
-                ),
-            );
+            theme::hint(ui, p, tr("Paste a sheet or add people."));
             return;
         }
         ui.add(
@@ -150,7 +142,7 @@ impl PlassiApp {
                 PeopleFilter::All,
                 fill("All {}", &[&self.project.attendees.len()]),
             ),
-            (PeopleFilter::ToReview, fill("To review {}", &[&to_review])),
+            (PeopleFilter::ToReview, fill("Unreviewed {}", &[&to_review])),
             (PeopleFilter::WithWishes, tr("Wishes").to_string()),
             (PeopleFilter::Unconstrained, tr("No wishes").to_string()),
             (PeopleFilter::Unmet, tr("Unmet wishes").to_string()),

@@ -107,11 +107,11 @@ impl Column {
     /// What goes in the column, for the template help.
     pub fn explain(self) -> &'static str {
         match self {
-            Column::Name => tr("Full name; people are matched by it."),
-            Column::Organization => tr("Organization or club. Used for mixing and avatar colours."),
+            Column::Name => tr("Full name. Used to match existing people."),
+            Column::Organization => tr("Organization or club."),
             Column::Group => tr("Ticket type or participant group."),
-            Column::Avec => tr("The avec's full name, as the person wrote it."),
-            Column::Wish => tr("Who they want to sit with, in their own words."),
+            Column::Avec => tr("Avec's name, as written."),
+            Column::Wish => tr("Seating wishes, as written."),
             Column::Food => tr("Menu choice."),
             Column::Drink => tr("Drink choice."),
             Column::Allergies => tr("Allergies and diets."),
@@ -290,8 +290,8 @@ fn rows(sheet: &Sheet) -> Vec<Row> {
 }
 
 pub fn import_tsv(path: &Path) -> Result<Project> {
-    let text =
-        std::fs::read_to_string(path).with_context(|| format!("opening {}", path.display()))?;
+    let text = std::fs::read_to_string(path)
+        .with_context(|| fill("Could not open {}", &[&path.display()]))?;
     let sheet = parse_sheet(&text)?;
     let mut project = Project::new();
     merge(&mut project, &sheet)?;
@@ -313,7 +313,7 @@ pub struct MergeSummary {
 pub fn merge(project: &mut Project, sheet: &Sheet) -> Result<MergeSummary> {
     if !sheet.has_name() {
         bail!(fill(
-            "no name column; set one column to “{}” (found: {})",
+            "Choose a “{}” column (found: {})",
             &[&Column::Name.label(), &sheet.headers.join(", ")]
         ));
     }
@@ -325,7 +325,7 @@ pub fn merge(project: &mut Project, sheet: &Sheet) -> Result<MergeSummary> {
     }
     let rows = rows(sheet);
     if rows.is_empty() {
-        bail!(tr("the sheet has no attendees"));
+        bail!(tr("No people in the sheet"));
     }
     let mut summary = MergeSummary::default();
     let mut claimed = HashSet::new();

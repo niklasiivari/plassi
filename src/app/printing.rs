@@ -29,9 +29,9 @@ impl PlassiApp {
             crate::app::help::HelpPage::Print,
             tr("Print"),
             Some(if cfg!(target_arch = "wasm32") {
-                tr("A4 PDFs, downloaded.")
+                tr("Download A4 PDFs.")
             } else {
-                tr("A4 PDFs, saved next to the project file.")
+                tr("A4 PDFs saved beside the project.")
             }),
         );
         if self.event_settings(ui, p) {
@@ -42,7 +42,17 @@ impl PlassiApp {
         ui.horizontal(|ui| {
             let ready = !self.project.candidates.is_empty() && self.printing.job.is_none();
             if ui
-                .add_enabled(ready, theme::primary_button(tr("Save all four PDFs"), p))
+                .add_enabled(
+                    ready,
+                    theme::primary_button(
+                        if cfg!(target_arch = "wasm32") {
+                            tr("Download all PDFs")
+                        } else {
+                            tr("Save all PDFs")
+                        },
+                        p,
+                    ),
+                )
                 .clicked()
             {
                 start = Some((PrintKind::ALL.to_vec(), false));
@@ -54,7 +64,7 @@ impl PlassiApp {
             }
             if self.printing.job.is_some() {
                 ui.spinner();
-                ui.label(tr("Typesetting…"));
+                ui.label(tr("Creating PDFs…"));
             }
         });
         ui.add_space(theme::space::S);
@@ -96,7 +106,7 @@ impl PlassiApp {
                     ui.horizontal(|ui| {
                         use crate::model::PrintLanguage;
                         for (value, label) in [
-                            (PrintLanguage::SameAsApp, tr("Same as the app")),
+                            (PrintLanguage::SameAsApp, tr("App language")),
                             (PrintLanguage::Finnish, "Suomi"),
                             (PrintLanguage::English, "English"),
                         ] {
@@ -119,7 +129,7 @@ impl PlassiApp {
 
     fn option_picker(&mut self, ui: &mut egui::Ui, p: Palette) {
         if self.project.candidates.is_empty() {
-            ui.label(RichText::new(tr("No seating yet — solve on the chart first")).color(p.warn));
+            ui.label(RichText::new(tr("Create a seating chart first")).color(p.warn));
             return;
         }
         self.selected_candidate = self
@@ -147,10 +157,7 @@ impl PlassiApp {
         let gaps = crate::model::gaps(&self.project.layout.seats(), &candidate.assignment).len();
         let problems: Vec<String> = [
             (evaluation.hard_violations, "{} hard rules broken"),
-            (
-                evaluation.assignment_errors.len(),
-                "{} seating problems (people without a seat)",
-            ),
+            (evaluation.assignment_errors.len(), "{} seating errors"),
             (gaps, "{} empty seats mid-table"),
         ]
         .into_iter()
@@ -159,10 +166,7 @@ impl PlassiApp {
         .collect();
         let (text, color) = if problems.is_empty() {
             (
-                fill(
-                    "Ready: everyone seated, no hard rules broken, score {}",
-                    &[&evaluation.penalty()],
-                ),
+                fill("Ready to print · score {}", &[&evaluation.penalty()]),
                 p.good,
             )
         } else {
@@ -181,17 +185,32 @@ impl PlassiApp {
             theme::hint(ui, p, kind.description());
             if let Some(field) = self.missing_data(kind) {
                 let text = match field {
-                    "food" => tr("No food information yet — paste a sheet with a food column on People & wishes."),
-                    _ => tr("No drink information yet — paste a sheet with a drink column on People & wishes."),
+                    "food" => tr("No meal data. Add it on People & wishes."),
+                    _ => tr("No drink data. Add it on People & wishes."),
                 };
                 ui.label(RichText::new(text).size(theme::text::SMALL).color(p.warn));
             }
             ui.horizontal(|ui| {
-                if ui.add_enabled(ready, theme::primary_button(tr("Save PDF"), p)).clicked() {
+                if ui
+                    .add_enabled(
+                        ready,
+                        theme::primary_button(
+                            if cfg!(target_arch = "wasm32") {
+                                tr("Download PDF")
+                            } else {
+                                tr("Save PDF")
+                            },
+                            p,
+                        ),
+                    )
+                    .clicked()
+                {
                     request = Some(false);
                 }
                 if !cfg!(target_arch = "wasm32")
-                    && ui.add_enabled(ready, theme::secondary_button(tr("Save and open"))).clicked()
+                    && ui
+                        .add_enabled(ready, theme::secondary_button(tr("Save and open")))
+                        .clicked()
                 {
                     request = Some(true);
                 }
@@ -200,7 +219,7 @@ impl PlassiApp {
                 let (text, color) = if *revision == self.file.revision {
                     (path.clone(), p.muted)
                 } else {
-                    (fill("{} · the project has changed since", &[path]), p.warn)
+                    (fill("{} · out of date", &[path]), p.warn)
                 };
                 ui.label(RichText::new(text).size(theme::text::CAPTION).color(color));
             }
@@ -276,7 +295,14 @@ impl PlassiApp {
         }
         self.status = match (saved.is_empty(), failed.is_empty()) {
             (_, false) => failed.join("; "),
-            (false, true) => fill("Saved {}", &[&saved.join(", ")]),
+            (false, true) => fill(
+                if cfg!(target_arch = "wasm32") {
+                    "Downloaded {}"
+                } else {
+                    "Saved {}"
+                },
+                &[&saved.join(", ")],
+            ),
             (true, true) => String::new(),
         };
     }

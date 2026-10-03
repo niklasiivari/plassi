@@ -113,7 +113,7 @@ impl PlassiApp {
             Ok(project) => {
                 self.backup_now();
                 self.project = project;
-                self.commit(tr("Imported attendees; layout and previous edits replaced"));
+                self.commit(tr("Project replaced from TSV"));
             }
             Err(error) => self.status = fill("Import failed: {}", &[&format!("{error:#}")]),
         }
@@ -127,7 +127,7 @@ impl PlassiApp {
         self.status = match result {
             Ok(saved) => {
                 self.downloaded_copy();
-                fill("Saved the project: {}", &[&saved.description])
+                fill("Downloaded project: {}", &[&saved.description])
             }
             Err(error) => format!("{error:#}"),
         };
@@ -148,7 +148,7 @@ impl PlassiApp {
                 self.backup_now();
                 self.project = project;
                 self.selected_candidate = 0;
-                self.commit(tr("Loaded the project file"));
+                self.commit(tr("Project file loaded"));
             }
             Err(error) => {
                 self.status = fill("Could not load that file: {}", &[&format!("{error:#}")])
@@ -166,7 +166,7 @@ impl PlassiApp {
         let store = self.file.library.store(name);
         match store
             .read()
-            .ok_or_else(|| anyhow::anyhow!("{name} is empty"))
+            .ok_or_else(|| anyhow::anyhow!(fill("Project {} not found", &[&name])))
             .and_then(|b| io::parse(&b).map(|p| (p, b)))
         {
             Ok((project, bytes)) => {
@@ -211,7 +211,7 @@ impl PlassiApp {
             return;
         }
         if self.file.library.projects().iter().any(|n| n == to) {
-            self.status = fill("There is already a project called {}", &[&to]);
+            self.status = fill("A project named {} already exists", &[&to]);
             return;
         }
         match self.file.library.rename(&self.file.name, to) {
@@ -219,7 +219,7 @@ impl PlassiApp {
                 self.file.name = to.to_string();
                 self.file.store = self.file.library.store(to);
                 self.file.library.remember(to);
-                self.status = fill("Renamed the project to {}", &[&to]);
+                self.status = fill("Renamed to {}", &[&to]);
             }
             Err(error) => self.status = format!("{error:#}"),
         }
@@ -263,20 +263,17 @@ impl PlassiApp {
                     self.backup_bytes(&before.clone());
                 }
                 if let Some(before) = self.file.last_bytes.replace(bytes) {
-                    self.push_undo(before, tr("Changes made outside the app").into());
+                    self.push_undo(before, tr("External edits").into());
                 }
                 self.file.redo_stack.clear();
                 self.file.external_invalid = false;
                 self.replace_project(project);
-                self.status = fill(
-                    "Reloaded external changes from {}",
-                    &[&self.file.store.location()],
-                );
+                self.status = fill("Loaded changes from {}", &[&self.file.store.location()]);
             }
             Err(error) => {
                 self.file.external_invalid = true;
                 self.status = fill(
-                    "External JSON is invalid; showing last valid state: {}",
+                    "Invalid file; last saved version shown: {}",
                     &[&format!("{error:#}")],
                 );
             }
@@ -337,17 +334,13 @@ impl PlassiApp {
     /// project goes back to the last saved state.
     pub(super) fn save(&mut self, message: &str) -> bool {
         if self.file.external_invalid {
-            self.revert(tr(
-                "Cannot save while the project file is invalid; repair it first",
-            ));
+            self.revert(tr("Fix the project file before saving"));
             return false;
         }
         let disk_bytes = self.file.store.read();
         // A missing file is simply written again; any other difference is an external edit.
         if disk_bytes.is_some() && disk_bytes.as_deref() != self.file.last_bytes.as_deref() {
-            self.revert(tr(
-                "The project file changed outside the app; reloading it instead of overwriting",
-            ));
+            self.revert(tr("File changed; loading external edits"));
             self.file.last_check = Instant::now() - Duration::from_secs(1);
             self.sync_external();
             return false;

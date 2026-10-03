@@ -67,18 +67,16 @@ impl PlassiApp {
         ui.add_space(theme::space::S);
         edit.merge(self.row_cards(ui, p));
         ui.add_space(theme::space::L);
-        egui::CollapsingHeader::new(
-            RichText::new(tr("Advanced: seat tags and seat relationships")).strong(),
-        )
-        .id_salt("advanced-room")
-        .show(ui, |ui| edit.labels |= self.advanced_room(ui, p));
+        egui::CollapsingHeader::new(RichText::new(tr("Advanced: tags and distances")).strong())
+            .id_salt("advanced-room")
+            .show(ui, |ui| edit.labels |= self.advanced_room(ui, p));
         ui.add_space(theme::space::S);
         self.replace_from_tsv(ui, p);
         self.save_room(edit);
         if let Err(error) = self.project.validate() {
             ui.colored_label(
                 p.warn,
-                fill("Project needs attention: {}", &[&format!("{error:#}")]),
+                fill("Invalid project: {}", &[&format!("{error:#}")]),
             );
         }
     }
@@ -99,7 +97,7 @@ impl PlassiApp {
             let (text, color) = match seats.cmp(&people) {
                 std::cmp::Ordering::Less => (fill("{} seats short", &[&(people - seats)]), p.bad),
                 std::cmp::Ordering::Equal if people == 0 => (tr("Empty").to_string(), p.muted),
-                std::cmp::Ordering::Equal => (tr("Exactly full").to_string(), p.good),
+                std::cmp::Ordering::Equal => (tr("No spare seats").to_string(), p.good),
                 std::cmp::Ordering::Greater => (fill("{} spare", &[&(seats - people)]), p.muted),
             };
             theme::status_pill(ui, p, text, color);
@@ -107,13 +105,7 @@ impl PlassiApp {
                 crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Room);
             });
         });
-        ui.label(
-            RichText::new(
-                tr("Tables are vertical and stand side by side in a row. Seats run down the left and right sides; \
-                 spare seats are left at the bottom of tables."),
-            )
-            .color(p.muted),
-        );
+        ui.label(RichText::new(tr("Long tables with seats on both sides.")).color(p.muted));
     }
 
     /// "N tables with M seats per side" in one click. Returns true if the room was replaced.
@@ -122,7 +114,11 @@ impl PlassiApp {
         let mut replace = false;
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.label(RichText::new(tr("Quick setup")).strong().size(theme::text::LEAD));
+            ui.label(
+                RichText::new(tr("Quick setup"))
+                    .strong()
+                    .size(theme::text::LEAD),
+            );
             ui.add_space(theme::space::XS);
             ui.horizontal(|ui| {
                 ui.add(egui::DragValue::new(&mut self.room.quick_tables).range(1..=40));
@@ -134,14 +130,26 @@ impl PlassiApp {
                 ui.label(RichText::new(fill("= {} seats", &[&total])).color(color));
                 let empty = self.project.layout.seat_count() == 0;
                 replace = ui
-                    .add(theme::primary_button(if empty { tr("Create room") } else { tr("Replace room") }, p))
-                    .on_hover_text(tr("One row of equal tables. Replaces any rows and tables and clears existing options."))
+                    .add(theme::primary_button(
+                        if empty {
+                            tr("Create room")
+                        } else {
+                            tr("Replace room")
+                        },
+                        p,
+                    ))
+                    .on_hover_text(tr("Replaces all tables and clears seating options."))
                     .clicked();
             });
             if people > 0 {
                 let (tables, per_side) = crate::model::Layout::suggested(people);
                 if (tables, per_side) != (self.room.quick_tables, self.room.quick_seats)
-                    && ui.link(fill("For {} people: {} tables with {} seats per side", &[&people, &tables, &per_side])).clicked()
+                    && ui
+                        .link(fill(
+                            "For {} people: {} tables with {} seats per side",
+                            &[&people, &tables, &per_side],
+                        ))
+                        .clicked()
                 {
                     (self.room.quick_tables, self.room.quick_seats) = (tables, per_side);
                 }
@@ -196,11 +204,11 @@ impl PlassiApp {
         if cfg!(target_arch = "wasm32") {
             return;
         }
-        egui::CollapsingHeader::new(RichText::new(tr("Data: replace project from a TSV file")).strong())
+        egui::CollapsingHeader::new(RichText::new(tr("Replace project from TSV")).strong())
             .id_salt("import-room")
             .show(ui, |ui| {
                 ui.label(
-                    RichText::new(tr("This replaces the whole project, including rules and options. To add or update attendees, paste a sheet on People & wishes instead."))
+                    RichText::new(tr("Replaces the entire project. To update people, use Import on People & wishes."))
                         .color(p.warn),
                 );
                 ui.horizontal(|ui| {
@@ -244,11 +252,7 @@ impl PlassiApp {
         if self.room.selected_seat.is_empty() {
             self.room.selected_seat = seats[0].id.clone();
         }
-        theme::hint(
-            ui,
-            p,
-            tr("Tags mark seats for placement rules, e.g. “accessible” or “aisle”."),
-        );
+        theme::hint(ui, p, tr("Mark special seats, e.g. accessible or aisle."));
         let mut changed = false;
         ui.horizontal_wrapped(|ui| {
             seat_picker(ui, "tag-seat", &mut self.room.selected_seat, seats);
@@ -299,11 +303,7 @@ impl PlassiApp {
         if self.room.relation_b.is_empty() {
             self.room.relation_b = seats[seats.len() - 1].id.clone();
         }
-        theme::hint(
-            ui,
-            p,
-            tr("A relationship overrides how close two seats count as, even across tables."),
-        );
+        theme::hint(ui, p, tr("Set a custom distance between two seats."));
         let mut changed = false;
         ui.horizontal_wrapped(|ui| {
             seat_picker(ui, "relation-a", &mut self.room.relation_a, seats);
@@ -314,7 +314,7 @@ impl PlassiApp {
                 }
             });
             let (a, b) = (&self.room.relation_a, &self.room.relation_b);
-            if ui.button(tr("Add / replace")).clicked() && a != b {
+            if ui.button(tr("Save distance")).clicked() && a != b {
                 self.project
                     .layout
                     .relations

@@ -4,7 +4,7 @@
 //! They compile into the same scoring terms as wishes, so the solver treats
 //! them alike, but they are stored, listed and edited on their own.
 
-use crate::i18n::tr;
+use crate::i18n::{fill, tr};
 use std::collections::HashSet;
 
 use anyhow::{Result, bail};
@@ -62,9 +62,9 @@ impl Strength {
 
     pub fn label(self) -> &'static str {
         match self {
-            Strength::NiceToHave => tr("Nice to have"),
+            Strength::NiceToHave => tr("Optional"),
             Strength::Important => tr("Important"),
-            Strength::Must => tr("Must"),
+            Strength::Must => tr("Required"),
         }
     }
 
@@ -215,28 +215,31 @@ impl Project {
         let mut ids = HashSet::new();
         for preference in &self.preferences {
             if preference.id == u64::MAX {
-                bail!("preference ID is out of range");
+                bail!(tr("Invalid preference ID"));
             }
             if !ids.insert(preference.id) {
-                bail!("duplicate preference ID {}", preference.id);
+                bail!(fill("Duplicate preference ID: {}", &[&preference.id]));
             }
             let members = preference.kind.people();
             let distinct: HashSet<_> = members.iter().collect();
             if members.len() < 2 || distinct.len() != members.len() {
-                bail!(
-                    "preference {} needs two or more different people",
-                    preference.id
-                );
+                bail!(fill(
+                    "Preference {} needs at least two different people",
+                    &[&preference.id]
+                ));
             }
             if members.iter().any(|p| !people.contains(p)) {
-                bail!("preference {} refers to an unknown person", preference.id);
+                bail!(fill("Preference {}: person is missing", &[&preference.id]));
             }
             if let PreferenceKind::Together { costs, .. } = &preference.kind
                 && (!costs.is_ordered()
                     || costs.0[0] < 0
                     || costs.0[crate::model::CLASSES - 1] > MAX_DISTANCE_COST)
             {
-                bail!("preference {} has invalid distance costs", preference.id);
+                bail!(fill(
+                    "Preference {}: invalid distance costs",
+                    &[&preference.id]
+                ));
             }
         }
         Ok(())

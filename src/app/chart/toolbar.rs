@@ -49,16 +49,19 @@ impl PlassiApp {
         let has_option = !self.project.candidates.is_empty();
         if ui
             .add_enabled(can_solve, theme::primary_button(tr("Solve"), p))
-            .on_hover_text(tr("Find the best chart for the current wishes and policy"))
+            .on_hover_text(tr("Find a seating arrangement"))
             .on_disabled_hover_text(tr("Add people and enough seats first"))
             .clicked()
         {
             self.start_solve(false);
         }
         if ui
-            .add_enabled(can_solve && has_option, theme::secondary_button(tr("Improve")))
-            .on_hover_text(fill("Search for {} s, keeping pinned people and those moved by hand in place. Saves the result as a new option.", &[&self.improve_time.as_secs()]))
-        .clicked()
+            .add_enabled(
+                can_solve && has_option,
+                theme::secondary_button(tr("Improve")),
+            )
+            .on_hover_text(tr("Keep manual seats and improve the rest"))
+            .clicked()
         {
             self.start_improve();
         }
@@ -71,20 +74,26 @@ impl PlassiApp {
             false,
             can_solve && has_option,
         );
-        egui::Popup::menu(&button).style(theme::menu_style).show(|ui| {
-                if ui.button(tr("Find a different option")).on_hover_text(tr("Search again, moving at least about 10% of people who made wishes")).clicked() {
+        egui::Popup::menu(&button)
+            .style(theme::menu_style)
+            .show(|ui| {
+                if ui
+                    .button(tr("Different option"))
+                    .on_hover_text(tr("Find a different seating arrangement"))
+                    .clicked()
+                {
                     self.start_solve(true);
                     ui.close();
                 }
-                let more = fill(
-                    "Continue for {} s from this seating. Only pinned people stay fixed, and a new option is saved only if its score improves.",
-                    &[&self.solve_time.as_secs()],
-                );
-                if ui.button(tr("Search this option further")).on_hover_text(more).clicked() {
+                if ui
+                    .button(tr("Continue search"))
+                    .on_hover_text(tr("Keep pins; save only a better result"))
+                    .clicked()
+                {
                     self.start_continue();
                     ui.close();
                 }
-        });
+            });
         if self.solving.is_some() {
             ui.spinner();
         }
@@ -163,7 +172,7 @@ impl PlassiApp {
                         "{}\n{}",
                         candidate.solver_status.describe(),
                         fill(
-                            "{} of {} wishes fully met · score {} (lower is better)",
+                            "{} of {} wishes met · score {} (lower is better)",
                             &[&summary.met, &summary.wishes, &score]
                         ),
                     );
@@ -173,7 +182,7 @@ impl PlassiApp {
                     if is_best {
                         hover.push_str(tr(" · best"));
                     }
-                    hover.push_str(&format!("\n{}", tr("Right-click for more")));
+                    hover.push_str(&format!("\n{}", tr("Right-click for actions")));
                     let response = ui.add(theme::chip(label, p, active)).on_hover_text(hover);
                     if response.clicked() {
                         selected = index;
@@ -194,7 +203,7 @@ impl PlassiApp {
                                     ui.close();
                                 }
                             });
-                            if ui.button(tr("Duplicate (edit a copy)")).clicked() {
+                            if ui.button(tr("Duplicate")).clicked() {
                                 action = Some(OptionAction::Duplicate(index));
                             }
                             if !active && ui.button(tr("Compare with current")).clicked() {

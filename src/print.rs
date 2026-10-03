@@ -38,20 +38,18 @@ impl PrintKind {
     pub fn title(self) -> &'static str {
         match self {
             PrintKind::Chart => tr("Seating chart"),
-            PrintKind::Kitchen => tr("Kitchen chart"),
-            PrintKind::Bar => tr("Bar chart"),
+            PrintKind::Kitchen => tr("Kitchen"),
+            PrintKind::Bar => tr("Bar"),
             PrintKind::Door => tr("Door list"),
         }
     }
 
     pub fn description(self) -> &'static str {
         match self {
-            PrintKind::Chart => tr(
-                "For the wall: every table with names, plus an alphabetical index to find your seat.",
-            ),
-            PrintKind::Kitchen => tr("Food choices and allergies per table and seat, with totals."),
-            PrintKind::Bar => tr("Drink choices per table and seat, with totals."),
-            PrintKind::Door => tr("Alphabetical names and total ticket, food and drink price."),
+            PrintKind::Chart => tr("Table chart and alphabetical seat index."),
+            PrintKind::Kitchen => tr("Table chart with meals, allergies and totals."),
+            PrintKind::Bar => tr("Table chart with drinks and totals."),
+            PrintKind::Door => tr("Names and prices, alphabetically."),
         }
     }
 }
@@ -85,7 +83,11 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
         .max()
         .unwrap_or(1);
     let title = if project.event.title.trim().is_empty() {
-        "Seating".to_string()
+        match project.event.print_language.code() {
+            "fi" => "Istumajärjestys",
+            _ => "Seating",
+        }
+        .to_string()
     } else {
         project.event.title.clone()
     };

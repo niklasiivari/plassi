@@ -68,7 +68,7 @@ fn stat_grid(ui: &mut egui::Ui, p: Palette, scene: &Scene, evaluation: &Evaluati
         stat_tile(
             &mut cols[0],
             p,
-            tr("Wishes fully met"),
+            tr("Wishes met"),
             format!("{met}/{wishers}"),
             met_color,
         );
@@ -149,7 +149,7 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
     theme::section_title(ui, p, tr("Legend"));
     theme::text_rows(ui, |ui| {
         for (status, text) in [
-            (Outcome::Met, tr("All their wishes met")),
+            (Outcome::Met, tr("All wishes met")),
             (Outcome::Partial, tr("Some wishes not met")),
             (Outcome::Broken, tr("Hard rule broken")),
         ] {
@@ -165,7 +165,7 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
     theme::hint(
         ui,
         p,
-        tr("Drag to move or swap. Ctrl-click to select people; right-click for more actions."),
+        tr("Drag to move. Ctrl-click to select. Right-click for actions."),
     );
     ui.add_space(theme::space::M);
     theme::section_title(ui, p, tr("Keys"));
@@ -187,10 +187,7 @@ impl PlassiApp {
         }
         let Some(evaluation) = &scene.evaluation else {
             theme::section_title(ui, p, tr("Overview"));
-            ui.label(
-                RichText::new(tr("Solve to create a first chart. You can then drag people between seats; scores update instantly."))
-                    .color(p.muted),
-            );
+            ui.label(RichText::new(tr("No seating yet")).color(p.muted));
             return;
         };
         self.score_card(ui, p, scene, evaluation);
@@ -256,8 +253,8 @@ impl PlassiApp {
             ui.add_space(theme::space::L);
             theme::tinted_card(p, p.bad).show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                ui.label(RichText::new(tr("Empty seats in the middle of a table")).strong().color(p.bad));
-                theme::hint(ui, p, tr("Spare seats belong at table bottoms. Close the gaps by sliding people up (pinned people stay put)."));
+                ui.label(RichText::new(tr("Gaps in tables")).strong().color(p.bad));
+                theme::hint(ui, p, tr("Moves people up; keeps pinned seats."));
                 if ui.add(theme::primary_button(tr("Close gaps"), p)).clicked() {
                     self.close_gaps();
                 }
@@ -280,7 +277,7 @@ impl PlassiApp {
             .filter_map(|id| self.project.person(*id))
         {
             ui.label(
-                RichText::new(fill("None of {}'s wishes is near them", &[&a.name]))
+                RichText::new(fill("No wished-for people near {}", &[&a.name]))
                     .size(theme::text::SMALL)
                     .color(p.warn),
             );
@@ -289,11 +286,8 @@ impl PlassiApp {
             ui.horizontal(|ui| {
                 theme::status_dot(ui, p.warn);
                 ui.label(
-                    RichText::new(fill(
-                        "{} people sit differently in the compared option",
-                        &[&scene.moved.len()],
-                    ))
-                    .size(theme::text::SMALL),
+                    RichText::new(fill("{} people in different seats", &[&scene.moved.len()]))
+                        .size(theme::text::SMALL),
                 );
             });
         }
@@ -304,7 +298,7 @@ impl PlassiApp {
             .count();
         if broken > 0 {
             ui.label(
-                RichText::new(fill("{} people have a broken hard rule", &[&broken])).color(p.bad),
+                RichText::new(fill("{} people with broken hard rules", &[&broken])).color(p.bad),
             );
         }
         for error in &evaluation.assignment_errors {
@@ -328,7 +322,7 @@ impl PlassiApp {
             .collect();
         issues.sort_by_key(|r| (!r.hard_violation, -r.penalty));
         if issues.is_empty() {
-            ui.label(RichText::new(tr("Every wish is met")).color(p.good));
+            ui.label(RichText::new(tr("All wishes met")).color(p.good));
         }
         let mut select = None;
         for result in issues {

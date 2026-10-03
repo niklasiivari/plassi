@@ -7,6 +7,7 @@ use std::sync::mpsc::{self, Receiver};
 use anyhow::{Context, Result};
 
 use super::{Pdfs, Saved};
+use crate::i18n::fill;
 use crate::seating::{Outcome, Progress, Search};
 
 /// The project file.
@@ -33,8 +34,9 @@ impl Store {
     /// Writes atomically: a temporary file renamed over the old one.
     pub fn write(&self, bytes: &[u8]) -> Result<()> {
         let temp = self.path.with_extension("json.tmp");
-        fs::write(&temp, bytes).with_context(|| format!("writing {}", temp.display()))?;
-        fs::rename(&temp, &self.path).with_context(|| format!("saving {}", self.path.display()))
+        fs::write(&temp, bytes).with_context(|| fill("Could not write {}", &[&temp.display()]))?;
+        fs::rename(&temp, &self.path)
+            .with_context(|| fill("Could not save {}", &[&self.path.display()]))
     }
 
     /// The folder files are saved to.
@@ -98,7 +100,7 @@ impl SearchRunner {
 /// Saves `bytes` as `name` next to the project file.
 pub fn save_file(store: &Store, name: &str, bytes: &[u8]) -> Result<Saved> {
     let path = store.folder().join(name);
-    fs::write(&path, bytes).with_context(|| format!("writing {}", path.display()))?;
+    fs::write(&path, bytes).with_context(|| fill("Could not write {}", &[&path.display()]))?;
     Ok(Saved {
         description: path.display().to_string(),
         location: Some(path),
@@ -117,7 +119,7 @@ pub fn open_location(path: &Path) -> Result<()> {
     std::process::Command::new(program)
         .arg(path)
         .spawn()
-        .with_context(|| format!("opening {}", path.display()))?;
+        .with_context(|| fill("Could not open {}", &[&path.display()]))?;
     Ok(())
 }
 
@@ -222,7 +224,7 @@ impl Library {
 
     pub fn rename(&self, from: &str, to: &str) -> Result<()> {
         fs::rename(self.path(from), self.path(to))
-            .with_context(|| format!("renaming {from} to {to}"))?;
+            .with_context(|| fill("Could not rename {} to {}", &[&from, &to]))?;
         let _ = fs::rename(self.backups.join(from), self.backups.join(to));
         Ok(())
     }
@@ -230,10 +232,11 @@ impl Library {
     /// Keeps `bytes` as an earlier version of `name`, and drops old ones.
     pub fn backup(&self, name: &str, bytes: &[u8]) -> Result<()> {
         let folder = self.backups.join(name);
-        fs::create_dir_all(&folder).with_context(|| format!("creating {}", folder.display()))?;
+        fs::create_dir_all(&folder)
+            .with_context(|| fill("Could not create {}", &[&folder.display()]))?;
         let now = super::now_stamp().max(self.backups(name).first().map_or(0, |s| s + 1));
         let path = folder.join(format!("{}.json", super::backup_plan::stamp_name(now)));
-        fs::write(&path, bytes).with_context(|| format!("writing {}", path.display()))?;
+        fs::write(&path, bytes).with_context(|| fill("Could not write {}", &[&path.display()]))?;
         for old in super::backup_plan::to_prune(&self.backups(name), now, KEEP) {
             let _ = fs::remove_file(self.backup_path(name, old));
         }
@@ -280,7 +283,7 @@ impl Library {
     }
 
     pub fn delete(&self, name: &str) -> Result<()> {
-        fs::remove_file(self.path(name)).with_context(|| format!("deleting {name}"))
+        fs::remove_file(self.path(name)).with_context(|| fill("Could not delete {}", &[&name]))
     }
 
     /// The project open last time.

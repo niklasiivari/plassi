@@ -20,11 +20,9 @@ impl PlassiApp {
             });
         });
         ui.label(
-            RichText::new(tr(
-                "Who wished to sit with whom. Drag people around; click to select.",
-            ))
-            .size(theme::text::SMALL)
-            .color(p.muted),
+            RichText::new(tr("Seating wishes between people."))
+                .size(theme::text::SMALL)
+                .color(p.muted),
         );
         ui.add_space(theme::space::L);
         theme::text_rows(ui, |ui| self.graph_settings(ui));
@@ -36,13 +34,9 @@ impl PlassiApp {
 
     fn graph_settings(&mut self, ui: &mut egui::Ui) {
         let state = &mut self.graph;
-        ui.checkbox(
-            &mut state.show_everyone,
-            tr("Include people without wishes"),
-        );
-        ui.checkbox(&mut state.by_table, tr("Arrange by table")).on_hover_text(
-            tr("Pull everyone towards the table they sit at in the current option, to see which groups were split."),
-        );
+        ui.checkbox(&mut state.show_everyone, tr("Show people without wishes"));
+        ui.checkbox(&mut state.by_table, tr("Arrange by table"))
+            .on_hover_text(tr("Group by the current seating"));
         ui.checkbox(&mut state.labels, tr("Show names"));
     }
 
@@ -51,14 +45,14 @@ impl PlassiApp {
         let Some(graph) = &self.graph.graph else {
             return;
         };
-        theme::section_title(ui, p, tr("Structure"));
+        theme::section_title(ui, p, tr("Summary"));
         let mut lines = vec![
             fill(
                 "{} wishes between {} people",
                 &[&graph.edges.len(), &graph.people.len()],
             ),
             fill(
-                "{} wish groups, the largest has {}",
+                "{} wish groups · largest: {} people",
                 &[&graph.groups, &graph.largest_group],
             ),
         ];
@@ -76,10 +70,7 @@ impl PlassiApp {
                 .iter()
                 .filter(|e| e.outcome == Some(Outcome::Met))
                 .count();
-            lines.push(fill(
-                "{} of {} wishes met in this option",
-                &[&met, &graph.edges.len()],
-            ));
+            lines.push(fill("{} of {} wishes met", &[&met, &graph.edges.len()]));
         }
         for line in lines {
             ui.label(RichText::new(line).size(theme::text::SMALL));
@@ -132,11 +123,7 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
                 tr("Hard rule broken"),
                 2.0,
             ),
-            (
-                theme::outcome_color(p, None),
-                tr("Not judged (no option yet)"),
-                2.0,
-            ),
+            (theme::outcome_color(p, None), tr("No seating yet"), 2.0),
             (p.text, tr("Avec (thicker)"), 3.5),
         ] {
             ui.horizontal(|ui| {
@@ -150,8 +137,10 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
         }
     });
     ui.label(
-        RichText::new(tr("Arrows point from the person who wished. A line without arrows is mutual. Dot colour is the organization; larger dots have more links."))
-            .size(theme::text::CAPTION)
-            .color(p.muted),
+        RichText::new(tr(
+            "Arrow: requester. No arrow: mutual. Colour: organization. Size: connections.",
+        ))
+        .size(theme::text::CAPTION)
+        .color(p.muted),
     );
 }

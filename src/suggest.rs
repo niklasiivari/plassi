@@ -17,9 +17,9 @@ pub enum Confidence {
 impl Confidence {
     pub fn label(self) -> &'static str {
         match self {
-            Confidence::High => tr("sure"),
-            Confidence::Medium => tr("likely"),
-            Confidence::Low => tr("maybe"),
+            Confidence::High => tr("Exact match"),
+            Confidence::Medium => tr("Likely match"),
+            Confidence::Low => tr("Possible match"),
         }
     }
 }

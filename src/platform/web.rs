@@ -8,6 +8,7 @@ use wasm_bindgen::JsCast;
 use web_time::{Duration, Instant};
 
 use super::{Pdfs, Saved};
+use crate::i18n::{fill, tr};
 
 /// A result filled in later by browser callbacks.
 type Slot<T> = std::rc::Rc<std::cell::RefCell<Option<T>>>;
@@ -31,7 +32,7 @@ impl Store {
     }
 
     pub fn location(&self) -> String {
-        "this browser".into()
+        tr("This browser").into()
     }
 
     pub fn read(&self) -> Option<Vec<u8>> {
@@ -44,7 +45,7 @@ impl Store {
     pub fn write(&self, bytes: &[u8]) -> Result<()> {
         let text = std::str::from_utf8(bytes)?;
         local_storage()
-            .ok_or_else(|| anyhow!("this browser has no local storage"))?
+            .ok_or_else(|| anyhow!(tr("Browser storage unavailable")))?
             .set_item(&self.key, text)
             .map_err(|error| anyhow!(refusal(&error)))
     }
@@ -58,10 +59,10 @@ fn refusal(error: &wasm_bindgen::JsValue) -> &'static str {
         .unwrap_or_default();
     if name.contains("Quota") {
         crate::i18n::tr(
-            "this browser's storage is full. Download a copy of this project, then delete old projects or backups",
+            "Browser storage full. Download a backup, then delete old projects or backups.",
         )
     } else {
-        crate::i18n::tr("the browser refused to store the project")
+        crate::i18n::tr("The browser blocked saving")
     }
 }
 
@@ -135,7 +136,7 @@ impl SearchRunner {
 
 /// Offers `bytes` as a download named `name`.
 pub fn save_file(_store: &Store, name: &str, bytes: &[u8]) -> Result<Saved> {
-    let fail = |_| anyhow!("the browser refused the download");
+    let fail = |_| anyhow!(tr("The browser blocked downloading"));
     let array = js_sys::Uint8Array::from(bytes);
     let parts = js_sys::Array::of1(&array);
     let options = web_sys::BlobPropertyBag::new();
@@ -149,18 +150,18 @@ pub fn save_file(_store: &Store, name: &str, bytes: &[u8]) -> Result<Saved> {
     let url = web_sys::Url::create_object_url_with_blob(&blob).map_err(fail)?;
     let document = web_sys::window()
         .and_then(|w| w.document())
-        .ok_or_else(|| anyhow!("no document"))?;
+        .ok_or_else(|| anyhow!(tr("Download unavailable")))?;
     let anchor: web_sys::HtmlAnchorElement = document
         .create_element("a")
         .map_err(fail)?
         .dyn_into()
-        .map_err(|_| anyhow!("no anchor"))?;
+        .map_err(|_| anyhow!(tr("Download unavailable")))?;
     anchor.set_href(&url);
     anchor.set_download(name);
     anchor.click();
     let _ = web_sys::Url::revoke_object_url(&url);
     Ok(Saved {
-        description: format!("downloaded {name}"),
+        description: name.to_string(),
         location: None,
     })
 }
@@ -195,7 +196,7 @@ impl FilePick {
                 let read = wasm_bindgen_futures::JsFuture::from(file.array_buffer()).await;
                 *result.borrow_mut() = Some(
                     read.map(|buffer| js_sys::Uint8Array::new(&buffer).to_vec())
-                        .map_err(|_| "could not read the file".to_string()),
+                        .map_err(|_| tr("Could not read the file").to_string()),
                 );
             });
         });
@@ -219,14 +220,13 @@ extern "C" {
 }
 
 async fn typeset(data: &str) -> Result<Vec<u8>, String> {
-    let promise =
-        plassi_typeset(data).map_err(|_| "printing is not available on this page".to_string())?;
+    let promise = plassi_typeset(data).map_err(|_| tr("PDF export unavailable").to_string())?;
     let pdf = wasm_bindgen_futures::JsFuture::from(promise)
         .await
         .map_err(|error| {
             error
                 .as_string()
-                .unwrap_or_else(|| "typesetting failed".into())
+                .unwrap_or_else(|| tr("Could not create PDF").into())
         })?;
     Ok(js_sys::Uint8Array::new(&pdf).to_vec())
 }
@@ -319,7 +319,7 @@ impl Library {
         let bytes = self
             .store(from)
             .read()
-            .ok_or_else(|| anyhow!("no project named {from}"))?;
+            .ok_or_else(|| anyhow!(fill("Project {} not found", &[&from])))?;
         self.store(to).write(&bytes)?;
         for stamp in self.backups(from) {
             if let (Some(storage), Some(bytes)) = (local_storage(), self.read_backup(from, stamp)) {
@@ -336,8 +336,7 @@ impl Library {
     /// storage is full, the oldest backups of any project make room; if that
     /// is not enough, no backup is taken.
     pub fn backup(&self, name: &str, bytes: &[u8]) -> Result<()> {
-        let storage =
-            local_storage().ok_or_else(|| anyhow!("this browser has no local storage"))?;
+        let storage = local_storage().ok_or_else(|| anyhow!(tr("Browser storage unavailable")))?;
         let text = std::str::from_utf8(bytes)?;
         let now = super::now_stamp().max(self.backups(name).first().map_or(0, |s| s + 1));
         let mut oldest = all_backups();
@@ -345,7 +344,7 @@ impl Library {
         while storage.set_item(&backup_key(name, now), text).is_err() {
             let (old_name, old) = oldest
                 .pop()
-                .ok_or_else(|| anyhow!("no room for a backup in this browser"))?;
+                .ok_or_else(|| anyhow!(tr("No space for a backup")))?;
             let _ = storage.remove_item(&backup_key(&old_name, old));
         }
         for old in super::backup_plan::to_prune(&self.backups(name), now, KEEP) {
@@ -383,7 +382,7 @@ impl Library {
     pub fn delete(&self, name: &str) -> Result<()> {
         local_storage()
             .and_then(|s| s.remove_item(&format!("{PROJECT_PREFIX}{name}")).ok())
-            .ok_or_else(|| anyhow!("could not delete {name}"))
+            .ok_or_else(|| anyhow!(fill("Could not delete {}", &[&name])))
     }
 
     pub fn last(&self) -> Option<String> {

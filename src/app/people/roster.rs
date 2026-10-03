@@ -30,7 +30,7 @@ impl PlassiApp {
                 let title = fill("Replace {}", &[&old_name]);
                 ui.label(
                     RichText::new(fill(
-                        "The new person takes {}'s seat in every option. Wishes by or about {} are removed.",
+                        "Takes {}'s seats in all options; removes wishes involving {}.",
                         &[&old_name, &old_name],
                     ))
                     .color(p.muted),
@@ -56,9 +56,9 @@ impl PlassiApp {
             roster::remove(&mut self.project, id);
         }
         let template = if ids.len() == 1 {
-            "Removed {}; their seat is free (Improve or Close gaps on the chart)"
+            "Removed {}; seat freed"
         } else {
-            "Removed {}; their seats are free (Improve or Close gaps on the chart)"
+            "Removed {}; seats freed"
         };
         self.commit(&fill(template, &[&names.join(", ")]));
     }

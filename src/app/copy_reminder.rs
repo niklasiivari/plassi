@@ -93,7 +93,7 @@ impl PlassiApp {
                     }
                 });
                 ui.label(
-                    RichText::new(tr("Download a copy of this project"))
+                    RichText::new(tr("Download backup"))
                         .size(theme::text::SMALL)
                         .strong(),
                 );

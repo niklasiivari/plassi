@@ -29,7 +29,7 @@ impl PlassiApp {
                     .config(egui::containers::menu::MenuConfig::new().style(theme::menu_style))
                     .ui(ui, |ui| {
                         if let Some(next) = self.next_to_review(id)
-                            && ui.button(tr("Next person to review")).clicked()
+                            && ui.button(tr("Next unreviewed person")).clicked()
                         {
                             self.selected_person = Some(next);
                             self.people.wish_draft = None;
@@ -40,7 +40,7 @@ impl PlassiApp {
                                 Some(roster::RosterEdit::Replace(id, Default::default()));
                             ui.close();
                         }
-                        if ui.button(tr("Remove from the event")).clicked() {
+                        if ui.button(tr("Remove from event")).clicked() {
                             self.remove_people(&[id]);
                             ui.close();
                         }
@@ -87,7 +87,7 @@ impl PlassiApp {
             .map(|r| r.id)
             .collect();
         if rule_ids.is_empty() && self.people.wish_draft.is_none() {
-            theme::hint(ui, p, tr("No wishes — the seating policy places them."));
+            theme::hint(ui, p, tr("No wishes. Uses the seating policy."));
         }
         let mut delete = None;
         for rule_id in rule_ids {
@@ -112,7 +112,7 @@ impl PlassiApp {
         egui::containers::menu::MenuButton::new(tr("+ Add"))
             .config(egui::containers::menu::MenuConfig::new().style(theme::menu_style))
             .ui(ui, |ui| {
-                if ui.button(tr("Sit near someone…")).clicked() {
+                if ui.button(tr("Sit near…")).clicked() {
                     self.people.wish_draft = Some(WishDraft {
                         person: id,
                         avec: false,

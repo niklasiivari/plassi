@@ -25,7 +25,11 @@ impl PlassiApp {
             _ => fill("{} seats for {} people", &[&seats, &people]),
         };
         let mut steps = vec![Step {
-            label: fill("Import people ({})", &[&people]),
+            label: if people == 0 {
+                tr("Add people").into()
+            } else {
+                fill("{} people", &[&people])
+            },
             done: people > 0,
             optional: false,
             page: Page::People,
@@ -33,11 +37,9 @@ impl PlassiApp {
         if people > 0 || !self.project.notes.is_empty() {
             steps.push(Step {
                 label: match pending {
-                    _ if self.project.notes.is_empty() => {
-                        tr("Sign-up notes: none to review").into()
-                    }
-                    0 => tr("Sign-up notes reviewed").into(),
-                    n => fill("Review sign-up notes ({} left)", &[&n]),
+                    _ if self.project.notes.is_empty() => tr("No notes").into(),
+                    0 => tr("Notes reviewed").into(),
+                    n => fill("Review notes ({})", &[&n]),
                 },
                 done: pending == 0,
                 optional: true,
@@ -64,12 +66,7 @@ impl PlassiApp {
         ui.scope_builder(egui::UiBuilder::new().max_rect(area), |ui| {
             theme::card(p).show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                theme::section_title(ui, p, tr("Before the first chart"));
-                ui.label(
-                    RichText::new(tr("Import people, then set up enough seats before solving"))
-                        .size(theme::text::SMALL)
-                        .color(p.muted),
-                );
+                theme::section_title(ui, p, tr("Get started"));
                 for step in &steps {
                     ui.horizontal(|ui| {
                         let color = match (step.done, step.optional) {
@@ -96,14 +93,12 @@ impl PlassiApp {
                 ui.horizontal(|ui| {
                     let solve = ui.add_enabled(ready, theme::primary_button(tr("Solve"), p));
                     if solve
-                        .on_disabled_hover_text(tr("Import people and set up enough seats first"))
+                        .on_disabled_hover_text(tr("Add people and enough seats first"))
                         .clicked()
                     {
                         self.start_solve(false);
                     }
-                    if self.project.attendees.is_empty()
-                        && ui.button(tr("Try with example data")).clicked()
-                    {
+                    if self.project.attendees.is_empty() && ui.button(tr("Try example")).clicked() {
                         self.load_example();
                     }
                 });

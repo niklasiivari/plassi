@@ -29,11 +29,7 @@ impl PlassiApp {
                     apply_all = ui.add(theme::primary_button(tr("Apply all"), p)).clicked();
                 });
             });
-            theme::hint(
-                ui,
-                p,
-                tr("Spellings that look like something already known, or several things in one."),
-            );
+            theme::hint(ui, p, tr("Similar names and combined entries."));
             ui.add_space(theme::space::S);
             for (index, merge) in suggestions.iter().enumerate() {
                 ui.horizontal(|ui| {
@@ -93,14 +89,14 @@ impl PlassiApp {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
                 ui.label(
-                    RichText::new(tr("Not mapped yet"))
+                    RichText::new(tr("Uncategorized"))
                         .size(theme::text::LEAD)
                         .strong(),
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     create_all = ui
-                        .button(tr("Make each its own category"))
-                        .on_hover_text(tr("Create a category for every spelling below as written"))
+                        .button(tr("Create all categories"))
+                        .on_hover_text(tr("One category per entry"))
                         .clicked();
                 });
             });

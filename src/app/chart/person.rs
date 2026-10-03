@@ -44,7 +44,7 @@ impl PlassiApp {
                 if theme::icon_button(ui, p, theme::Icon::Close, tr("Deselect"), false).clicked() {
                     self.selected_person = None;
                 }
-                if theme::icon_button(ui, p, theme::Icon::Focus, tr("Centre on the chart"), false)
+                if theme::icon_button(ui, p, theme::Icon::Focus, tr("Show on chart"), false)
                     .clicked()
                 {
                     self.focus_person(id, scene);
@@ -67,7 +67,7 @@ impl PlassiApp {
                 Some(Outcome::Met) => tr("All wishes met"),
                 Some(Outcome::Partial) => tr("Partly met"),
                 Some(Outcome::Broken) => tr("Hard rule broken"),
-                None => tr("Unconstrained"),
+                None => tr("No wishes"),
             };
             theme::status_pill(ui, p, text, theme::outcome_color(p, status));
         });
@@ -84,9 +84,7 @@ impl PlassiApp {
             } else {
                 tr("Pin to this seat")
             }))
-            .on_hover_text(tr(
-                "A pinned person must sit on this seat; the solver never moves them",
-            ))
+            .on_hover_text(tr("Keep this seat when solving"))
             .clicked()
         {
             self.set_pin(id, (!pinned).then_some(seat.as_str()));
@@ -140,7 +138,7 @@ impl PlassiApp {
             return;
         }
         ui.add_space(theme::space::XL);
-        theme::section_title(ui, p, tr("Original sign-up text"));
+        theme::section_title(ui, p, tr("Original sign-up notes"));
         for note in notes {
             theme::inset(p).show(ui, |ui| {
                 ui.set_width(ui.available_width());
@@ -152,7 +150,7 @@ impl PlassiApp {
                 ui.label(&note.text);
                 if !note.reviewed {
                     ui.label(
-                        RichText::new(tr("Not reviewed yet"))
+                        RichText::new(tr("Unreviewed"))
                             .size(theme::text::CAPTION)
                             .color(p.warn),
                     );
@@ -190,11 +188,11 @@ impl PlassiApp {
                 result_row(ui, p, result);
             }
         } else {
-            theme::hint(ui, p, tr("No wishes of their own"));
+            theme::hint(ui, p, tr("No wishes"));
         }
         {
             ui.label(
-                RichText::new(tr("Drag to move or swap · right-click to pin or swap"))
+                RichText::new(tr("Drag to move · right-click for actions"))
                     .size(theme::text::CAPTION)
                     .color(p.muted),
             );

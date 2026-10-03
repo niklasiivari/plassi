@@ -128,7 +128,7 @@
     // Alphabetical index.
     pagebreak()
     set page(flipped: false, margin: (x: 16mm, top: 14mm, bottom: 16mm))
-    header(t("Seating by name", "Paikat nimittäin"), compact: true)
+    header(t("Find your seat", "Etsi paikkasi"), compact: true)
     set text(size: if data.people.len() > 150 { 9pt } else if data.people.len() > 100 { 10.5pt } else { 12pt })
     // Split evenly into three columns so they end at the same height.
     let n = data.people.len()

@@ -1,12 +1,15 @@
 //! Reading and writing projects as JSON.
 
-use anyhow::Result;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::i18n::fill;
+use crate::i18n::tr;
+use anyhow::{Context, Result};
 
 use crate::model::Project;
 
 /// A validated project from JSON bytes.
 pub fn parse(bytes: &[u8]) -> Result<Project> {
-    let project: Project = serde_json::from_slice(bytes)?;
+    let project: Project = serde_json::from_slice(bytes).context(tr("Invalid project file"))?;
     project.validate()?;
     Ok(project)
 }
@@ -19,9 +22,9 @@ pub fn encode(project: &Project) -> Result<Vec<u8>> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load(path: &std::path::Path) -> Result<Project> {
-    use anyhow::Context;
-    let bytes = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
-    parse(&bytes).with_context(|| format!("loading {}", path.display()))
+    let bytes =
+        std::fs::read(path).with_context(|| fill("Could not read {}", &[&path.display()]))?;
+    parse(&bytes).with_context(|| fill("Could not load {}", &[&path.display()]))
 }
 
 #[cfg(not(target_arch = "wasm32"))]

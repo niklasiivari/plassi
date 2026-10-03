@@ -19,12 +19,12 @@ pub(super) fn person_picker(
     exclude: usize,
 ) -> Option<usize> {
     let mut picked = None;
-    theme::combo(salt, tr("+ add person"))
+    theme::combo(salt, tr("+ Add person"))
         .height(320.0)
         .show_ui(ui, |ui| {
             ui.add(
                 theme::field(filter)
-                    .hint_text(tr("Type to filter"))
+                    .hint_text(tr("Search"))
                     .desired_width(220.0),
             )
             .request_focus();
@@ -143,10 +143,11 @@ fn placement_editor(ui: &mut egui::Ui, kind: &mut RuleKind) -> bool {
         Area::Tag(tag) => fill("seats tagged “{}”", &[tag]),
     };
     ui.label(fill(
-        if *must_be {
-            "Must sit at {}"
-        } else {
-            "Must not sit at {}"
+        match (*must_be, *hard) {
+            (true, true) => "Must sit at {}",
+            (false, true) => "Must not sit at {}",
+            (true, false) => "Prefer {}",
+            (false, false) => "Avoid {}",
         },
         &[&area_text],
     ));
@@ -193,7 +194,7 @@ fn table_end_editor(ui: &mut egui::Ui, p: Palette, kind: &mut RuleKind) -> bool 
         ui,
         p,
         fill(
-            "An end seat has nobody beside them on one side. For scale: an ordinary wish at another table costs {}.",
+            "No neighbour on one side. A wish at another table costs {}.",
             &[&ProximityCosts::far_penalty(false)],
         ),
     );
@@ -350,16 +351,19 @@ fn importance_editor(
     ui.horizontal(|ui| {
         let mut shared = *mode == WeightMode::ShareRequesterBudget;
         let toggle = ui
-            .checkbox(&mut shared, tr("Share importance with their other wishes"))
+            .checkbox(&mut shared, tr("Share importance across wishes"))
             .on_hover_text(tr(
-                "When on, a person's wishes split one budget, so listing many wishes doesn't outweigh others. \
-                 Turn off to give this wish its full importance.",
+                "Balances people with many wishes against those with few.",
             ));
         if toggle.changed() {
-            *mode = if shared { WeightMode::ShareRequesterBudget } else { WeightMode::Fixed };
+            *mode = if shared {
+                WeightMode::ShareRequesterBudget
+            } else {
+                WeightMode::Fixed
+            };
             changed = true;
         }
-        theme::hint(ui, p, fill("effective ×{}", &[&effective]));
+        theme::hint(ui, p, fill("weight ×{}", &[&effective]));
     });
     changed
 }
@@ -367,17 +371,17 @@ fn importance_editor(
 /// Optional hard maximum distance.
 fn limit_editor(ui: &mut egui::Ui, max_class: &mut Option<DistanceClass>) -> bool {
     ui.horizontal(|ui| {
-        ui.label(tr("Must be"));
+        ui.label(tr("Maximum distance"));
         let mut changed = false;
         theme::combo(
             "max",
             max_class
                 .map(DistanceClass::limit_label)
-                .unwrap_or(tr("no hard limit")),
+                .unwrap_or(tr("No limit")),
         )
         .show_ui(ui, |ui| {
             changed |= ui
-                .selectable_value(max_class, None, tr("no hard limit"))
+                .selectable_value(max_class, None, tr("No limit"))
                 .changed();
             for class in DistanceClass::ALL
                 .into_iter()
@@ -400,17 +404,23 @@ pub(in crate::app) fn costs_editor(
     costs: &mut ProximityCosts,
 ) -> bool {
     let mut changed = false;
-    egui::CollapsingHeader::new(RichText::new(tr("Distance penalties")).size(theme::text::SMALL).color(p.muted))
-        .id_salt("costs")
-        .show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                for class in DistanceClass::ALL {
-                    ui.label(class.label());
-                    changed |= ui.add(egui::DragValue::new(&mut costs[class]).range(0..=100_000)).changed();
-                }
-            });
-            theme::hint(ui, p, tr("Penalty = distance cost × importance. A farther distance never costs less than a nearer one."));
+    egui::CollapsingHeader::new(
+        RichText::new(tr("Distance penalties"))
+            .size(theme::text::SMALL)
+            .color(p.muted),
+    )
+    .id_salt("costs")
+    .show(ui, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            for class in DistanceClass::ALL {
+                ui.label(class.label());
+                changed |= ui
+                    .add(egui::DragValue::new(&mut costs[class]).range(0..=100_000))
+                    .changed();
+            }
         });
+        theme::hint(ui, p, tr("Penalty = distance cost × weight."));
+    });
     if changed {
         costs.make_ordered();
     }

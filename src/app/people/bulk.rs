@@ -10,7 +10,7 @@ impl PlassiApp {
         let picked: Vec<usize> = self.people.picked.iter().copied().collect();
         if picked.is_empty() {
             ui.horizontal(|ui| {
-                theme::hint(ui, p, tr("Ctrl-click to pick several people."));
+                theme::hint(ui, p, tr("Ctrl-click to select multiple people."));
                 if ui
                     .add(theme::small_button(tr("Select all shown")))
                     .clicked()
@@ -21,7 +21,7 @@ impl PlassiApp {
             return;
         }
         ui.horizontal_wrapped(|ui| {
-            ui.label(RichText::new(fill("{} picked", &[&picked.len()])).strong());
+            ui.label(RichText::new(fill("{} selected", &[&picked.len()])).strong());
             if ui
                 .add(theme::small_button(tr("Mark notes reviewed")))
                 .clicked()
@@ -42,7 +42,7 @@ impl PlassiApp {
                     crate::preferences::PreferenceKind::together(picked.clone()),
                     crate::preferences::Strength::Important,
                 );
-                self.commit(&fill("Grouped {} people together", &[&picked.len()]));
+                self.commit(&fill("Grouped {} people", &[&picked.len()]));
             }
             if ui
                 .add(theme::small_button(tr("Remove from event")))
@@ -67,7 +67,7 @@ impl PlassiApp {
             note.reviewed = true;
             count += 1;
         }
-        self.commit(&fill("Marked {} notes reviewed", &[&count]));
+        self.commit(&fill("Reviewed {} notes", &[&count]));
     }
 
     /// Pins everyone picked to their seat in the selected option, or unpins them.

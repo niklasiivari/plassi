@@ -434,22 +434,25 @@ impl SolverStatus {
     /// The status as a sentence in the current language.
     pub fn describe(&self) -> String {
         match self {
-            Self::Optimal => tr("Optimal — no seating can score better").into(),
+            Self::Optimal => tr("Optimal solution").into(),
             Self::BestFound {
                 seconds,
                 runs_at_best,
                 runs,
-            } => fill(
-                "Best found in {} s · {} of {} runs reached this score",
-                &[seconds, runs_at_best, runs],
-            ),
-            Self::Improved { from, hand_placed } => fill(
-                "Improved from {}, keeping {} hand-placed people",
-                &[from, hand_placed],
-            ),
-            Self::Continued { from, seconds } => {
-                fill("Searched {} s more from {}", &[seconds, from])
+            } => {
+                if *runs == 1 {
+                    fill("Searched {} s", &[seconds])
+                } else {
+                    fill(
+                        "Searched {} s · best in {}/{} runs",
+                        &[seconds, runs_at_best, runs],
+                    )
+                }
             }
+            Self::Improved { from, hand_placed } => {
+                fill("Improved {} · {} manual seats kept", &[from, hand_placed])
+            }
+            Self::Continued { from, seconds } => fill("Searched {} s more · {}", &[seconds, from]),
             Self::EditedByHand => tr("Edited by hand").into(),
         }
     }

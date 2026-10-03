@@ -175,9 +175,9 @@ impl PlassiApp {
 
     fn collapse_toggle(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
         let tip = if expanded {
-            tr("Icons only")
+            tr("Collapse sidebar")
         } else {
-            tr("Show labels")
+            tr("Expand sidebar")
         };
         theme::icon_button(ui, p, theme::Icon::Sidebar, tip, false).clicked()
     }
@@ -267,12 +267,8 @@ impl PlassiApp {
         #[cfg(target_arch = "wasm32")]
         {
             let note = match platform::storage_persisted() {
-                Some(true) => {
-                    tr("This browser will keep this project's data until you clear site data.")
-                }
-                _ => tr(
-                    "This browser may remove this project's data when storage is needed or if you clear site data.",
-                ),
+                Some(true) => tr("Clearing site data deletes your projects."),
+                _ => tr("Browser data can be cleared or removed. Download a backup."),
             };
             sync.on_hover_text(note);
         }
@@ -289,7 +285,7 @@ impl PlassiApp {
             std::cmp::Ordering::Less => {
                 fill("{} people · {} seats short", &[&people, &(people - seats)])
             }
-            std::cmp::Ordering::Equal => fill("{} people · every seat taken", &[&people]),
+            std::cmp::Ordering::Equal => fill("{} people · no spare seats", &[&people]),
             std::cmp::Ordering::Greater => {
                 fill("{} people · {} free seats", &[&people, &(seats - people)])
             }
@@ -300,11 +296,11 @@ impl PlassiApp {
 
     fn sync_text(&self) -> &'static str {
         if self.file.external_invalid {
-            tr("JSON invalid — showing last valid state")
+            tr("Invalid file · last saved version shown")
         } else if cfg!(target_arch = "wasm32") {
             tr("Saved in this browser")
         } else {
-            tr("Live sync")
+            tr("Saved to file")
         }
     }
 
@@ -348,7 +344,7 @@ impl PlassiApp {
                         let (started, budget) = (job.started, job.budget);
                         let done = started.elapsed().as_secs_f32() / budget.as_secs_f32().max(1.0);
                         ui.label(fill(
-                            "Searching for the best seating… {} of {} s",
+                            "Searching… {} / {} s",
                             &[
                                 &started.elapsed().as_secs().min(budget.as_secs()),
                                 &budget.as_secs(),
@@ -358,12 +354,9 @@ impl PlassiApp {
                         ui.horizontal(|ui| {
                             if let Some((score, hard)) = job.runner.progress() {
                                 let best = if hard > 0 {
-                                    fill(
-                                        "Best so far: score {} · {} hard rules broken",
-                                        &[&score, &hard],
-                                    )
+                                    fill("Best: score {} · {} hard rules broken", &[&score, &hard])
                                 } else {
-                                    fill("Best so far: score {}", &[&score])
+                                    fill("Best score: {}", &[&score])
                                 };
                                 ui.label(best);
                             }
@@ -371,9 +364,7 @@ impl PlassiApp {
                                 .min_size(egui::vec2(0.0, theme::CHIP_HEIGHT));
                             stop = ui
                                 .add(button)
-                                .on_hover_text(tr(
-                                    "Stop now and keep the best seating found so far",
-                                ))
+                                .on_hover_text(tr("Keep the best result"))
                                 .clicked();
                         });
                     } else {

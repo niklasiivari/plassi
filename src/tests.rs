@@ -1088,10 +1088,7 @@ fn solver_status_is_data_rendered_at_display_time() {
         runs_at_best: 2,
         runs: 8,
     };
-    assert_eq!(
-        status.describe(),
-        "Best found in 30 s · 2 of 8 runs reached this score"
-    );
+    assert_eq!(status.describe(), "Searched 30 s · best in 2/8 runs");
     let json = serde_json::to_value(&status).unwrap();
     assert_eq!(json["kind"], "best_found");
     assert_eq!(
@@ -1104,13 +1101,13 @@ fn solver_status_is_data_rendered_at_display_time() {
     };
     assert_eq!(
         improved.describe(),
-        "Improved from Option 1, keeping 3 hand-placed people"
+        "Improved Option 1 · 3 manual seats kept"
     );
     let continued = SolverStatus::Continued {
         from: "Option 2".into(),
         seconds: 30,
     };
-    assert_eq!(continued.describe(), "Searched 30 s more from Option 2");
+    assert_eq!(continued.describe(), "Searched 30 s more · Option 2");
     assert_eq!(SolverStatus::EditedByHand.describe(), "Edited by hand");
 }
 

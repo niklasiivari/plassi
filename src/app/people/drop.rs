@@ -55,7 +55,7 @@ impl PlassiApp {
                     self.people.dropped = Some((name, crate::platform::DroppedRead::start(file)))
                 }
                 DropKind::Excel => {
-                    self.status = tr("Excel files can't be read directly. Save the sheet as .csv or .tsv, or copy the rows and paste them.").into();
+                    self.status = tr("Save Excel as CSV/TSV, or copy and paste the rows.").into();
                 }
                 DropKind::Other => {
                     self.status = fill("{} is not a .csv, .tsv or .txt file", &[&name])
@@ -75,10 +75,7 @@ impl PlassiApp {
             Ok(bytes) => {
                 self.people.import_text = sheet_text(&bytes);
                 self.selected_person = None;
-                self.status = fill(
-                    "Loaded {}. Check the preview, then update attendees.",
-                    &[&name],
-                );
+                self.status = fill("Loaded {}. Check the preview and import.", &[&name]);
             }
             Err(error) => self.status = fill("Could not read {}: {}", &[&name, &error]),
         }

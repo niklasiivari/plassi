@@ -57,7 +57,7 @@ impl PlassiApp {
                     cents / 100,
                     cents % 100,
                     if a.price_override_cents.is_some() {
-                        tr(" (override)")
+                        tr(" (custom)")
                     } else {
                         ""
                     }
@@ -100,8 +100,7 @@ impl PlassiApp {
             .spacing([theme::space::XL, theme::space::S])
             .show(ui, |ui| {
                 ui.label(RichText::new(tr("Price")).color(p.muted));
-                changed |=
-                    theme::price_input(ui, tr("Override total"), &mut a.price_override_cents);
+                changed |= theme::price_input(ui, tr("Custom price"), &mut a.price_override_cents);
                 ui.end_row();
                 for (label, value) in [
                     (tr("Food"), &mut a.food),

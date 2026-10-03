@@ -37,7 +37,7 @@ impl PlassiApp {
                         let people: Vec<usize> = self.chart.multi.iter().copied().collect();
                         if ui
                             .add(theme::primary_button(tr("Group together"), p))
-                            .on_hover_text(tr("As if each of them wished for every other (G)"))
+                            .on_hover_text(tr("Keep the selected people together (G)"))
                             .clicked()
                         {
                             chosen = Some(PreferenceKind::together(people.clone()));
@@ -78,7 +78,7 @@ impl PlassiApp {
         if let Some(kind) = chosen {
             self.project.add_preference(kind, Strength::Important);
             self.chart.multi.clear();
-            self.commit(tr("Added your preference; solve or improve to apply it"));
+            self.commit(tr("Preference added; solve again to apply"));
         } else if clear {
             self.chart.multi.clear();
         }
@@ -94,11 +94,7 @@ impl PlassiApp {
         ui.add_space(theme::space::XL);
         theme::section_title(ui, p, tr("Your preferences"));
         if self.project.preferences.is_empty() {
-            theme::hint(
-                ui,
-                p,
-                tr("Ctrl-click several people on the chart to group them or keep them apart."),
-            );
+            theme::hint(ui, p, tr("Ctrl-click to select a group."));
             return;
         }
         self.chart.preference_preview = None;
@@ -226,6 +222,6 @@ fn kind_title(kind: &PreferenceKind) -> &'static str {
             closeness: Closeness::Table,
             ..
         } => tr("Different tables"),
-        PreferenceKind::Apart { .. } => tr("Not side by side"),
+        PreferenceKind::Apart { .. } => tr("Not neighbours"),
     }
 }
