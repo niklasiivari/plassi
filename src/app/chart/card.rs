@@ -89,7 +89,7 @@ pub(super) fn paint_empty_seat(painter: &egui::Painter, p: Palette, rect: Rect, 
     }
 }
 
-/// Frame, status stripe, avatar, full name (shrunk to fit) and markers.
+/// Frame, status stripe, organization colour, name and markers.
 pub(super) fn paint_person_card(
     painter: &egui::Painter,
     p: Palette,
@@ -142,7 +142,16 @@ pub(super) fn paint_person_card(
     );
     let text_x = paint_avatar(painter, p, rect, person, alpha);
     if rect.height() > 14.0 {
-        paint_card_text(painter, p, rect, text_x, person, alpha);
+        let marker_width = match (look.pinned, look.moved) {
+            (true, true) => 30.0 * zoom,
+            (true, false) | (false, true) => 18.0 * zoom,
+            (false, false) => 0.0,
+        };
+        let text_rect = Rect::from_min_max(
+            Pos2::new(text_x, rect.min.y),
+            Pos2::new(rect.max.x - marker_width - 6.0 * zoom, rect.max.y),
+        );
+        paint_card_text(painter, p, rect, text_rect, person, alpha);
     }
     let corner = Pos2::new(rect.max.x - 11.0 * zoom, rect.min.y + 11.0 * zoom);
     if look.pinned {
@@ -158,7 +167,7 @@ pub(super) fn paint_person_card(
     }
 }
 
-/// Initials in a circle coloured by organization. Returns where text may start.
+/// Organization colour, with initials when there is room. Returns the text start.
 fn paint_avatar(
     painter: &egui::Painter,
     p: Palette,
@@ -167,71 +176,65 @@ fn paint_avatar(
     alpha: f32,
 ) -> f32 {
     let zoom = rect.height() / CARD_H;
-    let radius = if rect.height() < 34.0 {
-        rect.height() * 0.3
-    } else {
-        14.0 * zoom
-    };
-    let centre = Pos2::new(rect.min.x + 12.0 * zoom + radius, rect.center().y);
+    let compact = rect.height() < 34.0;
+    let radius = if compact { 2.5 } else { 14.0 * zoom };
+    let centre = Pos2::new(
+        rect.min.x + (12.0 * zoom).max(5.0) + radius,
+        rect.center().y,
+    );
     let dark = p.bg.r() < 100;
     painter.circle_filled(
         centre,
         radius,
         theme::avatar_color(&person.color_key, dark).gamma_multiply(alpha),
     );
-    painter.text(
-        centre,
-        Align2::CENTER_CENTER,
-        initials(person.name),
-        FontId::proportional(11.0 * zoom),
-        Color32::WHITE.gamma_multiply(alpha),
-    );
-    centre.x + radius + 7.0 * zoom
+    if !compact {
+        painter.text(
+            centre,
+            Align2::CENTER_CENTER,
+            initials(person.name),
+            FontId::proportional(11.0 * zoom),
+            Color32::WHITE.gamma_multiply(alpha),
+        );
+    }
+    centre.x + radius + (7.0 * zoom).max(4.0)
 }
 
-/// Full name, shrunk to fit; below it the organization unless the card is small.
+/// A readable, elided name; below it the organization unless the card is small.
 fn paint_card_text(
     painter: &egui::Painter,
     p: Palette,
     rect: Rect,
-    text_x: f32,
+    text_rect: Rect,
     person: &CardPerson,
     alpha: f32,
 ) {
     let zoom = rect.height() / CARD_H;
     let compact = rect.height() < 34.0;
-    let max_w = rect.max.x - text_x - 6.0 * zoom;
-    let layout = |size: f32| {
-        painter.layout_no_wrap(
-            person.name.to_string(),
-            FontId::proportional(size),
-            p.text.gamma_multiply(alpha),
-        )
-    };
-    let mut size = if compact {
-        (rect.height() * 0.46).clamp(9.0, 12.5)
+    let size = if compact {
+        (rect.height() * 0.46).clamp(11.0, 12.5)
     } else {
-        13.0 * zoom
+        (13.0 * zoom).max(11.0)
     };
-    let mut name = layout(size);
-    if name.size().x > max_w {
-        size = (size * max_w / name.size().x).max(size * 0.6).max(8.0);
-        name = layout(size);
-    }
-    let clip = Rect::from_min_max(
-        Pos2::new(text_x, rect.min.y),
-        Pos2::new(text_x + max_w, rect.max.y),
+    let mut job = egui::text::LayoutJob::simple_singleline(
+        person.name.to_string(),
+        FontId::proportional(size),
+        p.text.gamma_multiply(alpha),
     );
-    let clipped = painter.with_clip_rect(clip.intersect(painter.clip_rect()));
+    job.wrap.max_width = text_rect.width().max(0.0);
+    job.wrap.max_rows = 1;
+    job.wrap.break_anywhere = true;
+    let name = painter.layout_job(job);
+    let clipped = painter.with_clip_rect(text_rect.intersect(painter.clip_rect()));
     let name_y = if compact {
         rect.center().y - name.size().y / 2.0
     } else {
         rect.center().y - 15.0 * zoom
     };
-    clipped.galley(Pos2::new(text_x, name_y), name, p.text);
+    clipped.galley(Pos2::new(text_rect.min.x, name_y), name, p.text);
     if !compact {
         clipped.text(
-            Pos2::new(text_x, rect.center().y + 2.0 * zoom),
+            Pos2::new(text_rect.min.x, rect.center().y + 2.0 * zoom),
             Align2::LEFT_TOP,
             &person.organization,
             FontId::proportional(10.5 * zoom),
@@ -296,4 +299,77 @@ pub(super) fn preview_text(preview: &DropPreview, p: Palette) -> (String, Color3
         _ => p.warn,
     };
     (text, color)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compact_names_are_elided_without_shrinking_or_overlapping_markers() {
+        let ctx = egui::Context::default();
+        for name in [
+            "A very long guest name that cannot fit",
+            "Ääkkönen 李明 Åström",
+        ] {
+            for (pinned, moved) in [(false, false), (true, false), (true, true)] {
+                let rect = Rect::from_min_size(Pos2::new(20.0, 20.0), Vec2::new(76.0, 19.0));
+                let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                    let ctx = ui.ctx();
+                    paint_person_card(
+                        &ctx.layer_painter(egui::LayerId::background()),
+                        theme::palette(ctx),
+                        rect,
+                        &CardPerson {
+                            name,
+                            organization: "Organization".into(),
+                            color_key: "Organization".into(),
+                        },
+                        CardLook {
+                            status: Some(Outcome::Met),
+                            selected: false,
+                            hovered: false,
+                            dimmed: false,
+                            pinned,
+                            moved,
+                            gap: false,
+                        },
+                    );
+                });
+                output.textures_delta.clear();
+                let text = output
+                    .shapes
+                    .iter()
+                    .find_map(|shape| {
+                        if let egui::Shape::Text(text) = &shape.shape {
+                            Some((shape.clip_rect, text))
+                        } else {
+                            None
+                        }
+                    })
+                    .expect("guest name is visible");
+                let (clip, text) = text;
+                assert!(text.galley.elided);
+                assert_eq!(text.galley.rows.len(), 1);
+                assert_eq!(text.galley.job.text, name);
+                assert!(
+                    text.galley
+                        .job
+                        .sections
+                        .iter()
+                        .all(|s| s.format.font_id.size >= 11.0)
+                );
+                assert!(text.galley.size().x <= clip.width() + 0.5);
+                let zoom = rect.height() / CARD_H;
+                let marker_width = if pinned && moved {
+                    30.0 * zoom
+                } else if pinned {
+                    18.0 * zoom
+                } else {
+                    0.0
+                };
+                assert!(clip.right() <= rect.right() - marker_width);
+            }
+        }
+    }
 }
