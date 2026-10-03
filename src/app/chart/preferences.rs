@@ -42,22 +42,26 @@ impl PlassiApp {
                         {
                             chosen = Some(PreferenceKind::together(people.clone()));
                         }
-                        ui.menu_button(tr("Keep apart"), |ui| {
-                            if ui.button(tr("Not at the same table")).clicked() {
-                                chosen = Some(PreferenceKind::Apart {
-                                    people: people.clone(),
-                                    closeness: Closeness::Table,
-                                });
-                                ui.close();
-                            }
-                            if ui.button(tr("Not beside or opposite")).clicked() {
-                                chosen = Some(PreferenceKind::Apart {
-                                    people: people.clone(),
-                                    closeness: Closeness::Neighbours,
-                                });
-                                ui.close();
-                            }
-                        });
+                        egui::containers::menu::MenuButton::new(tr("Keep apart"))
+                            .config(
+                                egui::containers::menu::MenuConfig::new().style(theme::menu_style),
+                            )
+                            .ui(ui, |ui| {
+                                if ui.button(tr("Not at the same table")).clicked() {
+                                    chosen = Some(PreferenceKind::Apart {
+                                        people: people.clone(),
+                                        closeness: Closeness::Table,
+                                    });
+                                    ui.close();
+                                }
+                                if ui.button(tr("Not beside or opposite")).clicked() {
+                                    chosen = Some(PreferenceKind::Apart {
+                                        people: people.clone(),
+                                        closeness: Closeness::Neighbours,
+                                    });
+                                    ui.close();
+                                }
+                            });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             clear = theme::icon_button(
                                 ui,

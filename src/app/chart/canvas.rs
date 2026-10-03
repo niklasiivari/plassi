@@ -316,47 +316,49 @@ impl PlassiApp {
             }
             let Some(id) = person else { continue };
             let pinned = scene.pinned.contains(&id);
-            response.context_menu(|ui| {
-                if ui
-                    .button(if pinned {
-                        tr("Unpin (P)")
+            egui::Popup::context_menu(&response)
+                .style(theme::menu_style)
+                .show(|ui| {
+                    if ui
+                        .button(if pinned {
+                            tr("Unpin (P)")
+                        } else {
+                            tr("Pin to this seat (P)")
+                        })
+                        .clicked()
+                    {
+                        actions.pin = Some((id, (!pinned).then(|| seat.id.clone())));
+                    }
+                    if ui.button(tr("Swap with…")).clicked() {
+                        actions.start_swap = Some(id);
+                    }
+                    let picked = self.chart.multi.contains(&id);
+                    let pick = if picked {
+                        tr("Remove from selection")
                     } else {
-                        tr("Pin to this seat (P)")
-                    })
-                    .clicked()
-                {
-                    actions.pin = Some((id, (!pinned).then(|| seat.id.clone())));
-                }
-                if ui.button(tr("Swap with…")).clicked() {
-                    actions.start_swap = Some(id);
-                }
-                let picked = self.chart.multi.contains(&id);
-                let pick = if picked {
-                    tr("Remove from selection")
-                } else {
-                    tr("Add to selection")
-                };
-                if ui
-                    .button(pick)
-                    .on_hover_text(tr(
-                        "Or Ctrl-click. Select two or more to group them or keep them apart.",
-                    ))
-                    .clicked()
-                {
-                    actions.pick = Some(id);
-                }
-                if ui.button(tr("Show details")).clicked() {
-                    actions.clicked = Some(Some(id));
-                }
-                ui.separator();
-                use crate::app::people::RosterEdit;
-                if ui.button(tr("Replace with someone else…")).clicked() {
-                    actions.roster = Some((id, RosterEdit::Replace(id, Default::default())));
-                }
-                if ui.button(tr("Remove from event")).clicked() {
-                    actions.remove = Some(id);
-                }
-            });
+                        tr("Add to selection")
+                    };
+                    if ui
+                        .button(pick)
+                        .on_hover_text(tr(
+                            "Or Ctrl-click. Select two or more to group them or keep them apart.",
+                        ))
+                        .clicked()
+                    {
+                        actions.pick = Some(id);
+                    }
+                    if ui.button(tr("Show details")).clicked() {
+                        actions.clicked = Some(Some(id));
+                    }
+                    ui.separator();
+                    use crate::app::people::RosterEdit;
+                    if ui.button(tr("Replace with someone else…")).clicked() {
+                        actions.roster = Some((id, RosterEdit::Replace(id, Default::default())));
+                    }
+                    if ui.button(tr("Remove from event")).clicked() {
+                        actions.remove = Some(id);
+                    }
+                });
             if self.chart.dragged_person.is_none() {
                 response.on_hover_ui(|ui| self.hover_card(ui, p, scene, id, &seat.id));
             }

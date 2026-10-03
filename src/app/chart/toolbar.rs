@@ -71,7 +71,7 @@ impl PlassiApp {
             false,
             can_solve && has_option,
         );
-        egui::Popup::menu(&button).show(|ui| {
+        egui::Popup::menu(&button).style(theme::menu_style).show(|ui| {
                 if ui.button(tr("Find a different option")).on_hover_text(tr("Search again, moving at least about 10% of people who made wishes")).clicked() {
                     self.start_solve(true);
                     ui.close();
@@ -181,27 +181,29 @@ impl PlassiApp {
                     if response.secondary_clicked() {
                         self.chart.rename = candidate.name.clone();
                     }
-                    response.context_menu(|ui| {
-                        ui.horizontal(|ui| {
-                            let field =
-                                ui.add(theme::field(&mut self.chart.rename).desired_width(140.0));
-                            let enter =
-                                field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                            if ui.button(tr("Rename")).clicked() || enter {
-                                action = Some(OptionAction::Rename(index));
-                                ui.close();
+                    egui::Popup::context_menu(&response)
+                        .style(theme::menu_style)
+                        .show(|ui| {
+                            ui.horizontal(|ui| {
+                                let field = ui
+                                    .add(theme::field(&mut self.chart.rename).desired_width(140.0));
+                                let enter = field.lost_focus()
+                                    && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                                if ui.button(tr("Rename")).clicked() || enter {
+                                    action = Some(OptionAction::Rename(index));
+                                    ui.close();
+                                }
+                            });
+                            if ui.button(tr("Duplicate (edit a copy)")).clicked() {
+                                action = Some(OptionAction::Duplicate(index));
+                            }
+                            if !active && ui.button(tr("Compare with current")).clicked() {
+                                action = Some(OptionAction::Compare(index));
+                            }
+                            if ui.button(tr("Delete")).clicked() {
+                                action = Some(OptionAction::Delete(index));
                             }
                         });
-                        if ui.button(tr("Duplicate (edit a copy)")).clicked() {
-                            action = Some(OptionAction::Duplicate(index));
-                        }
-                        if !active && ui.button(tr("Compare with current")).clicked() {
-                            action = Some(OptionAction::Compare(index));
-                        }
-                        if ui.button(tr("Delete")).clicked() {
-                            action = Some(OptionAction::Delete(index));
-                        }
-                    });
                 }
             });
         self.tour.anchors.options =

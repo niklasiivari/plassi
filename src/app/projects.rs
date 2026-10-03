@@ -50,10 +50,11 @@ impl PlassiApp {
                 let label = RichText::new(&current).strong().size(theme::text::BODY);
                 // Clicks inside keep the menu open (the delete confirmation); every action closes it itself.
                 let config = egui::containers::menu::MenuConfig::new()
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside);
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                    .style(theme::menu_style);
                 let (button, _) = ui
                     .scope(|ui| {
-                        ui.spacing_mut().button_padding.x += theme::space::M;
+                        ui.spacing_mut().button_padding.x += theme::space::S;
                         egui::containers::menu::MenuButton::new(label)
                             .config(config)
                             .ui(ui, |ui| {
@@ -110,12 +111,11 @@ impl PlassiApp {
                             })
                     })
                     .inner;
-                let chevron = button.rect.right_center() - egui::vec2(theme::space::S, 0.0);
+                let chevron = button.rect.right_center() - egui::vec2(theme::space::M, 0.0);
                 theme::paint_icon(ui.painter(), theme::Icon::ChevronDown, chevron, p.muted);
                 if button.clicked() {
                     self.projects.rename = current.clone();
                 }
-                button.on_hover_text(tr("Switch between events, or start a new one"));
             });
         }
     }

@@ -25,24 +25,26 @@ impl PlassiApp {
         ui.horizontal(|ui| {
             ui.label(RichText::new(&person.name).size(theme::text::PAGE).strong());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.menu_button(tr("More"), |ui| {
-                    if let Some(next) = self.next_to_review(id)
-                        && ui.button(tr("Next person to review")).clicked()
-                    {
-                        self.selected_person = Some(next);
-                        self.people.wish_draft = None;
-                        ui.close();
-                    }
-                    if ui.button(tr("Replace with someone else…")).clicked() {
-                        self.people.roster =
-                            Some(roster::RosterEdit::Replace(id, Default::default()));
-                        ui.close();
-                    }
-                    if ui.button(tr("Remove from the event")).clicked() {
-                        self.remove_people(&[id]);
-                        ui.close();
-                    }
-                });
+                egui::containers::menu::MenuButton::new(tr("More"))
+                    .config(egui::containers::menu::MenuConfig::new().style(theme::menu_style))
+                    .ui(ui, |ui| {
+                        if let Some(next) = self.next_to_review(id)
+                            && ui.button(tr("Next person to review")).clicked()
+                        {
+                            self.selected_person = Some(next);
+                            self.people.wish_draft = None;
+                            ui.close();
+                        }
+                        if ui.button(tr("Replace with someone else…")).clicked() {
+                            self.people.roster =
+                                Some(roster::RosterEdit::Replace(id, Default::default()));
+                            ui.close();
+                        }
+                        if ui.button(tr("Remove from the event")).clicked() {
+                            self.remove_people(&[id]);
+                            ui.close();
+                        }
+                    });
                 if ui.button(tr("Show on chart")).clicked() {
                     self.page = crate::app::Page::Chart;
                     self.chart.view.focus_person = Some(id);
@@ -107,40 +109,41 @@ impl PlassiApp {
     /// tr("+ Add") menu: a wish (opens the form) or a ready-made rule.
     fn add_rule_menu(&mut self, ui: &mut egui::Ui, id: usize) -> bool {
         let mut added = false;
-        ui.menu_button(tr("+ Add"), |ui| {
-            if ui.button(tr("Sit near someone…")).clicked() {
-                self.people.wish_draft = Some(WishDraft {
-                    person: id,
-                    avec: false,
-                    near: DraftTarget::People,
-                    targets: Vec::new(),
-                    source: String::new(),
-                    note: None,
-                });
-                ui.close();
-            }
-            let has_rule = self
-                .project
-                .rules
-                .iter()
-                .any(|r| r.owner() == id && matches!(r.kind, RuleKind::AvoidTableEnd { .. }));
-            if !has_rule && ui.button(tr("Not at a table end")).clicked() {
-                let rule = crate::model::Rule {
-                    id: self.project.next_rule_id(),
-                    label: "Not at a table end".into(),
-                    source: String::new(),
-                    enabled: true,
-                    kind: RuleKind::AvoidTableEnd {
+        egui::containers::menu::MenuButton::new(tr("+ Add"))
+            .config(egui::containers::menu::MenuConfig::new().style(theme::menu_style))
+            .ui(ui, |ui| {
+                if ui.button(tr("Sit near someone…")).clicked() {
+                    self.people.wish_draft = Some(WishDraft {
                         person: id,
-                        end_penalty: 300,
-                        near_end_penalty: 80,
-                    },
-                };
-                self.project.rules.push(rule);
-                added = true;
-                ui.close();
-            }
-        });
+                        avec: false,
+                        near: DraftTarget::People,
+                        targets: Vec::new(),
+                        source: String::new(),
+                        note: None,
+                    });
+                    ui.close();
+                }
+                let has_rule =
+                    self.project.rules.iter().any(|r| {
+                        r.owner() == id && matches!(r.kind, RuleKind::AvoidTableEnd { .. })
+                    });
+                if !has_rule && ui.button(tr("Not at a table end")).clicked() {
+                    let rule = crate::model::Rule {
+                        id: self.project.next_rule_id(),
+                        label: "Not at a table end".into(),
+                        source: String::new(),
+                        enabled: true,
+                        kind: RuleKind::AvoidTableEnd {
+                            person: id,
+                            end_penalty: 300,
+                            near_end_penalty: 80,
+                        },
+                    };
+                    self.project.rules.push(rule);
+                    added = true;
+                    ui.close();
+                }
+            });
         added
     }
 

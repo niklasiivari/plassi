@@ -118,6 +118,14 @@ pub fn avatar_color(key: &str, dark: bool) -> Color32 {
     rgb(if dark { on_dark } else { on_light })
 }
 
+/// Consistent row insets for dropdown and context menus.
+pub fn menu_style(style: &mut egui::Style) {
+    egui::containers::menu::menu_style(style);
+    style.spacing.button_padding = egui::vec2(space::M, 6.0);
+    style.spacing.interact_size.y = CONTROL_HEIGHT;
+    style.spacing.menu_margin = Margin::same(space::M as i8);
+}
+
 pub fn install(ctx: &egui::Context) {
     install_fonts(ctx);
     ctx.set_visuals_of(Theme::Dark, visuals(DARK, true));
