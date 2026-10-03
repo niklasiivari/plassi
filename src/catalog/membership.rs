@@ -5,6 +5,28 @@ use super::{Kind, normalize};
 use crate::model::{Attendee, Project};
 
 impl Project {
+    /// Ticket charge plus every selected food and drink charge, in euro cents.
+    /// Unmapped or unpriced selections leave the total unknown.
+    pub fn attendee_price_cents(&self, attendee: &Attendee) -> Option<u64> {
+        let mut total = 0u64;
+        let mut has_selection = false;
+        for kind in [Kind::Ticket, Kind::Food, Kind::Drink] {
+            let raw = kind.raw(attendee).trim();
+            if raw.is_empty() {
+                continue;
+            }
+            has_selection = true;
+            let categories = self.catalog.find_all(kind, raw);
+            if categories.is_empty() {
+                return None;
+            }
+            for index in categories {
+                total += u64::from(self.catalog.list(kind)[index].price_cents?);
+            }
+        }
+        has_selection.then_some(total)
+    }
+
     /// Category names for an attendee, joined with " / ", or what they wrote if unmapped.
     pub fn category_name(&self, kind: Kind, attendee: &Attendee) -> String {
         let names = self.category_names(kind, attendee);

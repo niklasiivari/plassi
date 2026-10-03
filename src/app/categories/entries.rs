@@ -50,6 +50,25 @@ impl PlassiApp {
                             }
                         });
                     });
+                    if kind != Kind::Organization {
+                        ui.horizontal(|ui| {
+                            let mut priced = category.price_cents.is_some();
+                            if ui.checkbox(&mut priced, tr("Price contribution")).changed() {
+                                category.price_cents = priced.then_some(0);
+                                changed = true;
+                            }
+                            if let Some(cents) = &mut category.price_cents {
+                                let mut euros = f64::from(*cents) / 100.0;
+                                if ui.add(egui::DragValue::new(&mut euros)
+                                    .speed(0.1).range(0.0..=1_000_000.0)
+                                    .fixed_decimals(2).suffix(" €")).changed() {
+                                    *cents = (euros * 100.0).round() as u32;
+                                    changed = true;
+                                }
+                            }
+                        });
+                        theme::hint(ui, p, tr("Added to the ticket, food and drink total. Set 0 for included choices."));
+                    }
                     changed |= alias_chips(ui, p, &mut category.aliases);
                     changed |= add_spelling(ui, category, &spellings);
                 });

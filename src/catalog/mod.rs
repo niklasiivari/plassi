@@ -53,6 +53,9 @@ pub struct Category {
     /// Spellings that mean this category (compared case- and space-insensitively).
     #[serde(default)]
     pub aliases: Vec<String>,
+    /// Additive charge in euro cents; None means the price has not been set.
+    #[serde(default)]
+    pub price_cents: Option<u32>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -130,6 +133,7 @@ impl Catalog {
         self.list_mut(kind).push(Category {
             name: raw.trim().to_string(),
             aliases: Vec::new(),
+            price_cents: None,
         });
         self.list(kind).len() - 1
     }

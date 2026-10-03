@@ -289,6 +289,16 @@
         },
         "name": {
           "type": "string"
+        },
+        "price_cents": {
+          "description": "Additive charge in euro cents; None means the price has not been set.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
         }
       },
       "required": [

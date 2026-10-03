@@ -11,7 +11,7 @@ It runs as a desktop app (Linux, macOS, Windows) or in the browser, in English o
 - **Finds a good seating** with a local search that keeps avecs and groups together, follows your seating policy (mix organizations or keep them together, nobody sits alone, spare seats at the bottom of tables) and respects hard rules and pinned seats.
 - **Lets you adjust by hand**: drag people between seats with an instant score preview, pin seats, group or separate people, compare options, undo everything.
 - **Handles late changes**: walk-ins, cancellations and replacements, with suggestions for where they fit.
-- **Prints A4 PDFs**: the seating chart, kitchen list (food and allergies per table), bar list and door list.
+- **Prints A4 PDFs**: the seating chart, kitchen and bar lists, and an alphabetical door list with names and total prices.
 
 ## Privacy
 

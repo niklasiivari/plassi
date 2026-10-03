@@ -213,26 +213,23 @@
 #let door() = {
   set page(paper: "a4", margin: (x: 16mm, top: 14mm, bottom: 16mm), footer: footer)
   header(t("Door list", "Ovilista"), compact: true)
-  eyebrow(t("Tickets", "Liput"))
-  v(4pt)
-  totals-row(data.totals.group)
-  v(10pt)
-  let tick = box(width: 9pt, height: 9pt, stroke: 0.7pt + ink, radius: 1.5pt)
+
   table(
-    columns: (12pt, 1.35fr, 0.9fr, 2fr, auto),
+    columns: (1fr, auto),
     stroke: (x, y) => if y > 0 { (bottom: 0.4pt + hair) },
-    inset: (x: 4pt, y: 3.6pt),
-    align: (x, y) => if x == 0 { center + horizon } else { left + horizon },
+    inset: (x: 4pt, y: 3pt),
+    align: (x, y) => if x == 1 { right + horizon } else { left + horizon },
     table.header(
-      [], ..(t("Name", "Nimi"), t("Organization", "Järjestö"), t("Ticket", "Lippu"), t("Table", "Pöytä"))
+      ..(t("Name", "Nimi"), t("Price", "Hinta"))
         .map(h => text(size: 7.5pt, tracking: 0.12em, fill: muted, weight: "semibold", upper(h))),
     ),
     ..data.people.map(p => (
-      tick,
       text(weight: "semibold", p.name),
-      text(fill: muted, size: 9pt, p.org),
-      text(size: 8.5pt, p.group),
-      [#p.table #text(fill: muted, size: 8pt, p.place)],
+      if p.price_cents == none { text(fill: muted, t("Not set", "Ei asetettu")) } else {
+        let cents = p.price_cents
+        let fraction = str(calc.rem(cents, 100))
+        str(calc.floor(cents / 100)) + (if fi { "," } else { "." }) + (if fraction.len() == 1 { "0" } else { "" }) + fraction + " €"
+      },
     )).flatten(),
   )
 }

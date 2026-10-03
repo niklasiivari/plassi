@@ -51,9 +51,7 @@ impl PrintKind {
             ),
             PrintKind::Kitchen => tr("Food choices and allergies per table and seat, with totals."),
             PrintKind::Bar => tr("Drink choices per table and seat, with totals."),
-            PrintKind::Door => {
-                tr("Alphabetical ticket check with price category, table and a tick box.")
-            }
+            PrintKind::Door => tr("Alphabetical names and total ticket, food and drink price."),
         }
     }
 }
@@ -61,6 +59,7 @@ impl PrintKind {
 fn person_json(project: &Project, id: usize) -> Value {
     let a = project.person(id);
     json!({
+        "price_cents": a.and_then(|a| project.attendee_price_cents(a)),
         "name": a.map(|a| a.name.as_str()).unwrap_or(""),
         "org": a.map(|a| project.category_name(Kind::Organization, a)).unwrap_or_default(),
         "group": a.map(|a| project.category_name(Kind::Ticket, a)).unwrap_or_default(),

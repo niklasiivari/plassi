@@ -1,6 +1,11 @@
 //! Finnish text: common.
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
+    ("Price contribution", "Hinnan osuus"),
+    (
+        "Added to the ticket, food and drink total. Set 0 for included choices.",
+        "Lisätään lipun, ruoan ja juoman yhteishintaan. Aseta 0 hintaan sisältyville valinnoille.",
+    ),
     ("Light mode", "Vaalea teema"),
     ("Dark mode", "Tumma teema"),
     ("About Plassi", "Tietoa Plassista"),
@@ -254,8 +259,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Juomavalinnat pöydittäin ja paikoittain, yhteensä-määrien kanssa.",
     ),
     (
-        "Alphabetical ticket check with price category, table and a tick box.",
-        "Aakkosellinen lipuntarkastuslista, jossa hintaluokka, pöytä ja rastiruutu.",
+        "Alphabetical names and total ticket, food and drink price.",
+        "Aakkosellinen nimilista ja lipun, ruoan ja juoman yhteishinta.",
     ),
     (
         "Optimal — no seating can score better",

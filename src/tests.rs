@@ -596,6 +596,15 @@ fn every_print_renders() {
     project.event.title = "Test".into();
     project.attendees[0].food = "Vegetarian".into();
     project.attendees[1].allergies = "Nuts".into();
+    project.attendees[0].participant_group = "Member".into();
+    project.attendees[0].drink.clear();
+    for (kind, name, cents) in [
+        (crate::catalog::Kind::Ticket, "Member", 2000),
+        (crate::catalog::Kind::Food, "Vegetarian", 550),
+    ] {
+        let index = project.catalog.create(kind, name);
+        project.catalog.list_mut(kind)[index].price_cents = Some(cents);
+    }
     let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(400))
         .expect("seating");
     project.candidates.push(candidate);
@@ -1213,4 +1222,50 @@ fn column_choices_are_remembered_for_the_next_import() {
     again.remember(&project.import_columns);
     assert_eq!(again.columns, [Column::Name, Column::Wish, Column::Ignore]);
     assert!(again.matches.iter().all(|m| *m == Match::Remembered));
+}
+
+#[test]
+fn attendee_prices_sum_mapped_ticket_food_and_drink_without_guessing() {
+    use crate::catalog::Kind;
+    let mut project = fixture();
+    let person = &mut project.attendees[0];
+    person.participant_group = "Member".into();
+    person.food = "Vegetarian".into();
+    person.drink = "Alcohol free".into();
+    for (kind, name, cents) in [
+        (Kind::Ticket, "Member", 2000),
+        (Kind::Food, "Vegetarian", 550),
+        (Kind::Drink, "Alcohol free", 0),
+    ] {
+        let index = project.catalog.create(kind, name);
+        project.catalog.list_mut(kind)[index].price_cents = Some(cents);
+    }
+    assert_eq!(
+        project.attendee_price_cents(&project.attendees[0]),
+        Some(2550)
+    );
+    project.catalog.assign(Kind::Ticket, "member alias", 0);
+    project.attendees[0].participant_group = "member alias".into();
+    assert_eq!(
+        project.attendee_price_cents(&project.attendees[0]),
+        Some(2550)
+    );
+    let extra = project.catalog.create(Kind::Drink, "Extra drink");
+    project.catalog.assign(Kind::Drink, "Alcohol free", extra);
+    project.catalog.list_mut(Kind::Drink)[extra].price_cents = Some(125);
+    assert_eq!(
+        project.attendee_price_cents(&project.attendees[0]),
+        Some(2675)
+    );
+    project.catalog.list_mut(Kind::Drink)[extra].price_cents = None;
+    assert_eq!(project.attendee_price_cents(&project.attendees[0]), None);
+    project.attendees[0].drink = "Unmapped choice".into();
+    assert_eq!(project.attendee_price_cents(&project.attendees[0]), None);
+    project.attendees[0].participant_group.clear();
+    project.attendees[0].food.clear();
+    project.attendees[0].drink.clear();
+    assert_eq!(project.attendee_price_cents(&project.attendees[0]), None);
+    let decoded: crate::model::Project =
+        serde_json::from_str(&serde_json::to_string(&project).unwrap()).unwrap();
+    assert_eq!(decoded.catalog, project.catalog);
 }
