@@ -337,13 +337,14 @@ fn target_editor(
         let mut changed = false;
         match target {
             Target::People { .. } => unreachable!("people use the checklist above"),
-            Target::Organization { name, required } => {
+            Target::Organization { name, .. } => {
                 ui.label(tr("people from"));
                 changed |= ui.add(theme::field(name).desired_width(140.0)).changed();
-                ui.label(tr("needs"));
-                changed |= ui
-                    .add(egui::DragValue::new(required).range(1..=50))
-                    .changed();
+                theme::hint(
+                    ui,
+                    theme::palette(ui.ctx()),
+                    tr("Everyone in this organization"),
+                );
             }
             Target::Tag { tag, required } => {
                 ui.label(fill("group “{}”, needs", &[tag]));

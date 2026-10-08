@@ -183,6 +183,8 @@ fn proximity_detail(
     {
         let names = project.names_of(ids, Some(requester));
         fill("all of {}: {}", &[&names, &t.class.label()])
+    } else if matches!(target, crate::model::Target::Organization { .. }) && t.required > 1 {
+        fill("{} wished people: {}", &[&t.required, &t.class.label()])
     } else if let Some(nearest) = t.nearest {
         format!("{}: {}", project.person_name(nearest), t.class.label())
     } else {

@@ -67,6 +67,40 @@ fn project_validation_rejects_out_of_range_scoring_values() {
 }
 
 #[test]
+fn organization_wish_counts_every_matching_member() {
+    let mut project = fixture();
+    project.attendees[1].organization = "ABC".into();
+    project.attendees[2].organization = "ABC".into();
+    project.rules.push(Rule {
+        id: 1,
+        label: "Organization wish".into(),
+        source: "test".into(),
+        enabled: true,
+        kind: RuleKind::Proximity {
+            requester: 0,
+            target: Target::Organization {
+                name: "ABC".into(),
+                required: 1,
+            },
+            // Opposite costs, so meeting only the nearest member is not enough.
+            costs: ProximityCosts([0, 10, 20, 30, 40, 50]),
+            weight: 1,
+            weight_mode: WeightMode::Fixed,
+            max_class: None,
+        },
+    });
+    let assignment = BTreeMap::from([
+        (0, "table-a:left:0".into()),
+        (1, "table-a:right:0".into()),
+        (2, "table-a:left:1".into()),
+        (3, "table-a:right:1".into()),
+    ]);
+    let evaluation = crate::score::evaluate(&project, &assignment);
+    assert!(evaluation.results[0].detail.contains("2 wished people"));
+    assert!(evaluation.wish_penalty > 0);
+}
+
+#[test]
 fn project_validation_rejects_reserved_maximum_ids() {
     let mut project = fixture();
     project.attendees[0].id = usize::MAX;

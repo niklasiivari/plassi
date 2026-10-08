@@ -6,6 +6,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("+ Add person", "+ Lisää henkilö"),
     ("Search people", "Etsi henkilöitä"),
     ("No matching people", "Ei hakutuloksia"),
+    (
+        "Everyone in this organization",
+        "Kaikki tämän järjestön jäsenet",
+    ),
     ("Search name or organization", "Hae nimellä tai järjestöllä"),
     ("All {}", "Kaikki {}"),
     ("Unreviewed {}", "Tarkistamatta {}"),

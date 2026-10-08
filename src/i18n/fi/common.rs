@@ -172,6 +172,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "only {} of {} wished people seated",
         "vain {} / {} toivotusta henkilöstä sai paikan",
     ),
+    ("{} wished people: {}", "{} toivottua henkilöä: {}"),
     ("{} nearest: {}", "{} lähimmän etäisyys: {}"),
     ("everyone close", "kaikki lähellä"),
     ("all at one table", "kaikki samassa pöydässä"),

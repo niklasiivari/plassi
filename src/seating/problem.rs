@@ -46,6 +46,8 @@ pub(super) struct Term {
     pub(super) costs: [i64; crate::model::CLASSES],
     /// Distance classes that break a hard rule.
     pub(super) forbidden: [bool; crate::model::CLASSES],
+    /// Group wishes can include many members; later members have diminishing weight.
+    pub(super) decaying_targets: bool,
     pub(super) source: Source,
 }
 
@@ -237,8 +239,20 @@ impl Problem {
         }
         scratch.sort_unstable();
         scratch.resize(scratch.len().max(k), DistanceClass::Far);
-        let sum: i64 = scratch[..k].iter().map(|c| term.costs[*c as usize]).sum();
-        (scratch[k - 1], sum / k as i64)
+        if term.decaying_targets {
+            const SCALE: i64 = 1_024;
+            let mut weighted = 0;
+            let mut total_weight = 0;
+            for (rank, class) in scratch[..k].iter().enumerate() {
+                let weight = (SCALE / (rank as i64 + 1)).max(1);
+                weighted += term.costs[*class as usize] * weight;
+                total_weight += weight;
+            }
+            (scratch[k - 1], weighted / total_weight)
+        } else {
+            let sum: i64 = scratch[..k].iter().map(|c| term.costs[*c as usize]).sum();
+            (scratch[k - 1], sum / k as i64)
+        }
     }
 
     /// Extra cost if none of a requester's wishes is near them.
@@ -573,6 +587,7 @@ fn compile_terms(project: &Project, index: &HashMap<usize, usize>) -> Vec<Term> 
                 required: 1,
                 costs: t.costs,
                 forbidden: t.forbidden,
+                decaying_targets: false,
                 source: Source::Preference(preference.id),
             })
         })
@@ -592,23 +607,29 @@ fn wish_term(project: &Project, rule: &Rule, index: &HashMap<usize, usize>) -> O
     else {
         return None;
     };
+    let targets = project
+        .target_ids(*requester, target)
+        .iter()
+        .filter_map(|t| index.get(t).copied())
+        .collect::<Vec<_>>();
+    let decaying_targets = matches!(target, crate::model::Target::Organization { .. });
+    let required = match target {
+        // An organization wish means being near the organization group. It is
+        // not an "any one member" wish; every matching member counts.
+        crate::model::Target::Organization { .. } => targets.len(),
+        _ => target.required().min(targets.len()),
+    };
     Some(Term {
         requester: *index.get(requester)?,
-        targets: project
-            .target_ids(*requester, target)
-            .iter()
-            .filter_map(|t| index.get(t).copied())
-            .collect(),
+        targets,
         // Never more than there are: a removed person can't make it unmeetable.
-        required: target
-            .required()
-            .min(project.target_ids(*requester, target).len())
-            .max(1),
+        required: required.max(1),
         costs: {
             let (weight, share) = project.weight_share(rule);
             costs.shared(weight, share)
         },
         forbidden: DistanceClass::ALL.map(|c| max_class.is_some_and(|max| c > max)),
+        decaying_targets,
         source: Source::Rule(rule.id),
     })
 }
