@@ -55,7 +55,7 @@
 
 // ---------------------------------------------------------------- chart --
 #let chart(service: none) = {
-  set page(paper: "a4", flipped: true, margin: (x: 14mm, top: 12mm, bottom: 14mm), footer: footer)
+  set page(paper: "a4", flipped: true, margin: (x: 14mm, top: 12mm, bottom: 14mm))
   header(if service == "food" { t("Kitchen", "Keittiö") } else if service == "drink" { t("Bar", "Baari") } else { t("Seating", "Istumajärjestys") })
   let tables = calc.max(1, data.max_tables)
   let rows = calc.max(1, data.max_rows)
