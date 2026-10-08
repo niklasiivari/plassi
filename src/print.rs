@@ -11,7 +11,7 @@ use crate::model::{Project, Seat, Side, TableSpec};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PrintKind {
-    /// Wall chart plus an alphabetical "find your seat" index.
+    /// Wall chart of the tables.
     Chart,
     Kitchen,
     Bar,
@@ -46,7 +46,7 @@ impl PrintKind {
 
     pub fn description(self) -> &'static str {
         match self {
-            PrintKind::Chart => tr("Table chart and alphabetical seat index."),
+            PrintKind::Chart => tr("Table chart for the wall."),
             PrintKind::Kitchen => tr("Table chart with meals, allergies and totals."),
             PrintKind::Bar => tr("Table chart with drinks and totals."),
             PrintKind::Door => tr("Names and prices, alphabetically."),
@@ -97,7 +97,7 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
         "subtitle": project.event.subtitle,
         "lang": project.event.print_language.code(),
         "rows": rows_json(project, &option.assignment),
-        "people": people_json(project, &option.assignment),
+        "people": people_json(project),
         "max_rows": max_rows,
         "max_tables": max_tables,
         "totals": {
@@ -145,26 +145,32 @@ fn table_json(
     let seat_rows: Vec<Value> = (0..length)
         .map(|i| json!({ "n": i + 1, "left": side(Side::Left, i), "right": side(Side::Right, i) }))
         .collect();
-    json!({ "label": table.label, "rows": seat_rows })
+    json!({ "label": table_name(project, &table.id), "rows": seat_rows })
 }
 
-/// Everyone alphabetically, with table and a short place code such as "L3".
-fn people_json(project: &Project, assignment: &BTreeMap<usize, String>) -> Vec<Value> {
+/// A table's printed name: its label, or "Table 2" / "Pöytä 2" by its place
+/// in the room when it has none, so guests can tell the tables apart.
+fn table_name(project: &Project, table_id: &str) -> String {
+    let tables = project.layout.rows.iter().flat_map(|r| &r.tables);
+    let Some((number, table)) = tables.enumerate().find(|(_, t)| t.id == table_id) else {
+        return String::new();
+    };
+    if !table.label.trim().is_empty() {
+        return table.label.clone();
+    }
+    let word = match project.event.print_language.code() {
+        "fi" => "Pöytä",
+        _ => "Table",
+    };
+    format!("{word} {}", number + 1)
+}
+
+/// Everyone alphabetically, for the door list.
+fn people_json(project: &Project) -> Vec<Value> {
     let mut people: Vec<Value> = project
         .attendees
         .iter()
-        .map(|a| {
-            let mut value = person_json(project, a.id);
-            let place = assignment.get(&a.id).and_then(|s| project.seat_place(s));
-            let (table, code) = match place {
-                Some((table, Side::Left, row)) => (table, format!("L{row}")),
-                Some((table, Side::Right, row)) => (table, format!("R{row}")),
-                None => ("", String::new()),
-            };
-            value["table"] = json!(table);
-            value["place"] = json!(code);
-            value
-        })
+        .map(|a| person_json(project, a.id))
         .collect();
     people.sort_by(|a, b| {
         let key = |v: &Value| v["name"].as_str().unwrap_or("").to_lowercase();

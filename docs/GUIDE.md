@@ -81,7 +81,7 @@ On the chart: Ctrl+F finds someone (arrow keys and Enter pick from the matches),
 
 The Print page saves A4 PDFs next to the project file, typeset with a Typst template (`typeset/src/print.typ`) and the bundled Source Serif and Source Sans fonts:
 
-- Seating chart: all tables with names for the wall, plus an alphabetical list of seats.
+- Seating chart: all tables with names for the wall. Tables without a name are printed as "Table 1", "Table 2" … ("Pöytä" in Finnish) by their place in the room.
 - Kitchen chart: the same table shapes as the seating chart, with food and allergies at each seat and food totals.
 - Bar chart: the same table shapes, with drinks at each seat and drink totals.
 - Door list: alphabetical names and the total ticket, food and drink price.

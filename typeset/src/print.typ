@@ -20,7 +20,7 @@
 // Shrinks text so it fits the given width.
 #let fit(body, width, size) = context {
   let w = measure(text(size: size, body)).width
-  if w > width { text(size: size * width / w, body) } else { text(size: size, body) }
+  if w > width { text(size: size * (width / w), body) } else { text(size: size, body) }
 }
 
 #let eyebrow(body) = text(font: sans, size: 8pt, tracking: 0.22em, fill: muted, weight: "semibold", upper(body))
@@ -124,39 +124,7 @@
       v(4pt)
       totals-row(data.totals.at(service))
     })
-  } else {
-    // Alphabetical index.
-    pagebreak()
-    set page(flipped: false, margin: (x: 16mm, top: 14mm, bottom: 16mm))
-    header(t("Find your seat", "Etsi paikkasi"), compact: true)
-    set text(size: if data.people.len() > 150 { 9pt } else if data.people.len() > 100 { 10.5pt } else { 12pt })
-    // Split evenly into three columns so they end at the same height.
-    let n = data.people.len()
-    let per = calc.ceil(n / 3)
-    let column(list) = {
-      let letter = ""
-      for p in list {
-        let first = upper(p.name.clusters().at(0, default: ""))
-        if first != letter {
-          letter = first
-          block(above: 7pt, below: 3pt, sticky: true, text(font: serif, size: 12.5pt, weight: "semibold", fill: accent, letter))
-        }
-        block(below: if n > 100 { 5pt } else { 7.5pt }, grid(
-          columns: (auto, 1fr, auto),
-          column-gutter: 3pt,
-          p.name,
-          box(width: 1fr, repeat(text(fill: hair, "."))),
-          [#text(weight: "semibold", p.table) #text(fill: muted, size: 0.85em, p.place)],
-        ))
-      }
-    }
-    grid(
-      columns: (1fr, 1fr, 1fr),
-      column-gutter: 8mm,
-      ..range(3).map(i => column(data.people.slice(calc.min(n, i * per), calc.min(n, (i + 1) * per)))),
-    )
   }
-
 }
 
 // ---------------------------------------------------------------- door --

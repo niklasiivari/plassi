@@ -211,10 +211,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Kitchen", "Keittiö"),
     ("Bar", "Baari"),
     ("Door list", "Ovilista"),
-    (
-        "Table chart and alphabetical seat index.",
-        "Pöytäkartta ja aakkosellinen paikkahakemisto.",
-    ),
+    ("Table chart for the wall.", "Pöytäkartta seinälle."),
     (
         "Table chart with meals, allergies and totals.",
         "Pöytäkartta, jossa ruoat, allergiat ja yhteismäärät.",
