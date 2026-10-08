@@ -488,3 +488,20 @@ fn people_import_from_pasted_sheet() {
     );
     assert!(ui.has("X Y") && ui.has("Z W"), "{:?}", ui.dump());
 }
+
+#[test]
+fn reopens_on_the_option_last_shown() {
+    let mut ui = Ui::with_example();
+    ui.solve();
+    ui.solve();
+    assert_eq!(ui.app().project.candidates.len(), 2);
+    ui.app_mut().selected_candidate = 0;
+    ui.settle();
+    let ui = ui.reopen();
+    assert_eq!(ui.app().selected_candidate, 0);
+    let mut ui = ui;
+    ui.app_mut().selected_candidate = 1;
+    ui.settle();
+    let ui = ui.reopen();
+    assert_eq!(ui.app().selected_candidate, 1);
+}
