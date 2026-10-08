@@ -297,6 +297,11 @@
             "type": "string"
           }
         },
+        "mark": {
+          "description": "Short mark for the kitchen print, e.g. \"VE\". Empty prints the name.",
+          "type": "string",
+          "default": ""
+        },
         "name": {
           "type": "string"
         },
@@ -1058,7 +1063,7 @@
           "const": "Avec"
         },
         {
-          "description": "Beside, opposite and diagonal are all good. A person's seating\nwishes share one weight, so many wishes don't outweigh one.",
+          "description": "Beside, opposite and diagonal are all good. A person's seating\nwishes are damped by how many they have (see `Project::wish_costs`).",
           "type": "string",
           "const": "Seating"
         }

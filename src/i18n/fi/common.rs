@@ -2,6 +2,11 @@
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Price", "Hinta"),
+    ("Print mark", "Merkintä"),
+    (
+        "Shown on the kitchen print, e.g. VE. The most common meal is left unmarked.",
+        "Näkyy keittiötulosteessa, esim. VE. Yleisin ateria jätetään merkitsemättä.",
+    ),
     ("Not set", "Ei asetettu"),
     ("Custom price", "Oma hinta"),
     (" (custom)", " (oma hinta)"),

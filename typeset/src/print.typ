@@ -127,6 +127,97 @@
   }
 }
 
+// ------------------------------------------------------------- kitchen --
+// Tables as on the wall chart, each seat with a short meal mark (none for the
+// most common meal) and its allergies; a legend and long allergy notes below.
+#let mark-chip(mark) = if mark != "" {
+  box(fill: accent, radius: 2pt, inset: (x: 2.5pt, y: 1.5pt), text(size: 7pt, weight: "bold", fill: white, mark))
+}
+
+#let kitchen() = {
+  set page(paper: "a4", flipped: true, margin: (x: 10mm, top: 9mm, bottom: 9mm))
+  let diets = data.diets
+  grid(
+    columns: (auto, 1fr, auto),
+    align: horizon,
+    column-gutter: 8pt,
+    eyebrow(t("Kitchen", "Keittiö")),
+    [#text(font: serif, size: 14pt, weight: "semibold", data.title) #h(6pt) #text(font: serif, style: "italic", fill: muted, data.subtitle)],
+    text(size: 8pt, fill: muted, t("Unmarked: ", "Ilman merkintää: ") + if diets.plain != none { diets.plain.name } else { "" }),
+  )
+  v(2pt)
+  line(length: 100%, stroke: 0.5pt + hair)
+  v(4pt)
+
+  let tables = calc.max(1, data.max_tables)
+  let rows = calc.max(1, data.max_rows)
+  let room-rows = calc.max(1, data.rows.len())
+  let row-h = calc.min(11mm, 136mm / room-rows / rows)
+  let gap = 8mm
+  let band = 6mm
+  let table-w = (277mm - gap * (tables - 1)) / tables
+  let name-w = (table-w - band) / 2 - 2mm
+  let seat(p, side) = {
+    if p == none { return text(size: 7pt, style: "italic", fill: muted, t("Empty", "tyhjä")) }
+    let d = p.diet
+    let mark = mark-chip(d.mark)
+    let name = fit(p.name, name-w - (if d.mark != "" { 10mm } else { 0mm }), 9pt)
+    let first = if side == "left" { [#name #mark] } else { [#mark #name] }
+    let second = if d.note != none {
+      text(size: 6.5pt, fill: warn, weight: "bold", t("Allergy note ", "Allergia, ks. ") + str(d.note))
+    } else if d.allergy != "" {
+      text(size: 6.5pt, fill: warn, d.allergy)
+    }
+    block(width: name-w, {
+      set par(leading: 0.25em)
+      first
+      if second != none { linebreak(); second }
+    })
+  }
+  for room in data.rows {
+    align(center, grid(
+      columns: (table-w,) * room.tables.len(),
+      column-gutter: gap,
+      ..room.tables.map(tbl => {
+        align(center, text(font: serif, size: 10pt, weight: "semibold", fill: accent, tbl.label))
+        v(1pt)
+        let n = tbl.rows.len()
+        let body = block(
+          width: 100%, height: 100%, radius: 2pt, fill: tint, stroke: 0.5pt + hair,
+          grid(rows: (row-h,) * n, ..tbl.rows.map(r => align(center + horizon, text(size: 5.5pt, fill: muted, str(r.n))))),
+        )
+        let cells = ()
+        for (i, r) in tbl.rows.enumerate() {
+          cells.push(align(right + horizon, seat(r.left, "left")))
+          if i == 0 { cells.push(grid.cell(rowspan: n, body)) }
+          cells.push(align(left + horizon, seat(r.right, "right")))
+        }
+        grid(columns: (1fr, band, 1fr), rows: (row-h,) * n, column-gutter: 1.5mm, ..cells)
+      })
+    ))
+    v(3mm)
+  }
+
+  // Legend: each mark with its meal and count.
+  let entry(mark, name, count) = box[#mark #text(size: 8pt)[#name] #text(size: 8pt, weight: "bold", str(count))]
+  let items = ()
+  if diets.plain != none { items.push(entry(text(size: 7pt, fill: muted, "—"), diets.plain.name, diets.plain.count)) }
+  for m in diets.legend { items.push(entry(mark-chip(m.mark), m.name, m.count)) }
+  align(center, items.join(h(12pt)))
+
+  if diets.notes.len() > 0 {
+    v(3mm)
+    eyebrow(t("Allergy notes", "Allergiat"))
+    v(2pt)
+    columns(3, gutter: 6mm, {
+      set text(size: 7.5pt)
+      for note in diets.notes {
+        block(below: 3pt)[#text(fill: warn, weight: "bold", str(note.n)) #h(2pt) *#note.name:* #note.text]
+      }
+    })
+  }
+}
+
 // ---------------------------------------------------------------- door --
 #let door() = {
   set page(paper: "a4", margin: (x: 16mm, top: 14mm, bottom: 16mm), footer: footer)
@@ -160,6 +251,6 @@
 }
 
 #if data.kind == "chart" { chart() }
-#if data.kind == "kitchen" { chart(service: "food") }
+#if data.kind == "kitchen" { kitchen() }
 #if data.kind == "bar" { chart(service: "drink") }
 #if data.kind == "door" { door() }

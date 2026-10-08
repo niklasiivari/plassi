@@ -56,6 +56,9 @@ pub struct Category {
     /// Additive charge in euro cents; None means the price has not been set.
     #[serde(default)]
     pub price_cents: Option<u32>,
+    /// Short mark for the kitchen print, e.g. "VE". Empty prints the name.
+    #[serde(default)]
+    pub mark: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -134,6 +137,7 @@ impl Catalog {
             name: raw.trim().to_string(),
             aliases: Vec::new(),
             price_cents: None,
+            mark: String::new(),
         });
         self.list(kind).len() - 1
     }

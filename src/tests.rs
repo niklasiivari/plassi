@@ -761,6 +761,8 @@ fn every_print_renders() {
     project.event.title = "Test".into();
     project.attendees[0].food = "Vegetarian".into();
     project.attendees[1].allergies = "Nuts".into();
+    // Too wide for a seat, so the prints shrink it.
+    project.attendees[2].name = "Xxxxxxxxxxxx Yyyyyyyyyyyy-Zzzzzzzzzzzzzz Wwwwwwwwwwww".into();
     project.attendees[0].participant_group = "Member".into();
     project.attendees[0].drink.clear();
     for (kind, name, cents) in [
@@ -778,6 +780,52 @@ fn every_print_renders() {
             crate::print::render(&project, 0, kind).unwrap_or_else(|e| panic!("{kind:?}: {e:#}"));
         assert!(pdf.starts_with(b"%PDF"), "{kind:?}");
     }
+}
+
+#[test]
+fn kitchen_print_marks_meals_and_numbers_long_allergies() {
+    use crate::catalog::Kind;
+    let mut project = fixture();
+    for (id, food, allergies) in [
+        (0, "Mixed", "-"),
+        (1, "Mixed", "Nuts"),
+        (
+            2,
+            "Mixed",
+            "No raw eggs, unpasteurised milk or undercooked meat or fish",
+        ),
+        (3, "Vegan", "ei ole"),
+    ] {
+        project.attendees[id].food = food.into();
+        project.attendees[id].allergies = allergies.into();
+    }
+    let vegan = project.catalog.create(Kind::Food, "Vegan");
+    project.catalog.list_mut(Kind::Food)[vegan].mark = "VE".into();
+    project.catalog.create(Kind::Food, "Mixed");
+    let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(200))
+        .expect("seating");
+    project.candidates.push(candidate);
+    let data = crate::print::data(&project, 0, crate::print::PrintKind::Kitchen).unwrap();
+    let mut seats = std::collections::HashMap::new();
+    for table in data["rows"][0]["tables"].as_array().unwrap() {
+        for row in table["rows"].as_array().unwrap() {
+            for side in ["left", "right"] {
+                let p = &row[side];
+                seats.insert(p["name"].as_str().unwrap().to_string(), p["diet"].clone());
+            }
+        }
+    }
+    // The most common meal is unmarked; "-" and "ei ole" mean no allergies.
+    assert_eq!(seats["Person 0"]["mark"], "");
+    assert_eq!(seats["Person 0"]["allergy"], "");
+    assert_eq!(seats["Person 1"]["allergy"], "Nuts");
+    assert_eq!(seats["Person 3"]["mark"], "VE");
+    assert_eq!(seats["Person 3"]["allergy"], "");
+    // A long allergy text becomes a numbered note under the chart.
+    assert_eq!(seats["Person 2"]["note"], 1);
+    assert_eq!(data["diets"]["notes"][0]["name"], "Person 2");
+    assert_eq!(data["diets"]["plain"]["name"], "Mixed");
+    assert_eq!(data["diets"]["legend"][0]["mark"], "VE");
 }
 
 #[test]

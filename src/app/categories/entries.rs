@@ -50,6 +50,19 @@ impl PlassiApp {
                         changed |= theme::price_input(ui, tr("Price"), &mut category.price_cents);
                         theme::hint(ui, p, tr("Added to the ticket total. Use 0 if included."));
                     }
+                    if kind == Kind::Food {
+                        ui.horizontal(|ui| {
+                            ui.label(tr("Print mark"));
+                            changed |= ui
+                                .add(theme::field(&mut category.mark).desired_width(60.0))
+                                .lost_focus();
+                            theme::hint(
+                                ui,
+                                p,
+                                tr("Shown on the kitchen print, e.g. VE. The most common meal is left unmarked."),
+                            );
+                        });
+                    }
                     changed |= alias_chips(ui, p, &mut category.aliases);
                     changed |= add_spelling(ui, category, &spellings);
                 });
