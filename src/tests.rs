@@ -52,18 +52,6 @@ fn project_validation_rejects_out_of_range_scoring_values() {
     project.policy = SeatingPolicy::default();
     project.policy.isolation_penalty = 2_001;
     assert!(project.validate().is_err());
-
-    project.policy = SeatingPolicy::default();
-    project.preferences.push(crate::preferences::Preference {
-        id: 1,
-        kind: crate::preferences::PreferenceKind::Together {
-            people: vec![0, 1],
-            costs: ProximityCosts([-1, 0, 0, 0, 0, 0]),
-        },
-        strength: crate::preferences::Strength::Important,
-        enabled: true,
-    });
-    assert!(project.validate().is_err());
 }
 
 #[test]
@@ -970,10 +958,7 @@ fn preferences_group_together_and_keep_apart() {
         .map(|p| p.detail.as_str())
         .collect();
     assert_eq!(details[1], "kept apart");
-    assert!(
-        details[0] == "all at one table" || details[0] == "everyone close",
-        "{details:?}"
-    );
+    assert_eq!(details[0], "together");
 
     // Removing people shrinks preferences; one left alone is dropped.
     crate::roster::remove(&mut project, 1);
@@ -981,6 +966,114 @@ fn preferences_group_together_and_keep_apart() {
     assert_eq!(project.preferences.len(), 1);
     assert_eq!(project.preferences[0].kind.people(), &[3, 5, 6]);
     project.validate().expect("valid after removal");
+}
+
+/// One long table of eight rows, twelve people, people 0–5 grouped.
+fn long_table_group() -> Project {
+    use crate::preferences::{PreferenceKind, Strength};
+    let mut project = synthetic_project(12, 0);
+    project.layout.rows.push(RowSpec {
+        id: "row".into(),
+        label: "Row 1".into(),
+        tables: vec![TableSpec {
+            id: "t".into(),
+            label: "Table".into(),
+            left: 8,
+            right: 8,
+        }],
+    });
+    project.add_preference(
+        PreferenceKind::together((0..6).collect()),
+        Strength::Important,
+    );
+    project
+}
+
+/// Seats people 0–5 at `group` and everyone else from the bottom up.
+fn seat_group(group: &[(&str, usize)]) -> BTreeMap<usize, String> {
+    let mut assignment: BTreeMap<usize, String> = group
+        .iter()
+        .enumerate()
+        .map(|(p, (side, row))| (p, format!("t:{side}:{row}")))
+        .collect();
+    let taken: Vec<String> = assignment.values().cloned().collect();
+    let free: Vec<String> = (0..8)
+        .rev()
+        .flat_map(|row| [format!("t:left:{row}"), format!("t:right:{row}")])
+        .filter(|seat| !taken.contains(seat))
+        .collect();
+    assignment.extend((6..12).zip(free));
+    assignment
+}
+
+#[test]
+fn group_is_one_compact_block() {
+    let project = long_table_group();
+    let detail = |group: &[(&str, usize)]| {
+        let result = crate::score::evaluate(&project, &seat_group(group));
+        (
+            result.preferences[0].detail.clone(),
+            result.preference_penalty,
+        )
+    };
+    // Three rows of both sides: attached and compact.
+    let block = [
+        ("left", 0),
+        ("right", 0),
+        ("left", 1),
+        ("right", 1),
+        ("left", 2),
+        ("right", 2),
+    ];
+    assert_eq!(detail(&block), ("together".into(), 0));
+    // A single file down one side is attached but no group.
+    let line = [
+        ("left", 0),
+        ("left", 1),
+        ("left", 2),
+        ("left", 3),
+        ("left", 4),
+        ("left", 5),
+    ];
+    let (text, stretched) = detail(&line);
+    assert_eq!(text, "3 rows longer than needed");
+    // Two pieces at the ends of the table are worse than a stretched block.
+    let split = [
+        ("left", 0),
+        ("right", 0),
+        ("left", 1),
+        ("left", 6),
+        ("right", 6),
+        ("left", 7),
+    ];
+    let (text, penalty) = detail(&split);
+    assert_eq!(text, "split into 2 parts");
+    assert!(penalty > stretched, "{penalty} vs {stretched}");
+}
+
+#[test]
+fn pair_beside_or_opposite_is_together() {
+    use crate::preferences::{PreferenceKind, Strength};
+    let mut project = long_table_group();
+    project.preferences.clear();
+    project.add_preference(PreferenceKind::together(vec![0, 1]), Strength::Important);
+    for pair in [[("left", 0), ("left", 1)], [("left", 0), ("right", 0)]] {
+        let mut group = pair.to_vec();
+        group.extend([("left", 3), ("right", 3), ("left", 4), ("right", 4)]);
+        let result = crate::score::evaluate(&project, &seat_group(&group));
+        assert_eq!(result.preferences[0].detail, "together");
+        assert_eq!(result.preference_penalty, 0);
+    }
+}
+
+#[test]
+fn solver_seats_a_group_as_a_block() {
+    let project = long_table_group();
+    crate::seating::check_deltas(&project);
+    let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(300))
+        .expect("seating");
+    let result = crate::score::evaluate(&project, &candidate.assignment);
+    assert_eq!(result.preferences[0].detail, "together");
 }
 
 #[test]

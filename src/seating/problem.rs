@@ -31,6 +31,25 @@ pub(super) const NONE: usize = usize::MAX;
 /// Organization members beyond this many nearest weigh nothing.
 const DECAY_RANKS: usize = 10;
 
+/// Reused buffers for scoring terms without allocating.
+#[derive(Default)]
+pub(super) struct Scratch {
+    classes: Vec<DistanceClass>,
+    /// Per group member not yet joined: seat and distance to the nearest joined one.
+    link: Vec<(usize, DistanceClass)>,
+    /// Group members' (table, row).
+    spots: Vec<(usize, usize)>,
+}
+
+/// How a group sits: its widest break, what its breaks cost, how many
+/// pieces it is in and how many rows longer than needed it is.
+pub(super) struct BlockShape {
+    pub(super) widest: DistanceClass,
+    pub(super) gap_cost: i64,
+    pub(super) pieces: usize,
+    pub(super) extra_rows: usize,
+}
+
 /// Where a part of the score comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
@@ -38,8 +57,20 @@ pub enum Source {
     Preference(u64),
 }
 
-/// One person's wish to be near others: the distance to the `required`-th
-/// nearest target decides the cost.
+/// How a term turns distances into a cost.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Shape {
+    /// The mean cost of the `required` nearest targets.
+    Nearest,
+    /// Every target, each half as much as the next nearer one (an
+    /// organization); the nearest decides hard limits and "met".
+    Halving,
+    /// The requester and targets as one compact block: `costs` per break
+    /// between pieces, by its width, and `stretch` per row longer than needed.
+    Block { stretch: i64 },
+}
+
+/// One person's wish to be near others, or a group that sits together.
 pub(super) struct Term {
     pub(super) requester: usize,
     pub(super) targets: Vec<usize>,
@@ -48,9 +79,7 @@ pub(super) struct Term {
     pub(super) costs: [i64; crate::model::CLASSES],
     /// Distance classes that break a hard rule.
     pub(super) forbidden: [bool; crate::model::CLASSES],
-    /// An organization wish: every member counts, each one half as much as
-    /// the next nearer one, and the nearest decides hard limits and "met".
-    pub(super) decaying_targets: bool,
+    pub(super) shape: Shape,
     pub(super) source: Source,
 }
 
@@ -106,6 +135,8 @@ pub(super) struct Problem {
     pub(super) hard_cost: i64,
     pub(super) people: Vec<usize>,
     pub(super) seat_ids: Vec<String>,
+    /// Per seat: its table (as an index) and row at that table.
+    seat_spot: Vec<(usize, usize)>,
     pub(super) n_seats: usize,
     pub(super) class: Vec<DistanceClass>,
     pub(super) neighbours: Vec<Vec<usize>>,
@@ -187,6 +218,7 @@ impl Problem {
             swap_key,
             placement_rules,
             seat_ids: seats.iter().map(|s| s.id.clone()).collect(),
+            seat_spot: seat_spots(&seats),
             n_seats: n,
             class,
             neighbours,
@@ -213,72 +245,143 @@ impl Problem {
 
     /// Distance between two people's seats; `Far` if either has none.
     pub(super) fn distance(&self, seat_of: &[usize], a: usize, b: usize) -> DistanceClass {
-        match (seat_of[a], seat_of[b]) {
+        self.seat_distance(seat_of[a], seat_of[b])
+    }
+
+    /// Distance between two seats; `Far` if either is `NONE`.
+    fn seat_distance(&self, x: usize, y: usize) -> DistanceClass {
+        match (x, y) {
             (NONE, _) | (_, NONE) => DistanceClass::Far,
             (x, y) => self.class[x * self.n_seats + y],
         }
     }
 
-    /// How a term fares: the distance to the `required`-th nearest target
-    /// (which decides hard limits) and the penalty, the mean cost of the
-    /// `required` nearest, so each target that comes closer counts. For an
-    /// organization the nearest member decides instead, since a big one
-    /// always has someone far away.
+    /// How a term fares: the distance that decides hard limits and the
+    /// penalty. For a wish that is the `required`-th nearest target and the
+    /// mean cost of the `required` nearest, so each target that comes closer
+    /// counts. For an organization the nearest member decides instead, since
+    /// a big one always has someone far away. For a group it is the widest
+    /// break between its pieces.
     pub(super) fn term_outcome(
         &self,
         t: usize,
         seat_of: &[usize],
-        scratch: &mut Vec<DistanceClass>,
+        scratch: &mut Scratch,
     ) -> (DistanceClass, i64) {
         let term = &self.terms[t];
-        scratch.clear();
-        scratch.extend(
+        if let Shape::Block { stretch } = term.shape {
+            let block = self.block_shape(t, seat_of, scratch);
+            return (
+                block.widest,
+                block.gap_cost + block.extra_rows as i64 * stretch,
+            );
+        }
+        let classes = &mut scratch.classes;
+        classes.clear();
+        classes.extend(
             term.targets
                 .iter()
                 .map(|&x| self.distance(seat_of, term.requester, x)),
         );
         let k = term.required;
         if k == 1 {
-            let class = scratch.iter().copied().min().unwrap_or(DistanceClass::Far);
+            let class = classes.iter().copied().min().unwrap_or(DistanceClass::Far);
             return (class, term.costs[class as usize]);
         }
-        scratch.sort_unstable();
-        scratch.resize(scratch.len().max(k), DistanceClass::Far);
-        if term.decaying_targets {
+        classes.sort_unstable();
+        classes.resize(classes.len().max(k), DistanceClass::Far);
+        if term.shape == Shape::Halving {
             // Halving weights: the nearest few decide, the rest add next to nothing.
             let mut weighted = 0;
             let mut total_weight = 0;
-            for (rank, class) in scratch[..k].iter().take(DECAY_RANKS).enumerate() {
+            for (rank, class) in classes[..k].iter().take(DECAY_RANKS).enumerate() {
                 let weight = 1 << (DECAY_RANKS - 1 - rank);
                 weighted += term.costs[*class as usize] * weight;
                 total_weight += weight;
             }
-            (scratch[0], weighted / total_weight)
+            (classes[0], weighted / total_weight)
         } else {
-            let sum: i64 = scratch[..k].iter().map(|c| term.costs[*c as usize]).sum();
-            (scratch[k - 1], sum / k as i64)
+            let sum: i64 = classes[..k].iter().map(|c| term.costs[*c as usize]).sum();
+            (classes[k - 1], sum / k as i64)
         }
     }
 
-    /// Extra cost if none of a requester's wishes is beside, opposite or diagonal.
-    pub(super) fn left_out_cost(
+    /// How a group sits. The cheapest links joining everyone (a minimum
+    /// spanning tree) cost nothing between neighbours, so only the breaks
+    /// between pieces count, by how wide they are.
+    pub(super) fn block_shape(
         &self,
-        g: usize,
+        t: usize,
         seat_of: &[usize],
-        scratch: &mut Vec<DistanceClass>,
-    ) -> i64 {
+        scratch: &mut Scratch,
+    ) -> BlockShape {
+        let term = &self.terms[t];
+        let first = seat_of[term.requester];
+        let mut block = BlockShape {
+            widest: DistanceClass::Beside,
+            gap_cost: 0,
+            pieces: 1,
+            extra_rows: 0,
+        };
+        // Per member not yet joined: their seat and distance to the nearest joined one.
+        let link = &mut scratch.link;
+        link.clear();
+        link.extend(term.targets.iter().map(|&p| {
+            let seat = seat_of[p];
+            (seat, self.seat_distance(first, seat))
+        }));
+        while let Some(next) = (0..link.len()).min_by_key(|&i| link[i].1) {
+            let (seat, class) = link.swap_remove(next);
+            block.widest = block.widest.max(class);
+            block.gap_cost += term.costs[class as usize];
+            if class > DistanceClass::Diagonal {
+                block.pieces += 1;
+            }
+            for (other, c) in link.iter_mut() {
+                *c = (*c).min(self.seat_distance(seat, *other));
+            }
+        }
+        block.extra_rows = self.extra_rows(
+            std::iter::once(term.requester).chain(term.targets.iter().copied()),
+            seat_of,
+            &mut scratch.spots,
+        );
+        block
+    }
+
+    /// Rows a group takes beyond what it needs, per table: two sides fit two
+    /// people a row, and a pair or a four may take two rows.
+    fn extra_rows(
+        &self,
+        members: impl Iterator<Item = usize>,
+        seat_of: &[usize],
+        spots: &mut Vec<(usize, usize)>,
+    ) -> usize {
+        spots.clear();
+        spots.extend(
+            members
+                .filter(|&p| seat_of[p] != NONE)
+                .map(|p| self.seat_spot[seat_of[p]]),
+        );
+        spots.sort_unstable();
+        spots
+            .chunk_by(|a, b| a.0 == b.0)
+            .map(|table| {
+                let span = table[table.len() - 1].1 - table[0].1 + 1;
+                span.saturating_sub(table.len().div_ceil(2).max(2))
+            })
+            .sum()
+    }
+
+    /// Extra cost if none of a requester's wishes is beside, opposite or diagonal.
+    pub(super) fn left_out_cost(&self, g: usize, seat_of: &[usize], scratch: &mut Scratch) -> i64 {
         let near = self.fairness.groups[g]
             .iter()
             .any(|&t| self.term_outcome(t, seat_of, scratch).0 <= DistanceClass::Diagonal);
         if near { 0 } else { self.fairness.penalty }
     }
 
-    pub(super) fn term_cost(
-        &self,
-        t: usize,
-        seat_of: &[usize],
-        scratch: &mut Vec<DistanceClass>,
-    ) -> i64 {
+    pub(super) fn term_cost(&self, t: usize, seat_of: &[usize], scratch: &mut Scratch) -> i64 {
         let (class, penalty) = self.term_outcome(t, seat_of, scratch);
         penalty
             + if self.terms[t].forbidden[class as usize] {
@@ -415,7 +518,7 @@ impl Problem {
 
     /// Full cost of a state (used to initialise and to verify deltas).
     pub(super) fn cost(&self, seat_of: &[usize], occupant: &[usize]) -> i64 {
-        let mut scratch = Vec::new();
+        let mut scratch = Scratch::default();
         let mut total = 0;
         for (p, &s) in seat_of.iter().enumerate() {
             total += self.placement_cost(p, s);
@@ -577,6 +680,18 @@ fn combine_placement(
     placement
 }
 
+/// Per seat: its table's index and its row at that table.
+fn seat_spots(seats: &[Seat]) -> Vec<(usize, usize)> {
+    let mut tables: HashMap<&str, usize> = HashMap::new();
+    seats
+        .iter()
+        .map(|s| {
+            let next = tables.len();
+            (*tables.entry(&s.table_id).or_insert(next), s.index)
+        })
+        .collect()
+}
+
 /// Wishes and the planner's preferences as terms.
 fn compile_terms(project: &Project, index: &HashMap<usize, usize>) -> Vec<Term> {
     let wishes = project
@@ -584,7 +699,10 @@ fn compile_terms(project: &Project, index: &HashMap<usize, usize>) -> Vec<Term> 
         .iter()
         .filter(|r| r.enabled)
         .filter_map(|rule| wish_term(project, rule, index));
-    let preferences = project.active_preferences().flat_map(|preference| {
+    let groups = project
+        .active_preferences()
+        .filter_map(|preference| group_term(preference, index));
+    let pairs = project.active_preferences().flat_map(|preference| {
         preference.pair_terms().filter_map(move |t| {
             Some(Term {
                 requester: *index.get(&t.a)?,
@@ -592,12 +710,38 @@ fn compile_terms(project: &Project, index: &HashMap<usize, usize>) -> Vec<Term> 
                 required: 1,
                 costs: t.costs,
                 forbidden: t.forbidden,
-                decaying_targets: false,
+                shape: Shape::Nearest,
                 source: Source::Preference(preference.id),
             })
         })
     });
-    wishes.chain(preferences).collect()
+    wishes.chain(groups).chain(pairs).collect()
+}
+
+/// A "together" preference as one block term over its members.
+fn group_term(
+    preference: &crate::preferences::Preference,
+    index: &HashMap<usize, usize>,
+) -> Option<Term> {
+    let costs = preference.group_costs()?;
+    let mut members = preference
+        .kind
+        .people()
+        .iter()
+        .filter_map(|p| index.get(p).copied());
+    let requester = members.next()?;
+    let targets: Vec<usize> = members.collect();
+    Some(Term {
+        requester,
+        required: targets.len(),
+        targets,
+        costs: costs.gap,
+        forbidden: costs.forbidden,
+        shape: Shape::Block {
+            stretch: costs.stretch,
+        },
+        source: Source::Preference(preference.id),
+    })
 }
 
 /// The weighted term of a proximity rule, or `None` if it is not one.
@@ -617,7 +761,10 @@ fn wish_term(project: &Project, rule: &Rule, index: &HashMap<usize, usize>) -> O
         .iter()
         .filter_map(|t| index.get(t).copied())
         .collect::<Vec<_>>();
-    let decaying_targets = matches!(target, crate::model::Target::Organization { .. });
+    let shape = match target {
+        crate::model::Target::Organization { .. } => Shape::Halving,
+        _ => Shape::Nearest,
+    };
     // An organization wish means being near the organization group: every
     // matching member counts.
     let required = target.required().min(targets.len());
@@ -631,7 +778,7 @@ fn wish_term(project: &Project, rule: &Rule, index: &HashMap<usize, usize>) -> O
             costs.shared(weight, share)
         },
         forbidden: DistanceClass::ALL.map(|c| max_class.is_some_and(|max| c > max)),
-        decaying_targets,
+        shape,
         source: Source::Rule(rule.id),
     })
 }

@@ -510,24 +510,12 @@
     "PreferenceKind": {
       "oneOf": [
         {
-          "description": "These people sit together: as if each of them had wished for every other.",
+          "description": "These people sit as one compact block: everyone beside, opposite or\ndiagonal to someone else in it, over as few rows as they need.",
           "type": "object",
           "properties": {
             "Together": {
               "type": "object",
               "properties": {
-                "costs": {
-                  "description": "Cost per distance for each pair, before strength.",
-                  "$ref": "#/$defs/ProximityCosts",
-                  "default": [
-                    0,
-                    0,
-                    2,
-                    8,
-                    15,
-                    40
-                  ]
-                },
                 "people": {
                   "type": "array",
                   "items": {
@@ -816,7 +804,7 @@
           "default": 400
         },
         "left_out_penalty": {
-          "description": "Extra cost for anyone with wishes of whom none is near them, so no\none loses all their wishes to save a little elsewhere.",
+          "description": "Extra cost for anyone with wishes of whom none is beside, opposite or\ndiagonal to them, so no\none loses all their wishes to save a little elsewhere.",
           "type": "integer",
           "format": "int64",
           "default": 300

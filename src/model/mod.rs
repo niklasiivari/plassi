@@ -288,6 +288,10 @@ impl ProximityCosts {
     // same table is nearly as bad as another table.
     pub const AVEC: Self = Self([0, 3, 18, 32, 39, 40]);
     pub const WISH: Self = Self([0, 0, 2, 25, 38, 40]);
+    /// A break between two pieces of a group, by how far apart they are.
+    pub const GROUP: Self = Self([0, 0, 0, 25, 38, 40]);
+    /// A group's cost per row it is longer than needed, before strength.
+    pub const GROUP_STRETCH: i64 = 10;
     /// Default importance of an avec and of an ordinary wish.
     pub const AVEC_WEIGHT: i64 = 100;
     pub const WISH_WEIGHT: i64 = 10;

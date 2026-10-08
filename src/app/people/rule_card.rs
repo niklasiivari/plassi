@@ -429,11 +429,7 @@ fn limit_editor(ui: &mut egui::Ui, max_class: &mut Option<DistanceClass>) -> boo
 }
 
 /// Per-distance penalties, kept non-decreasing with distance.
-pub(in crate::app) fn costs_editor(
-    ui: &mut egui::Ui,
-    p: Palette,
-    costs: &mut ProximityCosts,
-) -> bool {
+fn costs_editor(ui: &mut egui::Ui, p: Palette, costs: &mut ProximityCosts) -> bool {
     let mut changed = false;
     egui::CollapsingHeader::new(
         RichText::new(tr("Distance penalties"))

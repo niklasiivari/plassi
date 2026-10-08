@@ -12,9 +12,9 @@ use std::collections::BTreeMap;
 use rand::Rng;
 use rand::seq::{IndexedRandom, SliceRandom};
 
-use crate::model::{DistanceClass, Project};
+use crate::model::Project;
 
-use super::problem::{NONE, Problem};
+use super::problem::{NONE, Problem, Scratch};
 
 /// Mutable search state with scratch buffers for incremental evaluation.
 #[derive(Clone)]
@@ -30,7 +30,7 @@ struct Evaluator {
     epoch: u32,
     terms: Vec<usize>,
     seats: Vec<usize>,
-    classes: Vec<DistanceClass>,
+    scratch: Scratch,
 }
 
 impl Evaluator {
@@ -40,7 +40,7 @@ impl Evaluator {
             epoch: 0,
             terms: Vec::new(),
             seats: Vec::new(),
-            classes: Vec::new(),
+            scratch: Scratch::default(),
         }
     }
 
@@ -80,7 +80,7 @@ impl Evaluator {
             }
         }
         for i in 0..self.terms.len() {
-            total += pr.term_cost(self.terms[i], &st.seat_of, &mut self.classes);
+            total += pr.term_cost(self.terms[i], &st.seat_of, &mut self.scratch);
         }
         // "Nobody loses every wish" for the requesters of those terms.
         if !pr.fairness.groups.is_empty() {
@@ -89,7 +89,7 @@ impl Evaluator {
                 if let Some(g) = pr.fairness.of_term[self.terms[i]]
                     && self.fresh(g)
                 {
-                    total += pr.left_out_cost(g, &st.seat_of, &mut self.classes);
+                    total += pr.left_out_cost(g, &st.seat_of, &mut self.scratch);
                 }
             }
         }

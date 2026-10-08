@@ -38,8 +38,12 @@ People connected by person-to-person wishes form a wish group. Selecting someone
 ## Your preferences
 
 Ctrl- or Shift-click several people on the chart, then choose **Group together** or
-**Keep apart** (not beside or opposite, or not at the same table). "Together" counts
-as if each of them had wished for every other. Preferences are stored apart from
+**Keep apart** (not beside or opposite, or not at the same table). "Together" means
+one compact block: everyone beside, opposite or diagonal to someone else in the group,
+over as few rows as the group needs (two people a row; a pair or a four may take two
+rows). Each break between pieces costs by how far apart they are, and each extra row
+costs a little, so a single file down one side is not a group. The cost does not grow
+with group size. "Must" means no breaks. Preferences are stored apart from
 attendees' own wishes, under `preferences` in the project file. The side panel lists
 them with how each one fares; there you can set the strength (nice to have,
 important, must) or delete one. "Must" is never broken by the solver. Hover a

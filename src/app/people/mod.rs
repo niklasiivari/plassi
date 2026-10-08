@@ -12,7 +12,6 @@ mod overview;
 mod roster;
 mod rule_card;
 pub(in crate::app) use roster::RosterEdit;
-pub(in crate::app) use rule_card::costs_editor;
 mod wish_row;
 
 use rule_card::*;

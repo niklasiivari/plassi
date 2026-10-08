@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::i18n::{fill, tr};
-use crate::model::{Area, DistanceClass, Project, Rule, RuleKind};
+use crate::model::{Area, Project, Rule, RuleKind};
 use crate::preferences::{Preference, PreferenceKind};
 use crate::seating::{Breakdown, PolicyReport, Scorer, Source, TermResult};
 
@@ -190,7 +190,7 @@ fn proximity_detail(
     }
 }
 
-/// Sums a preference's pair terms and says how many pairs miss.
+/// Sums a preference's terms and says how it fares.
 fn preference_result(preference: &Preference, breakdown: &Breakdown) -> PreferenceResult {
     let pairs: Vec<&TermResult> = breakdown
         .terms
@@ -199,21 +199,20 @@ fn preference_result(preference: &Preference, breakdown: &Breakdown) -> Preferen
         .collect();
     let missed = pairs
         .iter()
-        .filter(|t| match preference.kind {
-            PreferenceKind::Together { .. } => t.class == DistanceClass::Far,
-            PreferenceKind::Apart { .. } => t.penalty > 0 || t.hard_violation,
-        })
+        .filter(|t| t.penalty > 0 || t.hard_violation)
         .count();
     let penalty = pairs.iter().map(|t| t.penalty).sum();
-    let detail = match (&preference.kind, missed) {
-        (PreferenceKind::Together { .. }, 0) if penalty == 0 => tr("everyone close").into(),
-        (PreferenceKind::Together { .. }, 0) => tr("all at one table").into(),
-        (PreferenceKind::Together { .. }, n) => {
-            fill("{} of {} pairs at different tables", &[&n, &pairs.len()])
+    let detail = match (&preference.kind, pairs.first()) {
+        (PreferenceKind::Together { .. }, Some(t)) if t.pieces > 1 => {
+            fill("split into {} parts", &[&t.pieces])
         }
-        (PreferenceKind::Apart { .. }, 0) => tr("kept apart").into(),
-        (PreferenceKind::Apart { .. }, 1) => tr("1 pair too close").into(),
-        (PreferenceKind::Apart { .. }, n) => fill("{} pairs too close", &[&n]),
+        (PreferenceKind::Together { .. }, Some(t)) if t.extra_rows > 0 => {
+            fill("{} rows longer than needed", &[&t.extra_rows])
+        }
+        (PreferenceKind::Together { .. }, _) => tr("together").into(),
+        (PreferenceKind::Apart { .. }, _) if missed == 0 => tr("kept apart").into(),
+        (PreferenceKind::Apart { .. }, _) if missed == 1 => tr("1 pair too close").into(),
+        (PreferenceKind::Apart { .. }, _) => fill("{} pairs too close", &[&missed]),
     };
     PreferenceResult {
         id: preference.id,

@@ -163,11 +163,6 @@ impl PlassiApp {
                             action.delete = ui.add(theme::ghost_button(tr("Delete"), p)).clicked();
                         });
                     });
-                    if let PreferenceKind::Together { costs, .. } = &mut preference.kind {
-                        ui.push_id(preference.id, |ui| {
-                            action.changed |= crate::app::people::costs_editor(ui, p, costs);
-                        });
-                    }
                 })
                 .response;
         action.hovered = response.contains_pointer();

@@ -107,20 +107,31 @@ impl Project {
 
         for preference in self.active_preferences() {
             let count = preference.kind.people().len() as i128;
-            let pairs = count.saturating_mul(count.saturating_sub(1)) / 2;
-            let pair_cost = match &preference.kind {
-                crate::preferences::PreferenceKind::Together { costs, .. } => {
-                    i128::from(costs.0[CLASSES - 1])
-                        .saturating_mul(i128::from(preference.strength.weight()) * 2)
-                }
+            let weight = i128::from(preference.strength.weight());
+            let (cost, terms) = match &preference.kind {
+                // At most a break per member and a row per member.
+                crate::preferences::PreferenceKind::Together { .. } => (
+                    count.saturating_mul(
+                        i128::from(
+                            ProximityCosts::GROUP[DistanceClass::Far]
+                                + ProximityCosts::GROUP_STRETCH,
+                        ) * weight,
+                    ),
+                    1,
+                ),
                 crate::preferences::PreferenceKind::Apart { .. } => {
-                    i128::from(ProximityCosts::WISH[DistanceClass::Far])
-                        .saturating_mul(i128::from(preference.strength.weight()))
+                    let pairs = count.saturating_mul(count.saturating_sub(1)) / 2;
+                    (
+                        pairs.saturating_mul(
+                            i128::from(ProximityCosts::WISH[DistanceClass::Far]) * weight,
+                        ),
+                        pairs,
+                    )
                 }
             };
-            soft = soft.saturating_add(pairs.saturating_mul(pair_cost));
+            soft = soft.saturating_add(cost);
             if preference.strength.hard() {
-                hard = hard.saturating_add(pairs);
+                hard = hard.saturating_add(terms);
             }
         }
 

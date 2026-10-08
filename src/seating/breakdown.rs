@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashSet};
 use crate::model::{DistanceClass, Project};
 
 pub use super::ends::EndResult;
-use super::problem::{NONE, PolicyReport, Problem, Source};
+use super::problem::{NONE, PolicyReport, Problem, Scratch, Shape, Source};
 
 /// How one wish or preference pair fares.
 pub struct TermResult {
@@ -19,6 +19,10 @@ pub struct TermResult {
     pub required: usize,
     pub penalty: i64,
     pub hard_violation: bool,
+    /// For a group: how many pieces it is in and how many rows longer than
+    /// needed it is.
+    pub pieces: usize,
+    pub extra_rows: usize,
 }
 
 pub struct PlacementResult {
@@ -49,12 +53,15 @@ impl Scorer {
     pub fn breakdown(&self, assignment: &BTreeMap<usize, String>) -> Breakdown {
         let pr = &self.0;
         let (seat_of, occupant) = pr.state_of(assignment);
-        let mut scratch = Vec::new();
+        let mut scratch = Scratch::default();
         let terms = (0..pr.terms.len())
             .map(|t| {
                 let term = &pr.terms[t];
                 let (class, penalty) = pr.term_outcome(t, &seat_of, &mut scratch);
-                let nearest = (term.required == 1 || term.decaying_targets)
+                let halving = term.shape == Shape::Halving;
+                let block = matches!(term.shape, Shape::Block { .. })
+                    .then(|| pr.block_shape(t, &seat_of, &mut scratch));
+                let nearest = (term.required == 1 || halving)
                     .then(|| {
                         term.targets
                             .iter()
@@ -68,13 +75,11 @@ impl Scorer {
                     nearest,
                     seated_targets: term.targets.iter().filter(|&&x| seat_of[x] != NONE).count(),
                     // An organization needs one member seated, not all.
-                    required: if term.decaying_targets {
-                        1
-                    } else {
-                        term.required
-                    },
+                    required: if halving { 1 } else { term.required },
                     penalty,
                     hard_violation: term.forbidden[class as usize],
+                    pieces: block.as_ref().map_or(1, |b| b.pieces),
+                    extra_rows: block.as_ref().map_or(0, |b| b.extra_rows),
                 }
             })
             .collect();
