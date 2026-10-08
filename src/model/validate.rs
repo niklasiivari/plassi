@@ -319,13 +319,14 @@ impl Rule {
                     ));
                 }
             }
-            Target::Tag {
-                required,
-                tag: name,
-            }
-            | Target::Organization { required, name } => {
-                if *required == 0 || name.trim().is_empty() {
+            Target::Tag { required, tag } => {
+                if *required == 0 || tag.trim().is_empty() {
                     bail!(fill("Rule {}: name and count are required", &[&self.id]));
+                }
+            }
+            Target::Organization { name } => {
+                if name.trim().is_empty() {
+                    bail!(fill("Rule {}: name is required", &[&self.id]));
                 }
             }
         }

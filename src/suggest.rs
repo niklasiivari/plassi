@@ -381,10 +381,7 @@ pub fn accept(project: &mut Project, suggestion: &Suggestion) {
                 crate::import::wish_rule(id, suggestion.requester, Vec::new(), false, &source);
             rule.label = "Organization wish".into();
             if let RuleKind::Proximity { target, .. } = &mut rule.kind {
-                *target = Target::Organization {
-                    name: name.clone(),
-                    required: 1,
-                };
+                *target = Target::Organization { name: name.clone() };
             }
             rule
         }

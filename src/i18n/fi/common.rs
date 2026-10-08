@@ -439,6 +439,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Rule {}: name and count are required",
         "Sääntö {}: nimi ja henkilömäärä vaaditaan",
     ),
+    ("Rule {}: name is required", "Sääntö {}: nimi vaaditaan"),
     ("Invalid preference ID", "Virheellinen linjauksen tunnus"),
     (
         "Duplicate preference ID: {}",

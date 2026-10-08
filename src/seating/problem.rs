@@ -613,12 +613,9 @@ fn wish_term(project: &Project, rule: &Rule, index: &HashMap<usize, usize>) -> O
         .filter_map(|t| index.get(t).copied())
         .collect::<Vec<_>>();
     let decaying_targets = matches!(target, crate::model::Target::Organization { .. });
-    let required = match target {
-        // An organization wish means being near the organization group. It is
-        // not an "any one member" wish; every matching member counts.
-        crate::model::Target::Organization { .. } => targets.len(),
-        _ => target.required().min(targets.len()),
-    };
+    // An organization wish means being near the organization group: every
+    // matching member counts.
+    let required = target.required().min(targets.len());
     Some(Term {
         requester: *index.get(requester)?,
         targets,

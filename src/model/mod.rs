@@ -263,9 +263,9 @@ pub enum Target {
         required: usize,
     },
     /// Everyone whose organization matches (case-insensitive).
+    /// Everyone in the organization counts, so there is no count to meet.
     Organization {
         name: String,
-        required: usize,
     },
 }
 
@@ -661,10 +661,13 @@ impl Rule {
 }
 
 impl Target {
+    /// How many targets must be near; an organization means all of them,
+    /// capped by the caller at how many there are.
     pub fn required(&self) -> usize {
         match self {
             Target::People { ids, .. } => ids.len(),
-            Target::Tag { required, .. } | Target::Organization { required, .. } => *required,
+            Target::Tag { required, .. } => *required,
+            Target::Organization { .. } => usize::MAX,
         }
     }
 }

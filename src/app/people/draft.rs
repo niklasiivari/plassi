@@ -76,9 +76,7 @@ impl PlassiApp {
             match draft.near {
                 DraftTarget::People => {}
                 DraftTarget::Tag(tag) => *target = Target::Tag { tag, required: 1 },
-                DraftTarget::Organization(name) => {
-                    *target = Target::Organization { name, required: 1 }
-                }
+                DraftTarget::Organization(name) => *target = Target::Organization { name },
             }
         }
         self.project.rules.push(rule);

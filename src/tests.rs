@@ -78,10 +78,7 @@ fn organization_wish_counts_every_matching_member() {
         enabled: true,
         kind: RuleKind::Proximity {
             requester: 0,
-            target: Target::Organization {
-                name: "ABC".into(),
-                required: 1,
-            },
+            target: Target::Organization { name: "ABC".into() },
             // Opposite costs, so meeting only the nearest member is not enough.
             costs: ProximityCosts([0, 10, 20, 30, 40, 50]),
             weight: 1,
@@ -791,7 +788,6 @@ fn catalog_merges_spellings_everywhere() {
     // An organization wish written with any spelling reaches everyone in the category.
     let wish = Target::Organization {
         name: "aa-bb cc".into(),
-        required: 1,
     };
     let mut targets = project.target_ids(3, &wish);
     targets.sort();
@@ -805,10 +801,7 @@ fn catalog_merges_spellings_everywhere() {
         project.category_name(Kind::Organization, &project.attendees[3]),
         "ABC / XYZ"
     );
-    let xyz_wish = Target::Organization {
-        name: "XYZ".into(),
-        required: 1,
-    };
+    let xyz_wish = Target::Organization { name: "XYZ".into() };
     assert!(project.target_ids(0, &xyz_wish).contains(&3));
     assert!(project.target_ids(3, &wish).contains(&0));
 }
