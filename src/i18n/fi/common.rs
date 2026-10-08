@@ -4,7 +4,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Price", "Hinta"),
     ("Print mark", "Merkintä"),
     (
-        "Shown on the kitchen and bar prints, e.g. VE or 0 %. The most common choice is left unmarked.",
+        "Shown on the kitchen and bar prints, e.g. VG or 0 %. The most common choice is left unmarked.",
         "Näkyy keittiö- ja baaritulosteissa, esim. VE tai 0 %. Yleisin valinta jätetään merkitsemättä.",
     ),
     ("Not set", "Ei asetettu"),

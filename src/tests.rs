@@ -794,13 +794,13 @@ fn kitchen_and_bar_prints_mark_choices_and_number_long_allergies() {
             "Mixed",
             "No raw eggs, unpasteurised milk or undercooked meat or fish",
         ),
-        (3, "Vegan", "ei ole"),
+        (3, "Vegan", "none"),
     ] {
         project.attendees[id].food = food.into();
         project.attendees[id].allergies = allergies.into();
     }
     let vegan = project.catalog.create(Kind::Food, "Vegan");
-    project.catalog.list_mut(Kind::Food)[vegan].mark = "VE".into();
+    project.catalog.list_mut(Kind::Food)[vegan].mark = "VG".into();
     project.catalog.create(Kind::Food, "Mixed");
     let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(200))
         .expect("seating");
@@ -818,17 +818,17 @@ fn kitchen_and_bar_prints_mark_choices_and_number_long_allergies() {
             }
         }
     }
-    // The most common meal is unmarked; "-" and "ei ole" mean no allergies.
+    // The most common meal is unmarked; "-" and "none" mean no allergies.
     assert_eq!(seats["Person 0"]["mark"], "");
     assert_eq!(seats["Person 0"]["allergy"], "");
     assert_eq!(seats["Person 1"]["allergy"], "Nuts");
-    assert_eq!(seats["Person 3"]["mark"], "VE");
+    assert_eq!(seats["Person 3"]["mark"], "VG");
     assert_eq!(seats["Person 3"]["allergy"], "");
     // A long allergy text becomes a numbered note under the chart.
     assert_eq!(seats["Person 2"]["note"], 1);
     assert_eq!(data["marks"]["notes"][0]["name"], "Person 2");
     assert_eq!(data["marks"]["plain"]["name"], "Mixed");
-    assert_eq!(data["marks"]["legend"][0]["mark"], "VE");
+    assert_eq!(data["marks"]["legend"][0]["mark"], "VG");
 
     // The bar marks drinks the same way and keeps the allergies.
     for a in &mut project.attendees {

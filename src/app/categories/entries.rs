@@ -59,7 +59,7 @@ impl PlassiApp {
                             theme::hint(
                                 ui,
                                 p,
-                                tr("Shown on the kitchen and bar prints, e.g. VE or 0 %. The most common choice is left unmarked."),
+                                tr("Shown on the kitchen and bar prints, e.g. VG or 0 %. The most common choice is left unmarked."),
                             );
                         });
                     }
