@@ -115,6 +115,9 @@ pub struct Project {
     pub notes: Vec<ImportNote>,
     #[serde(default)]
     pub candidates: Vec<Candidate>,
+    /// The option (index into `candidates`) last shown, to reopen on.
+    #[serde(default)]
+    pub shown_option: usize,
     #[serde(default)]
     pub policy: SeatingPolicy,
     #[serde(default)]
@@ -510,6 +513,7 @@ impl Project {
             rules: Vec::new(),
             notes: Vec::new(),
             candidates: Vec::new(),
+            shown_option: 0,
             policy: SeatingPolicy::default(),
             event: EventInfo::default(),
             catalog: Default::default(),

@@ -78,8 +78,6 @@ pub(super) struct PlassiApp {
     sidebar_compact: bool,
     /// The option shown on the chart and printed.
     selected_candidate: usize,
-    /// The project and option last saved as the one to reopen on.
-    remembered_option: (String, usize),
     /// Shared between the chart and the People page.
     selected_person: Option<usize>,
     /// The search in progress, if any.
@@ -312,9 +310,8 @@ impl PlassiApp {
             .or_else(platform::system_locale)
             .and_then(|l| crate::i18n::Lang::from_locale(&l));
         crate::i18n::set(lang.unwrap_or(crate::i18n::Lang::En));
-        let option = project_file::saved_option(&file, &project);
+        let option = project_file::saved_option(&project);
         Self {
-            remembered_option: (file.name.clone(), option),
             project,
             file,
             page: Page::Chart,

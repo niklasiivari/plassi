@@ -178,8 +178,7 @@ impl PlassiApp {
                 self.file.redo_stack.clear();
                 self.file.library.remember(name);
                 self.backups = Default::default();
-                self.selected_candidate = saved_option(&self.file, &project);
-                self.remembered_option = (name.to_string(), self.selected_candidate);
+                self.selected_candidate = saved_option(&project);
                 self.selected_person = None;
                 self.chart.view.fit_pending = true;
                 self.replace_project(project);
@@ -422,29 +421,25 @@ impl PlassiApp {
     }
 }
 
-/// App setting holding the option a project was last showing.
-fn option_setting(name: &str) -> String {
-    format!("option-{name}")
-}
-
 /// The option this project was last showing, if it still exists; else the first.
-pub(super) fn saved_option(file: &ProjectFile, project: &Project) -> usize {
-    file.library
-        .setting(&option_setting(&file.name))
-        .and_then(|s| s.parse::<usize>().ok())
-        .filter(|&i| i < project.candidates.len())
-        .unwrap_or(0)
+pub(super) fn saved_option(project: &Project) -> usize {
+    if project.shown_option < project.candidates.len() {
+        project.shown_option
+    } else {
+        0
+    }
 }
 
 impl PlassiApp {
-    /// Saves the shown option whenever it changes, so the project reopens on it.
+    /// Keeps the shown option in the project file, so the project reopens on
+    /// it. Saved quietly: choosing an option is not an edit to undo.
     pub(super) fn remember_option(&mut self) {
-        let shown = (self.file.name.clone(), self.selected_candidate);
-        if shown != self.remembered_option {
-            self.file
-                .library
-                .set_setting(&option_setting(&shown.0), &shown.1.to_string());
-            self.remembered_option = shown;
+        if self.project.shown_option != self.selected_candidate
+            && self.selected_candidate < self.project.candidates.len()
+        {
+            self.project.shown_option = self.selected_candidate;
+            let status = self.status.clone();
+            self.save(&status);
         }
     }
 }

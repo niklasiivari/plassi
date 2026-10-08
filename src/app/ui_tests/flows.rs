@@ -500,8 +500,12 @@ fn reopens_on_the_option_last_shown() {
     let ui = ui.reopen();
     assert_eq!(ui.app().selected_candidate, 0);
     let mut ui = ui;
+    let undo_steps = ui.app().file.undo_stack.len();
     ui.app_mut().selected_candidate = 1;
     ui.settle();
+    // Kept in the project file, but choosing an option is not an edit.
+    assert_eq!(ui.app().project.shown_option, 1);
+    assert_eq!(ui.app().file.undo_stack.len(), undo_steps);
     let ui = ui.reopen();
     assert_eq!(ui.app().selected_candidate, 1);
 }

@@ -76,6 +76,13 @@
         "$ref": "#/$defs/Rule"
       }
     },
+    "shown_option": {
+      "description": "The option (index into `candidates`) last shown, to reopen on.",
+      "type": "integer",
+      "format": "uint",
+      "default": 0,
+      "minimum": 0
+    },
     "version": {
       "type": "integer",
       "format": "uint32",
