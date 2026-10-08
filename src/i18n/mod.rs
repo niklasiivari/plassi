@@ -42,17 +42,35 @@ impl Lang {
     }
 }
 
+#[cfg(not(test))]
 static CURRENT: AtomicU8 = AtomicU8::new(0);
 
+// Tests run in parallel; each keeps its own language so one switching to
+// Finnish can't change the text another one checks.
+#[cfg(test)]
+thread_local! {
+    static CURRENT: AtomicU8 = const { AtomicU8::new(0) };
+}
+
+fn load() -> u8 {
+    #[cfg(not(test))]
+    return CURRENT.load(Ordering::Relaxed);
+    #[cfg(test)]
+    return CURRENT.with(|c| c.load(Ordering::Relaxed));
+}
+
 pub fn current() -> Lang {
-    match CURRENT.load(Ordering::Relaxed) {
+    match load() {
         1 => Lang::Fi,
         _ => Lang::En,
     }
 }
 
 pub fn set(lang: Lang) {
+    #[cfg(not(test))]
     CURRENT.store(lang as u8, Ordering::Relaxed);
+    #[cfg(test)]
+    CURRENT.with(|c| c.store(lang as u8, Ordering::Relaxed));
 }
 
 fn finnish() -> &'static HashMap<&'static str, &'static str> {
