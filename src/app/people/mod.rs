@@ -83,7 +83,7 @@ pub(in crate::app) enum DraftTarget {
 #[derive(Clone)]
 pub(in crate::app) struct WishDraft {
     pub person: usize,
-    pub avec: bool,
+    pub wish: crate::model::WishKind,
     pub near: DraftTarget,
     /// Chosen people when `near` is [`DraftTarget::People`].
     pub targets: Vec<usize>,

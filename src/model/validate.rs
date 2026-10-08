@@ -6,8 +6,6 @@ use anyhow::{Result, anyhow, bail};
 
 use super::*;
 
-/// Largest wish importance and distance cost; keeps scores far from overflow.
-const MAX_WEIGHT: i64 = 10_000;
 /// Seats on one side of a table, at most.
 const MAX_SIDE_SEATS: usize = 500;
 
@@ -90,14 +88,13 @@ impl Project {
                     soft = soft.saturating_add(i128::from((*end_penalty).max(*near_end_penalty)));
                 }
                 RuleKind::Proximity {
-                    costs,
-                    weight,
+                    wish,
+                    importance,
                     max_class,
                     ..
                 } => {
-                    soft = soft.saturating_add(
-                        i128::from(costs.0[CLASSES - 1]).saturating_mul(i128::from(*weight)),
-                    );
+                    soft =
+                        soft.saturating_add(i128::from(wish.far_penalty() * importance.factor()));
                     if max_class.is_some() {
                         hard += 1;
                     }
@@ -285,24 +282,10 @@ impl Rule {
                 Ok(())
             }
             RuleKind::Proximity {
-                requester,
-                target,
-                costs,
-                weight,
-                ..
+                requester, target, ..
             } => {
                 if !people.contains(requester) {
                     bail!(fill("Rule {}: requester is missing", &[&self.id]));
-                }
-                if !(0..=MAX_WEIGHT).contains(weight)
-                    || !costs.is_ordered()
-                    || costs.0[0] < 0
-                    || costs.0[CLASSES - 1] > MAX_DISTANCE_COST
-                {
-                    bail!(fill(
-                        "Rule {}: invalid weight or distance costs",
-                        &[&self.id]
-                    ));
                 }
                 self.validate_target(target, *requester, people)
             }

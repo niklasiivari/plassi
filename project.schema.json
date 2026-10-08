@@ -443,6 +443,13 @@
         "text"
       ]
     },
+    "Importance": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "High"
+      ]
+    },
     "Layout": {
       "type": "object",
       "properties": {
@@ -584,16 +591,6 @@
         }
       ]
     },
-    "ProximityCosts": {
-      "description": "Penalty per distance class, closest first (see `DistanceClass::ALL`).",
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "format": "int64"
-      },
-      "maxItems": 6,
-      "minItems": 6
-    },
     "RowSpec": {
       "type": "object",
       "properties": {
@@ -720,13 +717,14 @@
           ]
         },
         {
+          "description": "A wish to sit near someone. Its distance costs and weight follow\nfrom `wish` and `importance`, so every wish of a kind scores alike.",
           "type": "object",
           "properties": {
             "Proximity": {
               "type": "object",
               "properties": {
-                "costs": {
-                  "$ref": "#/$defs/ProximityCosts"
+                "importance": {
+                  "$ref": "#/$defs/Importance"
                 },
                 "max_class": {
                   "anyOf": [
@@ -746,20 +744,15 @@
                 "target": {
                   "$ref": "#/$defs/Target"
                 },
-                "weight": {
-                  "type": "integer",
-                  "format": "int64"
-                },
-                "weight_mode": {
-                  "$ref": "#/$defs/WeightMode",
-                  "default": "Fixed"
+                "wish": {
+                  "$ref": "#/$defs/WishKind"
                 }
               },
               "required": [
                 "requester",
                 "target",
-                "costs",
-                "weight"
+                "wish",
+                "importance"
               ]
             }
           },
@@ -790,7 +783,7 @@
       ]
     },
     "SeatingPolicy": {
-      "description": "Global rules for everyone, mainly shaping where unconstrained attendees sit.\nWeights use the same scale as rule penalties (see [`ProximityCosts::far_penalty`]).",
+      "description": "Global rules for everyone, mainly shaping where unconstrained attendees sit.\nWeights use the same scale as rule penalties (see [`WishKind::far_penalty`]).",
       "type": "object",
       "properties": {
         "empty_seats": {
@@ -1057,11 +1050,18 @@
         }
       ]
     },
-    "WeightMode": {
-      "type": "string",
-      "enum": [
-        "Fixed",
-        "ShareRequesterBudget"
+    "WishKind": {
+      "oneOf": [
+        {
+          "description": "A partner: beside is best, opposite fine, diagonal unwanted. Keeps its\nfull weight however many wishes the person has.",
+          "type": "string",
+          "const": "Avec"
+        },
+        {
+          "description": "Beside, opposite and diagonal are all good. A person's seating\nwishes share one weight, so many wishes don't outweigh one.",
+          "type": "string",
+          "const": "Seating"
+        }
       ]
     }
   }

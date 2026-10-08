@@ -424,10 +424,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Sääntö {}: toiveen esittäjä puuttuu",
     ),
     (
-        "Rule {}: invalid weight or distance costs",
-        "Sääntö {}: virheellinen paino tai etäisyyskulut",
-    ),
-    (
         "Rule {}: choose other people without duplicates",
         "Sääntö {}: valitse muita henkilöitä ilman toistoja",
     ),
@@ -448,9 +444,5 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     (
         "Preference {}: person is missing",
         "Linjaus {}: henkilö puuttuu",
-    ),
-    (
-        "Preference {}: invalid distance costs",
-        "Linjaus {}: virheelliset etäisyyskulut",
     ),
 ];

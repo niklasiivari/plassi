@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::i18n::{fill, tr};
-use crate::model::{Area, Project, Rule, RuleKind};
+use crate::model::{Area, DistanceClass, Project, Rule, RuleKind};
 use crate::preferences::{Preference, PreferenceKind};
 use crate::seating::{Breakdown, PolicyReport, Scorer, Source, TermResult};
 
@@ -15,6 +15,8 @@ pub struct RuleResult {
     pub detail: String,
     pub penalty: i64,
     pub hard_violation: bool,
+    /// Fully met: a wish beside, opposite or diagonal may still cost a little.
+    pub met: bool,
 }
 
 /// How one of the planner's preferences fares in a seating.
@@ -47,7 +49,11 @@ impl Outcome {
 
 impl RuleResult {
     pub fn outcome(&self) -> Outcome {
-        Outcome::of(self.hard_violation, self.penalty)
+        match () {
+            _ if self.hard_violation => Outcome::Broken,
+            _ if self.met => Outcome::Met,
+            _ => Outcome::Partial,
+        }
     }
 }
 
@@ -124,7 +130,7 @@ pub fn evaluate_with(
 }
 
 fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<RuleResult> {
-    let (penalty, hard_violation, detail) = match &rule.kind {
+    let (penalty, hard_violation, met, detail) = match &rule.kind {
         RuleKind::Placement { area, must_be, .. } => {
             let r = breakdown.placements.iter().find(|r| r.rule_id == rule.id)?;
             let detail = match (r.seated, r.penalty == 0 && !r.hard_violation) {
@@ -132,7 +138,8 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
                 (true, true) => tr("placement met").into(),
                 (true, false) => missed_area(area, *must_be),
             };
-            (r.penalty, r.hard_violation, detail)
+            let met = r.penalty == 0 && !r.hard_violation;
+            (r.penalty, r.hard_violation, met, detail)
         }
         RuleKind::Proximity {
             requester, target, ..
@@ -144,6 +151,7 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
             (
                 t.penalty,
                 t.hard_violation,
+                t.class <= DistanceClass::Diagonal,
                 proximity_detail(project, *requester, target, t),
             )
         }
@@ -155,7 +163,7 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
                 Some(1) => tr("next to a table end"),
                 Some(_) => tr("away from the ends"),
             };
-            (r.penalty, false, detail.into())
+            (r.penalty, false, r.penalty == 0, detail.into())
         }
     };
     Some(RuleResult {
@@ -164,6 +172,7 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
         detail,
         penalty,
         hard_violation,
+        met,
     })
 }
 

@@ -116,7 +116,7 @@ impl PlassiApp {
                     self.people.draft_picker_filter.clear();
                     self.people.wish_draft = Some(WishDraft {
                         person: id,
-                        avec: false,
+                        wish: crate::model::WishKind::Seating,
                         near: DraftTarget::People,
                         targets: Vec::new(),
                         source: String::new(),
@@ -155,7 +155,7 @@ impl PlassiApp {
             let RuleKind::Proximity {
                 requester,
                 target,
-                costs,
+                wish,
                 ..
             } = &rule.kind
             else {
@@ -168,10 +168,9 @@ impl PlassiApp {
                 continue;
             };
             any = true;
-            let kind = if costs.is_avec() {
-                tr("avec")
-            } else {
-                tr("wish")
+            let kind = match wish {
+                crate::model::WishKind::Avec => tr("avec"),
+                crate::model::WishKind::Seating => tr("wish"),
             };
             ui.horizontal(|ui| {
                 ui.label(&person.name);

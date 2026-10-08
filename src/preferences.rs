@@ -11,7 +11,7 @@ use anyhow::{Result, bail};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::model::{DistanceClass, Project, ProximityCosts};
+use crate::model::{DistanceClass, Project, ProximityCosts, WishKind};
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct Preference {
@@ -63,8 +63,8 @@ impl Strength {
     /// Weight on the same scale as wish importance.
     pub fn weight(self) -> i64 {
         match self {
-            Strength::NiceToHave => ProximityCosts::WISH_WEIGHT,
-            Strength::Important | Strength::Must => ProximityCosts::WISH_WEIGHT * 3,
+            Strength::NiceToHave => WishKind::Seating.weight(),
+            Strength::Important | Strength::Must => WishKind::Seating.weight() * 3,
         }
     }
 

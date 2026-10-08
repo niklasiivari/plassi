@@ -3,7 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{Edge, Graph};
-use crate::model::{Project, RuleKind, Target};
+use crate::model::{Project, RuleKind, Target, WishKind};
 use crate::score::Outcome;
 
 impl Graph {
@@ -24,12 +24,12 @@ impl Graph {
             if let RuleKind::Proximity {
                 requester,
                 target: Target::People { ids, .. },
-                costs,
+                wish,
                 ..
             } = &rule.kind
             {
                 for &to in ids {
-                    pairs.push((*requester, to, costs.is_avec(), outcome_of(rule.id)));
+                    pairs.push((*requester, to, *wish == WishKind::Avec, outcome_of(rule.id)));
                 }
             }
         }

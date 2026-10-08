@@ -21,7 +21,7 @@ Plassi has a spreadsheet template. Keep your sign-ups in these columns (any orde
 | Drinks | Juoma | Drink choice |
 | Allergies | Allergiat | Allergies and diets |
 
-An **Avec** is a partner-level wish: it has stronger default distance costs and keeps its full importance. Ordinary seating wishes have lower default costs and share the requester's importance across their wishes.
+A wish is an **Avec** or a **seating wish**, with Normal or High importance (High counts three times) and optionally a maximum distance that is never broken. The distance costs come with the kind and are the same for every wish, so a change to them reaches every project. An avec is a partner: beside is best, opposite fine, diagonal unwanted, and it weighs as much as ten seating wishes. For a seating wish beside, opposite and diagonal are all good, and a person's seating wishes share one weight, so someone with many wishes doesn't outweigh someone with one. A wish counts as met when its person is beside, opposite or diagonal.
 
 On People & wishes, "Copy header row" puts the header on the clipboard for the first row of your sheet, "Download template" saves a .csv with the header and an example row, and "Export people" saves everyone in these columns to edit and import back.
 

@@ -57,7 +57,7 @@ impl PlassiApp {
                     self.people.draft_picker_filter.clear();
                     self.people.wish_draft = Some(WishDraft {
                         person: note.person,
-                        avec: note.field == ImportField::Avec,
+                        wish: note.field.wish(),
                         near: DraftTarget::People,
                         targets: likely_people(&suggestions),
                         source: note.text.clone(),

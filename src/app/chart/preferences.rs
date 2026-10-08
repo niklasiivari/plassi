@@ -196,7 +196,7 @@ impl PlassiApp {
                 ],
             );
             match results.iter().find(|r| r.id == preference.id) {
-                Some(r) => outcome_row(ui, p, &label, &r.detail, r.penalty, r.hard_violation),
+                Some(r) => outcome_row(ui, p, &label, &r.detail, r.penalty, r.outcome()),
                 None => theme::hint(ui, p, label),
             }
         }

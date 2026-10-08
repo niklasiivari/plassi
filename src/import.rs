@@ -15,7 +15,7 @@ use std::path::Path;
 use anyhow::{Context, Result, bail};
 
 use crate::model::{
-    Attendee, ImportField, ImportNote, Project, ProximityCosts, Rule, RuleKind, Target, WeightMode,
+    Attendee, ImportField, ImportNote, Importance, Project, Rule, RuleKind, Target, WishKind,
 };
 
 #[derive(
@@ -443,7 +443,7 @@ fn add_note(
             project.next_rule_id(),
             person,
             vec![target],
-            field == ImportField::Avec,
+            field.wish(),
             text,
         ));
         summary.new_rules += 1;
@@ -457,31 +457,24 @@ fn add_note(
     summary.new_notes += 1;
 }
 
-/// A standard avec or seating-wish rule.
-pub fn wish_rule(id: u64, requester: usize, targets: Vec<usize>, avec: bool, source: &str) -> Rule {
+/// An avec or seating wish of normal importance.
+pub fn wish_rule(
+    id: u64,
+    requester: usize,
+    targets: Vec<usize>,
+    wish: WishKind,
+    source: &str,
+) -> Rule {
     Rule {
         id,
-        label: if avec { "Avec" } else { "Seating wish" }.into(),
+        label: wish.label().into(),
         source: source.into(),
         enabled: true,
         kind: RuleKind::Proximity {
             requester,
             target: Target::People { ids: targets },
-            costs: if avec {
-                ProximityCosts::AVEC
-            } else {
-                ProximityCosts::WISH
-            },
-            weight: if avec {
-                ProximityCosts::AVEC_WEIGHT
-            } else {
-                ProximityCosts::WISH_WEIGHT
-            },
-            weight_mode: if avec {
-                WeightMode::Fixed
-            } else {
-                WeightMode::ShareRequesterBudget
-            },
+            wish,
+            importance: Importance::Normal,
             max_class: None,
         },
     }

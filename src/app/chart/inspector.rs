@@ -9,7 +9,7 @@ pub(super) fn result_row(ui: &mut egui::Ui, p: Palette, result: &RuleResult) {
         &result.label,
         &result.detail,
         result.penalty,
-        result.hard_violation,
+        result.outcome(),
     );
 }
 
@@ -20,9 +20,9 @@ pub(super) fn outcome_row(
     label: &str,
     detail: &str,
     penalty: i64,
-    hard_violation: bool,
+    outcome: crate::score::Outcome,
 ) {
-    let color = theme::outcome_color(p, Some(crate::score::Outcome::of(hard_violation, penalty)));
+    let color = theme::outcome_color(p, Some(outcome));
     ui.horizontal_wrapped(|ui| {
         theme::status_dot(ui, color);
         ui.label(RichText::new(label).size(theme::text::SMALL));
@@ -329,7 +329,7 @@ impl PlassiApp {
         let mut issues: Vec<_> = evaluation
             .results
             .iter()
-            .filter(|r| r.penalty > 0 || r.hard_violation)
+            .filter(|r| r.outcome() != crate::score::Outcome::Met)
             .collect();
         issues.sort_by_key(|r| (!r.hard_violation, -r.penalty));
         if issues.is_empty() {

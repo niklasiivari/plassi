@@ -111,12 +111,7 @@ impl PlassiApp {
                 .own
                 .get(requester)
                 .and_then(|rs| rs.iter().find(|(r, _)| *r == rule.id));
-            let color = match result {
-                Some((_, r)) if r.hard_violation => p.bad,
-                Some((_, r)) if r.penalty == 0 => p.good,
-                Some(_) => p.warn,
-                None => p.muted,
-            };
+            let color = theme::outcome_color(p, result.map(|(_, r)| r.outcome()));
             ui.horizontal(|ui| {
                 theme::status_dot(ui, color);
                 ui.label(name);

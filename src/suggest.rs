@@ -5,7 +5,7 @@ use crate::i18n::{fill, tr};
 use std::collections::{BTreeSet, HashMap};
 
 use crate::catalog::Kind;
-use crate::model::{ImportField, Project, RuleKind, Target};
+use crate::model::{Project, RuleKind, Target};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Confidence {
@@ -35,7 +35,7 @@ pub enum SuggestedTarget {
 pub struct Suggestion {
     pub note: usize,
     pub requester: usize,
-    pub avec: bool,
+    pub wish: crate::model::WishKind,
     pub target: SuggestedTarget,
     pub confidence: Confidence,
     pub reason: String,
@@ -127,7 +127,7 @@ pub fn for_note(project: &Project, note_index: usize) -> Vec<Suggestion> {
     let suggestion = |target, confidence, reason| Suggestion {
         note: note_index,
         requester,
-        avec: note.field == ImportField::Avec,
+        wish: note.field.wish(),
         target,
         confidence,
         reason,
@@ -145,7 +145,7 @@ pub fn for_note(project: &Project, note_index: usize) -> Vec<Suggestion> {
         .collect();
     for (org, confidence, reason) in mentioned_organizations(project, requester, &text) {
         result.push(Suggestion {
-            avec: false,
+            wish: crate::model::WishKind::Seating,
             ..suggestion(SuggestedTarget::Organization(org), confidence, reason)
         });
     }
@@ -373,12 +373,17 @@ pub fn accept(project: &mut Project, suggestion: &Suggestion) {
             id,
             suggestion.requester,
             ids.clone(),
-            suggestion.avec,
+            suggestion.wish,
             &source,
         ),
         SuggestedTarget::Organization(name) => {
-            let mut rule =
-                crate::import::wish_rule(id, suggestion.requester, Vec::new(), false, &source);
+            let mut rule = crate::import::wish_rule(
+                id,
+                suggestion.requester,
+                Vec::new(),
+                crate::model::WishKind::Seating,
+                &source,
+            );
             rule.label = "Organization wish".into();
             if let RuleKind::Proximity { target, .. } = &mut rule.kind {
                 *target = Target::Organization { name: name.clone() };

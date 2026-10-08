@@ -167,7 +167,11 @@ impl PlassiApp {
                     .filter_map(|i| self.project.person(*i).map(|a| a.name.clone()))
                     .collect::<Vec<_>>()
                     .join(tr(" or "));
-                fill(if s.avec { "Avec {}" } else { "Sit near {}" }, &[&names])
+                let text = match s.wish {
+                    crate::model::WishKind::Avec => "Avec {}",
+                    crate::model::WishKind::Seating => "Sit near {}",
+                };
+                fill(text, &[&names])
             }
             crate::suggest::SuggestedTarget::Organization(name) => {
                 fill("Sit near people from {}", &[name])

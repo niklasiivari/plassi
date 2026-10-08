@@ -354,14 +354,14 @@ fn wish_checklist_keeps_selections_when_searching_and_saves_all_people() {
     let rule = ui.app().project.rules.last().unwrap();
     let RuleKind::Proximity {
         target: Target::People { ids },
-        costs,
+        wish,
         ..
     } = &rule.kind
     else {
         panic!("a seating wish for people");
     };
     assert_eq!(ids.len(), 2);
-    assert!(!costs.is_avec());
+    assert_eq!(*wish, crate::model::WishKind::Seating);
     let id = rule.id;
     let saved = serde_json::to_value(rule).unwrap();
     let ui = ui.reopen();

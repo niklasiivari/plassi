@@ -4,6 +4,7 @@
 use super::*;
 use crate::catalog::Kind;
 use crate::i18n::tr;
+use crate::model::WishKind;
 
 impl PlassiApp {
     /// The new-wish form. Returns true when a rule was created.
@@ -71,7 +72,7 @@ impl PlassiApp {
     fn create_wish(&mut self, draft: WishDraft) {
         let id = self.project.next_rule_id();
         let mut rule =
-            crate::import::wish_rule(id, draft.person, draft.targets, draft.avec, &draft.source);
+            crate::import::wish_rule(id, draft.person, draft.targets, draft.wish, &draft.source);
         if let RuleKind::Proximity { target, .. } = &mut rule.kind {
             match draft.near {
                 DraftTarget::People => {}
@@ -119,10 +120,10 @@ impl PlassiApp {
 /// Avec or wish, and whether it is about people, a tag or an organization.
 fn draft_kind(ui: &mut egui::Ui, draft: &mut WishDraft) {
     ui.horizontal(|ui| {
-        ui.selectable_value(&mut draft.avec, false, tr("Seating wish"));
-        ui.selectable_value(&mut draft.avec, true, tr("Avec"));
+        ui.selectable_value(&mut draft.wish, WishKind::Seating, tr("Seating wish"));
+        ui.selectable_value(&mut draft.wish, WishKind::Avec, tr("Avec"));
     });
-    if draft.avec {
+    if draft.wish == WishKind::Avec {
         draft.near = DraftTarget::People;
         return;
     }

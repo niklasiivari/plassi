@@ -62,12 +62,12 @@ fn organization_wish_counts_every_matching_member() {
     project.rules.push(organization_wish(1, 0, "ABC", None));
     let assignment = BTreeMap::from([
         (0, "table-a:left:0".into()),
-        (1, "table-a:right:0".into()),
+        (1, "table-a:right:1".into()),
         (2, "table-a:left:1".into()),
-        (3, "table-a:right:1".into()),
+        (3, "table-a:right:0".into()),
     ]);
     let evaluation = crate::score::evaluate(&project, &assignment);
-    // Opposite costs something, so meeting only the nearest member is not enough.
+    // Diagonal costs a little, so meeting only the nearest member is not enough.
     assert!(evaluation.wish_penalty > 0);
     assert!(evaluation.results[0].detail.contains("Person 2"));
 }
@@ -121,9 +121,8 @@ fn organization_wish(
         kind: RuleKind::Proximity {
             requester,
             target: Target::Organization { name: name.into() },
-            costs: ProximityCosts([0, 10, 20, 30, 40, 50]),
-            weight: 1,
-            weight_mode: WeightMode::Fixed,
+            wish: WishKind::Seating,
+            importance: Importance::Normal,
             max_class,
         },
     }
@@ -168,20 +167,31 @@ fn progress_keeps_large_soft_scores_separate_from_hard_violations() {
     project.policy.sprinkle = 0;
     project.policy.isolation_penalty = 0;
     project.policy.left_out_penalty = 0;
-    project.rules.push(Rule {
-        id: 1,
-        label: "expensive wish".into(),
+    // Pinned to one seat, with eleven costly wishes for another.
+    let placement = |id, hard, penalty| Rule {
+        id,
+        label: "seat".into(),
         source: "test".into(),
         enabled: true,
-        kind: RuleKind::Proximity {
-            requester: 0,
-            target: Target::People { ids: vec![1] },
-            costs: ProximityCosts([100_000; CLASSES]),
-            weight: 11,
-            weight_mode: WeightMode::Fixed,
-            max_class: None,
+        kind: RuleKind::Placement {
+            person: 0,
+            area: Area::Seat(
+                if hard {
+                    "table-a:left:0"
+                } else {
+                    "table-a:right:1"
+                }
+                .into(),
+            ),
+            must_be: true,
+            hard,
+            penalty,
         },
-    });
+    };
+    project.rules.push(placement(1, true, 0));
+    project
+        .rules
+        .extend((2..13).map(|id| placement(id, false, 100_000)));
     let search = crate::seating::Search::new(
         &project,
         crate::seating::Options {
@@ -259,9 +269,8 @@ fn group_and_direction_are_preserved() {
                 tag: "friends".into(),
                 required: 2,
             },
-            costs: ProximityCosts::WISH,
-            weight: 10,
-            weight_mode: WeightMode::Fixed,
+            wish: WishKind::Seating,
+            importance: Importance::Normal,
             max_class: None,
         },
     });
@@ -288,9 +297,8 @@ fn multi_person_wish_counts_every_named_person() {
         kind: RuleKind::Proximity {
             requester: 0,
             target: Target::People { ids: vec![1, 2] },
-            costs: ProximityCosts::WISH,
-            weight: 10,
-            weight_mode: WeightMode::Fixed,
+            wish: WishKind::Seating,
+            importance: Importance::Normal,
             max_class: None,
         },
     });
@@ -323,16 +331,59 @@ fn requester_budget_is_shared_across_wishes() {
             kind: RuleKind::Proximity {
                 requester: 0,
                 target: Target::People { ids: vec![target] },
-                costs: ProximityCosts::WISH,
-                weight: 10,
-                weight_mode: WeightMode::ShareRequesterBudget,
+                wish: WishKind::Seating,
+                importance: Importance::Normal,
                 max_class: None,
             },
         });
     }
-    assert_eq!(project.effective_weight(&project.rules[0]), 5);
+    let far = |project: &Project| project.wish_costs(&project.rules[0]).unwrap()[5];
+    assert_eq!(far(&project), WishKind::Seating.far_penalty() / 2);
     project.rules[1].enabled = false;
-    assert_eq!(project.effective_weight(&project.rules[0]), 10);
+    assert_eq!(far(&project), WishKind::Seating.far_penalty());
+}
+
+#[test]
+fn avec_keeps_its_weight_and_high_importance_triples_it() {
+    let mut project = fixture();
+    for (id, target, wish) in [
+        (1, 1, WishKind::Avec),
+        (2, 2, WishKind::Seating),
+        (3, 3, WishKind::Seating),
+    ] {
+        project
+            .rules
+            .push(crate::import::wish_rule(id, 0, vec![target], wish, ""));
+    }
+    let far = |project: &Project, i: usize| project.wish_costs(&project.rules[i]).unwrap()[5];
+    // The avec isn't split with the two seating wishes; they share one weight.
+    assert_eq!(far(&project, 0), WishKind::Avec.far_penalty());
+    assert_eq!(far(&project, 1), WishKind::Seating.far_penalty() / 2);
+    if let RuleKind::Proximity { importance, .. } = &mut project.rules[0].kind {
+        *importance = Importance::High;
+    }
+    assert_eq!(far(&project, 0), WishKind::Avec.far_penalty() * 3);
+}
+
+#[test]
+fn diagonal_wish_is_met_though_it_costs_a_little() {
+    let mut project = fixture();
+    project.rules.push(crate::import::wish_rule(
+        1,
+        0,
+        vec![1],
+        WishKind::Seating,
+        "",
+    ));
+    let assignment = BTreeMap::from([
+        (0, "table-a:left:0".into()),
+        (1, "table-a:right:1".into()),
+        (2, "table-a:left:1".into()),
+        (3, "table-a:right:0".into()),
+    ]);
+    let result = &crate::score::evaluate(&project, &assignment).results[0];
+    assert!(result.penalty > 0);
+    assert_eq!(result.outcome(), crate::score::Outcome::Met);
 }
 
 #[test]
@@ -359,9 +410,8 @@ fn solver_obeys_hard_seat_and_finds_beside() {
         kind: RuleKind::Proximity {
             requester: 0,
             target: Target::People { ids: vec![1] },
-            costs: ProximityCosts::AVEC,
-            weight: 100,
-            weight_mode: WeightMode::Fixed,
+            wish: WishKind::Avec,
+            importance: Importance::Normal,
             max_class: None,
         },
     });
@@ -425,9 +475,8 @@ fn solver_matches_exhaustive_score_for_group_and_avoidance() {
                 tag: "friends".into(),
                 required: 2,
             },
-            costs: ProximityCosts::AVEC,
-            weight: 3,
-            weight_mode: WeightMode::Fixed,
+            wish: WishKind::Avec,
+            importance: Importance::Normal,
             max_class: None,
         },
     });
@@ -439,9 +488,8 @@ fn solver_matches_exhaustive_score_for_group_and_avoidance() {
         kind: RuleKind::Proximity {
             requester: 3,
             target: Target::People { ids: vec![0] },
-            costs: ProximityCosts::WISH,
-            weight: 5,
-            weight_mode: WeightMode::ShareRequesterBudget,
+            wish: WishKind::Seating,
+            importance: Importance::Normal,
             max_class: None,
         },
     });
@@ -629,7 +677,7 @@ fn group_moves_keep_group_together() {
     project.layout.rows[0].tables[0].right = 3;
     project
         .rules
-        .push(crate::import::wish_rule(1, 0, vec![3], true, ""));
+        .push(crate::import::wish_rule(1, 0, vec![3], WishKind::Avec, ""));
     let groups = crate::groups::wish_groups(&project);
     assert_eq!(groups, vec![vec![0, 3]]);
     let assignment: BTreeMap<usize, String> = [
@@ -719,10 +767,14 @@ fn roster_changes_keep_the_project_consistent() {
     project.layout.rows[0].tables[0].right = 3;
     project
         .rules
-        .push(crate::import::wish_rule(1, 0, vec![3], true, ""));
-    project
-        .rules
-        .push(crate::import::wish_rule(2, 3, vec![0, 1], false, ""));
+        .push(crate::import::wish_rule(1, 0, vec![3], WishKind::Avec, ""));
+    project.rules.push(crate::import::wish_rule(
+        2,
+        3,
+        vec![0, 1],
+        WishKind::Seating,
+        "",
+    ));
     project.candidates.push(
         crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(300))
             .expect("seating"),
@@ -865,7 +917,11 @@ fn synthetic_project(people: usize, wishes: usize) -> Project {
             rule as u64 + 1,
             from,
             vec![to],
-            rule % 5 == 0,
+            if rule % 5 == 0 {
+                WishKind::Avec
+            } else {
+                WishKind::Seating
+            },
             "",
         ));
     }

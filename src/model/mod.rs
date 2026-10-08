@@ -96,6 +96,16 @@ pub enum ImportField {
     Wish,
 }
 
+impl ImportField {
+    /// The kind of wish a note in this column asks for.
+    pub fn wish(self) -> WishKind {
+        match self {
+            ImportField::Avec => WishKind::Avec,
+            ImportField::Wish => WishKind::Seating,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Project {
     pub version: u32,
@@ -155,7 +165,7 @@ impl PrintLanguage {
 }
 
 /// Global rules for everyone, mainly shaping where unconstrained attendees sit.
-/// Weights use the same scale as rule penalties (see [`ProximityCosts::far_penalty`]).
+/// Weights use the same scale as rule penalties (see [`WishKind::far_penalty`]).
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(default)]
 pub struct SeatingPolicy {
@@ -231,13 +241,13 @@ pub enum RuleKind {
         end_penalty: i64,
         near_end_penalty: i64,
     },
+    /// A wish to sit near someone. Its distance costs and weight follow
+    /// from `wish` and `importance`, so every wish of a kind scores alike.
     Proximity {
         requester: usize,
         target: Target,
-        costs: ProximityCosts,
-        weight: i64,
-        #[serde(default)]
-        weight_mode: WeightMode,
+        wish: WishKind,
+        importance: Importance,
         max_class: Option<DistanceClass>,
     },
 }
@@ -246,11 +256,67 @@ fn yes() -> bool {
     true
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
-pub enum WeightMode {
-    #[default]
-    Fixed,
-    ShareRequesterBudget,
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub enum WishKind {
+    /// A partner: beside is best, opposite fine, diagonal unwanted. Keeps its
+    /// full weight however many wishes the person has.
+    Avec,
+    /// Beside, opposite and diagonal are all good. A person's seating
+    /// wishes share one weight, so many wishes don't outweigh one.
+    Seating,
+}
+
+impl WishKind {
+    pub fn costs(self) -> ProximityCosts {
+        match self {
+            WishKind::Avec => ProximityCosts::AVEC,
+            WishKind::Seating => ProximityCosts::WISH,
+        }
+    }
+
+    pub fn weight(self) -> i64 {
+        match self {
+            WishKind::Avec => 100,
+            WishKind::Seating => 10,
+        }
+    }
+
+    /// What a normal wish of this kind costs at another table, for explaining scale.
+    pub fn far_penalty(self) -> i64 {
+        self.costs()[DistanceClass::Far] * self.weight()
+    }
+
+    /// The rule's label when it is made.
+    pub fn label(self) -> &'static str {
+        match self {
+            WishKind::Avec => "Avec",
+            WishKind::Seating => "Seating wish",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub enum Importance {
+    Normal,
+    High,
+}
+
+impl Importance {
+    pub const ALL: [Importance; 2] = [Importance::Normal, Importance::High];
+
+    pub fn factor(self) -> i64 {
+        match self {
+            Importance::Normal => 1,
+            Importance::High => 3,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Importance::Normal => tr("Normal"),
+            Importance::High => tr("High"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -280,7 +346,7 @@ pub enum Area {
 }
 
 /// Penalty per distance class, closest first (see `DistanceClass::ALL`).
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ProximityCosts(pub [i64; CLASSES]);
 
 impl ProximityCosts {
@@ -292,18 +358,6 @@ impl ProximityCosts {
     pub const GROUP: Self = Self([0, 0, 0, 25, 38, 40]);
     /// A group's cost per row it is longer than needed, before strength.
     pub const GROUP_STRETCH: i64 = 10;
-    /// Default importance of an avec and of an ordinary wish.
-    pub const AVEC_WEIGHT: i64 = 100;
-    pub const WISH_WEIGHT: i64 = 10;
-
-    /// Penalty of a default wish or avec seated at another table, for explaining scale.
-    pub fn far_penalty(avec: bool) -> i64 {
-        if avec {
-            Self::AVEC[DistanceClass::Far] * Self::AVEC_WEIGHT
-        } else {
-            Self::WISH[DistanceClass::Far] * Self::WISH_WEIGHT
-        }
-    }
 
     /// Costs times `weight`.
     pub fn scaled(self, weight: i64) -> [i64; CLASSES] {
@@ -313,24 +367,6 @@ impl ProximityCosts {
     /// Costs times `weight / share`, rounded once at the end.
     pub fn shared(self, weight: i64, share: i64) -> [i64; CLASSES] {
         self.0.map(|c| (c * weight + share / 2) / share)
-    }
-
-    /// Avec-strength costs (opposite already costs something and far away is expensive).
-    pub fn is_avec(&self) -> bool {
-        self[DistanceClass::Far] >= Self::AVEC[DistanceClass::Far]
-            && self[DistanceClass::Opposite] > 0
-    }
-
-    /// Whether a farther distance never costs less than a nearer one.
-    pub fn is_ordered(self) -> bool {
-        self.0.windows(2).all(|w| w[0] <= w[1])
-    }
-
-    /// Raises costs where needed so they never fall with distance.
-    pub fn make_ordered(&mut self) {
-        for i in 1..self.0.len() {
-            self.0[i] = self.0[i].max(self.0[i - 1]);
-        }
     }
 }
 
@@ -608,31 +644,38 @@ impl Project {
         }
     }
 
-    pub fn effective_weight(&self, rule: &Rule) -> i64 {
-        let (weight, share) = self.weight_share(rule);
-        weight / share
-    }
-
-    /// A wish's importance and how many wishes share it: a person with a
-    /// shared budget splits it over all their wishes.
-    pub fn weight_share(&self, rule: &Rule) -> (i64, i64) {
+    /// A wish's distance costs: its kind's, times its weight and importance,
+    /// split over the requester's seating wishes for a seating wish.
+    pub fn wish_costs(&self, rule: &Rule) -> Option<[i64; CLASSES]> {
         let RuleKind::Proximity {
             requester,
-            weight,
-            weight_mode,
+            wish,
+            importance,
             ..
         } = &rule.kind
         else {
-            return (0, 1);
+            return None;
         };
-        match weight_mode {
-            WeightMode::Fixed => (*weight, 1),
-            WeightMode::ShareRequesterBudget => {
-                let count = self.rules.iter().filter(|other| other.enabled && matches!(other.kind,
-                    RuleKind::Proximity { requester: p, weight_mode: WeightMode::ShareRequesterBudget, .. } if p == *requester)).count();
-                (*weight, count.max(1) as i64)
-            }
-        }
+        let share = match wish {
+            WishKind::Avec => 1,
+            WishKind::Seating => self
+                .rules
+                .iter()
+                .filter(|other| {
+                    other.enabled
+                        && matches!(other.kind, RuleKind::Proximity {
+                            requester: p,
+                            wish: WishKind::Seating,
+                            ..
+                        } if p == *requester)
+                })
+                .count()
+                .max(1) as i64,
+        };
+        Some(
+            wish.costs()
+                .shared(wish.weight() * importance.factor(), share),
+        )
     }
 
     pub fn active_people(&self) -> HashSet<usize> {

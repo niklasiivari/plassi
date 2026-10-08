@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::i18n::{fill, tr};
-use crate::model::{Area, Project, ProximityCosts, Rule};
+use crate::model::{Area, Importance, Project, Rule, WishKind};
 use crate::score::{Outcome, RuleResult};
 
 /// "Avec with X", "Sit near Y and Z (high importance)", …
@@ -38,8 +38,8 @@ pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<Stri
         }
         RuleKind::Proximity {
             target,
-            costs,
-            weight,
+            wish,
+            importance,
             max_class,
             ..
         } => {
@@ -52,22 +52,17 @@ pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<Stri
                 Target::Organization { name, .. } => fill("people from {}", &[name]),
                 Target::Tag { tag, .. } => fill("group “{}”", &[tag]),
             };
-            let avec = costs.is_avec();
-            let normal = if avec {
-                ProximityCosts::AVEC_WEIGHT
-            } else {
-                ProximityCosts::WISH_WEIGHT
-            };
-            match *weight {
-                w if w < normal / 2 => notes.push(tr("low importance").into()),
-                w if w > normal * 3 => notes.push(tr("critical").into()),
-                w if w > normal => notes.push(tr("high importance").into()),
-                _ => {}
+            if *importance == Importance::High {
+                notes.push(tr("high importance").into());
             }
             if let Some(class) = max_class {
                 notes.push(fill("must be {}", &[&class.limit_label()]));
             }
-            fill(if avec { "Avec with {}" } else { "Sit near {}" }, &[&who])
+            let text = match wish {
+                WishKind::Avec => "Avec with {}",
+                WishKind::Seating => "Sit near {}",
+            };
+            fill(text, &[&who])
         }
     };
     (title, notes)

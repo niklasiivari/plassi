@@ -195,22 +195,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("people from", "väkeä järjestöstä"),
     ("group “{}”, needs", "ryhmä ”{}”, tarvitsee"),
     ("Importance", "Tärkeys"),
-    ("Low", "Pieni"),
     ("Normal", "Normaali"),
     ("High", "Suuri"),
-    ("Critical", "Erittäin suuri"),
-    (
-        "Share importance across wishes",
-        "Jaa paino toiveiden kesken",
-    ),
-    ("weight ×{}", "paino ×{}"),
     ("Maximum distance", "Suurin etäisyys"),
     ("No limit", "Ei rajoitusta"),
-    ("Distance penalties", "Etäisyyssakot"),
-    (
-        "Penalty = distance cost × weight.",
-        "Sakko = etäisyyden hinta × paino.",
-    ),
     // Wish rows
     ("turned off", "pois käytöstä"),
     ("Pinned to {}", "Kiinnitetty: {}"),
@@ -220,8 +208,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("people from {}", "järjestön {} väki"),
     ("{} people", "{} henkilöä"),
     ("group “{}”", "ryhmä ”{}”"),
-    ("low importance", "pieni paino"),
-    ("critical", "erittäin suuri paino"),
     ("high importance", "suuri paino"),
     ("must be {}", "oltava {}"),
     ("Avec with {}", "Avec: {}"),
@@ -326,9 +312,5 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Template column", "Pohjan sarake"),
     ("Previous choice", "Aiempi valinta"),
     ("Choose a field", "Valitse kenttä"),
-    (
-        "Balances people with many wishes against those with few.",
-        "Tasapainottaa paljon ja vähän toiveita esittäneiden painon.",
-    ),
     ("Could not read {}", "Lukeminen epäonnistui: {}"),
 ];

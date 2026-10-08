@@ -749,7 +749,6 @@ fn wish_term(project: &Project, rule: &Rule, index: &HashMap<usize, usize>) -> O
     let RuleKind::Proximity {
         requester,
         target,
-        costs,
         max_class,
         ..
     } = &rule.kind
@@ -773,10 +772,7 @@ fn wish_term(project: &Project, rule: &Rule, index: &HashMap<usize, usize>) -> O
         targets,
         // Never more than there are: a removed person can't make it unmeetable.
         required: required.max(1),
-        costs: {
-            let (weight, share) = project.weight_share(rule);
-            costs.shared(weight, share)
-        },
+        costs: project.wish_costs(rule)?,
         forbidden: DistanceClass::ALL.map(|c| max_class.is_some_and(|max| c > max)),
         shape,
         source: Source::Rule(rule.id),

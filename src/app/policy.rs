@@ -135,8 +135,8 @@ impl PlassiApp {
             let scale = fill(
                 "Another table: wish {} points · avec {} points",
                 &[
-                    &crate::model::ProximityCosts::far_penalty(false),
-                    &crate::model::ProximityCosts::far_penalty(true),
+                    &crate::model::WishKind::Seating.far_penalty(),
+                    &crate::model::WishKind::Avec.far_penalty(),
                 ],
             );
             ui.label(RichText::new(scale).size(theme::text::SMALL).color(p.muted));

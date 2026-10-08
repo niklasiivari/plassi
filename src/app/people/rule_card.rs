@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use super::*;
 use crate::i18n::{fill, tr};
-use crate::model::{Area, DistanceClass, ProximityCosts, Rule, RuleKind, WeightMode};
+use crate::model::{Area, DistanceClass, Importance, Rule, RuleKind, WishKind};
 use crate::score::RuleResult;
 
 /// Attendee names by ID, for chips and pickers.
@@ -105,7 +105,6 @@ impl PlassiApp {
         let Some(index) = self.project.rules.iter().position(|r| r.id == rule_id) else {
             return (false, false);
         };
-        let effective = self.project.effective_weight(&self.project.rules[index]);
         let result = self
             .evaluation()
             .and_then(|e| e.results.iter().find(|r| r.rule_id == rule_id).cloned());
@@ -121,9 +120,7 @@ impl PlassiApp {
                 delete = deleted;
                 changed |= match &mut rule.kind {
                     RuleKind::Placement { .. } => placement_editor(ui, &mut rule.kind),
-                    RuleKind::Proximity { .. } => {
-                        wish_editor(ui, p, rule, &names, picker_filter, effective)
-                    }
+                    RuleKind::Proximity { .. } => wish_editor(ui, rule, &names, picker_filter),
                     RuleKind::AvoidTableEnd { .. } => table_end_editor(ui, p, &mut rule.kind),
                 };
                 if !rule.source.is_empty() {
@@ -242,83 +239,41 @@ fn table_end_editor(ui: &mut egui::Ui, p: Palette, kind: &mut RuleKind) -> bool 
         p,
         fill(
             "No neighbour on one side. A wish at another table costs {}.",
-            &[&ProximityCosts::far_penalty(false)],
+            &[&WishKind::Seating.far_penalty()],
         ),
     );
     changed
 }
 
-/// Kind (wish or avec), who, importance, hard limit and distance penalties.
-fn wish_editor(
-    ui: &mut egui::Ui,
-    p: Palette,
-    rule: &mut Rule,
-    names: &Names,
-    filter: &mut String,
-    effective: i64,
-) -> bool {
-    let was_avec = match &rule.kind {
-        RuleKind::Proximity { costs, .. } => costs.is_avec(),
-        _ => return false,
-    };
-    let mut selected_kind = None;
-    ui.horizontal(|ui| {
-        let mut avec = was_avec;
-        ui.selectable_value(&mut avec, false, tr("Seating wish"));
-        ui.selectable_value(&mut avec, true, tr("Avec"));
-        if avec != was_avec {
-            selected_kind = Some(avec);
-        }
-    });
-    if let Some(avec) = selected_kind {
-        set_avec_kind(rule, avec);
-    }
+/// Kind (wish or avec), who, importance and hard limit.
+fn wish_editor(ui: &mut egui::Ui, rule: &mut Rule, names: &Names, filter: &mut String) -> bool {
     let RuleKind::Proximity {
         target,
-        costs,
-        weight,
-        weight_mode,
+        wish,
+        importance,
         max_class,
         requester,
     } = &mut rule.kind
     else {
-        return selected_kind.is_some();
+        return false;
     };
-    let mut changed = selected_kind.is_some();
+    let kind_changed = ui
+        .horizontal(|ui| {
+            ui.selectable_value(wish, WishKind::Seating, tr("Seating wish"))
+                .changed()
+                | ui.selectable_value(wish, WishKind::Avec, tr("Avec"))
+                    .changed()
+        })
+        .inner;
+    let wish = *wish;
+    let mut changed = kind_changed;
     changed |= target_editor(ui, target, *requester, names, filter);
-    changed |= importance_editor(ui, p, weight, weight_mode, effective);
+    changed |= importance_editor(ui, importance);
     changed |= limit_editor(ui, max_class);
-    changed |= costs_editor(ui, p, costs);
+    if kind_changed {
+        rule.label = wish.label().into();
+    }
     changed
-}
-
-/// Selects the complete default profile for one of the two wish kinds.
-fn set_avec_kind(rule: &mut Rule, avec: bool) {
-    let RuleKind::Proximity {
-        costs,
-        weight,
-        weight_mode,
-        ..
-    } = &mut rule.kind
-    else {
-        return;
-    };
-    *costs = if avec {
-        ProximityCosts::AVEC
-    } else {
-        ProximityCosts::WISH
-    };
-    *weight = if avec {
-        ProximityCosts::AVEC_WEIGHT
-    } else {
-        ProximityCosts::WISH_WEIGHT
-    };
-    *weight_mode = if avec {
-        WeightMode::Fixed
-    } else {
-        WeightMode::ShareRequesterBudget
-    };
-    rule.label = if avec { "Avec" } else { "Seating wish" }.into();
 }
 
 fn target_editor(
@@ -358,45 +313,18 @@ fn target_editor(
     .inner
 }
 
-fn importance_editor(
-    ui: &mut egui::Ui,
-    p: Palette,
-    weight: &mut i64,
-    mode: &mut WeightMode,
-    effective: i64,
-) -> bool {
-    let mut changed = false;
+fn importance_editor(ui: &mut egui::Ui, importance: &mut Importance) -> bool {
     ui.horizontal(|ui| {
         ui.label(tr("Importance"));
-        let slider = egui::Slider::new(weight, 0..=300)
-            .logarithmic(true)
-            .clamping(egui::SliderClamping::Never);
-        changed |= theme::slider(ui, slider).changed();
-        for (label, value) in [("Low", 5), ("Normal", 10), ("High", 40), ("Critical", 150)] {
-            if ui.add(theme::small_button(tr(label))).clicked() {
-                *weight = value;
-                changed = true;
-            }
+        let mut changed = false;
+        for value in Importance::ALL {
+            changed |= ui
+                .selectable_value(importance, value, value.label())
+                .changed();
         }
-    });
-    ui.horizontal(|ui| {
-        let mut shared = *mode == WeightMode::ShareRequesterBudget;
-        let toggle = ui
-            .checkbox(&mut shared, tr("Share importance across wishes"))
-            .on_hover_text(tr(
-                "Balances people with many wishes against those with few.",
-            ));
-        if toggle.changed() {
-            *mode = if shared {
-                WeightMode::ShareRequesterBudget
-            } else {
-                WeightMode::Fixed
-            };
-            changed = true;
-        }
-        theme::hint(ui, p, fill("weight ×{}", &[&effective]));
-    });
-    changed
+        changed
+    })
+    .inner
 }
 
 /// Optional hard maximum distance.
@@ -426,70 +354,4 @@ fn limit_editor(ui: &mut egui::Ui, max_class: &mut Option<DistanceClass>) -> boo
         changed
     })
     .inner
-}
-
-/// Per-distance penalties, kept non-decreasing with distance.
-fn costs_editor(ui: &mut egui::Ui, p: Palette, costs: &mut ProximityCosts) -> bool {
-    let mut changed = false;
-    egui::CollapsingHeader::new(
-        RichText::new(tr("Distance penalties"))
-            .size(theme::text::SMALL)
-            .color(p.muted),
-    )
-    .id_salt("costs")
-    .show(ui, |ui| {
-        ui.horizontal_wrapped(|ui| {
-            for class in DistanceClass::ALL {
-                ui.label(class.label());
-                changed |= ui
-                    .add(egui::DragValue::new(&mut costs[class]).range(0..=100_000))
-                    .changed();
-            }
-        });
-        theme::hint(ui, p, tr("Penalty = distance cost × weight."));
-    });
-    if changed {
-        costs.make_ordered();
-    }
-    changed
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn switching_avec_and_wish_applies_the_matching_default_profile() {
-        let mut rule = crate::import::wish_rule(1, 0, vec![1], false, "");
-
-        set_avec_kind(&mut rule, true);
-        let RuleKind::Proximity {
-            costs,
-            weight,
-            weight_mode,
-            ..
-        } = &rule.kind
-        else {
-            panic!("wish rule expected");
-        };
-        assert_eq!(*costs, ProximityCosts::AVEC);
-        assert_eq!(*weight, ProximityCosts::AVEC_WEIGHT);
-        assert_eq!(*weight_mode, WeightMode::Fixed);
-        assert_eq!(rule.label, "Avec");
-
-        set_avec_kind(&mut rule, false);
-        let RuleKind::Proximity {
-            costs,
-            weight,
-            weight_mode,
-            ..
-        } = &rule.kind
-        else {
-            panic!("wish rule expected");
-        };
-        assert_eq!(*costs, ProximityCosts::WISH);
-        assert_eq!(*weight, ProximityCosts::WISH_WEIGHT);
-        assert_eq!(*weight_mode, WeightMode::ShareRequesterBudget);
-        assert_eq!(rule.label, "Seating wish");
-    }
 }
