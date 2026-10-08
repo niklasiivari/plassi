@@ -320,7 +320,7 @@ fn multi_person_wish_counts_every_named_person() {
 }
 
 #[test]
-fn requester_budget_is_shared_across_wishes() {
+fn seating_wishes_are_damped_by_how_many_there_are() {
     let mut project = fixture();
     for (id, target) in [(1, 1), (2, 2)] {
         project.rules.push(Rule {
@@ -338,7 +338,8 @@ fn requester_budget_is_shared_across_wishes() {
         });
     }
     let far = |project: &Project| project.wish_costs(&project.rules[0]).unwrap()[5];
-    assert_eq!(far(&project), WishKind::Seating.far_penalty() / 2);
+    // Two wishes: each 1/√2 of one.
+    assert_eq!(far(&project), 283);
     project.rules[1].enabled = false;
     assert_eq!(far(&project), WishKind::Seating.far_penalty());
 }
@@ -356,9 +357,9 @@ fn avec_keeps_its_weight_and_high_importance_triples_it() {
             .push(crate::import::wish_rule(id, 0, vec![target], wish, ""));
     }
     let far = |project: &Project, i: usize| project.wish_costs(&project.rules[i]).unwrap()[5];
-    // The avec isn't split with the two seating wishes; they share one weight.
+    // The avec isn't split with the two seating wishes; they are damped by √2.
     assert_eq!(far(&project, 0), WishKind::Avec.far_penalty());
-    assert_eq!(far(&project, 1), WishKind::Seating.far_penalty() / 2);
+    assert_eq!(far(&project, 1), 283);
     if let RuleKind::Proximity { importance, .. } = &mut project.rules[0].kind {
         *importance = Importance::High;
     }

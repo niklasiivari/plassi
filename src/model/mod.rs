@@ -262,7 +262,7 @@ pub enum WishKind {
     /// full weight however many wishes the person has.
     Avec,
     /// Beside, opposite and diagonal are all good. A person's seating
-    /// wishes share one weight, so many wishes don't outweigh one.
+    /// wishes are damped by how many they have (see `Project::wish_costs`).
     Seating,
 }
 
@@ -644,8 +644,10 @@ impl Project {
         }
     }
 
-    /// A wish's distance costs: its kind's, times its weight and importance,
-    /// split over the requester's seating wishes for a seating wish.
+    /// A wish's distance costs: its kind's, times its weight and importance.
+    /// A seating wish is divided by the square root of how many seating
+    /// wishes its requester has: four wishes count half each, so a long
+    /// list is damped without making each wish cheap to give up.
     pub fn wish_costs(&self, rule: &Rule) -> Option<[i64; CLASSES]> {
         let RuleKind::Proximity {
             requester,
@@ -656,7 +658,7 @@ impl Project {
         else {
             return None;
         };
-        let share = match wish {
+        let wishes = match wish {
             WishKind::Avec => 1,
             WishKind::Seating => self
                 .rules
@@ -670,11 +672,13 @@ impl Project {
                         } if p == *requester)
                 })
                 .count()
-                .max(1) as i64,
+                .max(1),
         };
+        // In thousandths, so the square root stays exact enough.
+        let share = ((wishes as f64).sqrt() * 1000.0).round() as i64;
         Some(
             wish.costs()
-                .shared(wish.weight() * importance.factor(), share),
+                .shared(wish.weight() * importance.factor() * 1000, share),
         )
     }
 
