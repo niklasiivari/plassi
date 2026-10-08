@@ -67,7 +67,7 @@ impl HelpPage {
             HelpPage::Print => &[
                 "Create A4 PDFs for the selected option.",
                 "Event details appear on each PDF.",
-                "Browser: download. Desktop: save beside the project.",
+                "Browser: download. Desktop: save in the project's folder.",
             ],
         }
     }

@@ -4,7 +4,7 @@ How to plan seating with Plassi, page by page.
 
 ## Projects
 
-Every event is a project. The desktop app keeps projects as JSON files in its data folder (`~/.local/share/plassi/projects/` on Linux, `~/Library/Application Support/Plassi/projects/` on macOS, `%APPDATA%\Plassi\projects\` on Windows; `PLASSI_HOME` overrides it) and reopens the last one. The switcher at the top of the sidebar opens, creates, duplicates, renames and deletes projects; editing a project file from outside the app is picked up live. New here? "Try with example data" on the chart or People page opens a made-up event with 48 guests, wishes and a room.
+Every event is a project. The desktop app keeps each project in a folder of its own in its data folder (`~/.local/share/plassi/projects/<project>/` on Linux, `~/Library/Application Support/Plassi/projects/<project>/` on macOS, `%APPDATA%\Plassi\projects\<project>\` on Windows; `PLASSI_HOME` overrides the data folder): the project file `<project>.json`, its prints and its backups. It reopens the last project, on the option that was showing. The switcher at the top of the sidebar opens, creates, duplicates, renames and deletes projects; editing a project file from outside the app is picked up live. New here? "Try with example data" on the chart or People page opens a made-up event with 48 guests, wishes and a room.
 
 ## Importing a spreadsheet
 
@@ -79,10 +79,10 @@ On the chart: Ctrl+F finds someone (arrow keys and Enter pick from the matches),
 
 "Save all four PDFs" writes every print at once. The Print page checks the chosen option first (hard rules broken, people without a seat, empty seats mid-table) and marks saved PDFs whose project has changed since.
 
-The Print page saves A4 PDFs next to the project file, typeset with a Typst template (`typeset/src/print.typ`) and the bundled Source Serif and Source Sans fonts:
+The Print page saves A4 PDFs in the project's folder, named after the project in the print language (e.g. "<project> - kitchen.pdf"), typeset with a Typst template (`typeset/src/print.typ`) and the bundled Source Serif and Source Sans fonts:
 
-- Seating chart: all tables with names for the wall. Tables without a name are printed as "Table 1", "Table 2" … ("Pöytä" in Finnish) by their place in the room.
-- Kitchen chart: the same table shapes on one page, with a small header. The most common meal is left unmarked; every other meal gets its category's print mark (set on the Categories page for foods and drinks, e.g. "VE"; the name when empty), explained with counts in a legend. Allergies are written out in red under the name; long ones become a numbered note listed under the chart. Answers like "-" or "ei ole" count as no allergies.
+- Seating chart: all tables with names for the wall. Tables without a name are printed as "Table 1", "Table 2" … in the print language, by their place in the room.
+- Kitchen chart: the same table shapes on one page, with a small header. The most common meal is left unmarked; every other meal gets its category's print mark (set on the Categories page for foods and drinks, e.g. "VG"; the name when empty), explained with counts in a legend. Allergies are written out in red under the name; long ones become a numbered note listed under the chart. Answers like "-" or "none" (also in Finnish) count as no allergies.
 - Bar chart: laid out like the kitchen chart, with drinks instead of meals: the most common drink is unmarked and the others carry their mark (e.g. "0 %" for alcohol-free), with the same allergies and notes.
 - Door list: alphabetical names and the total ticket, food and drink price.
 
@@ -127,4 +127,4 @@ Manual edits may violate hard rules; the report shows them rather than silently 
 
 ## Backups
 
-Earlier versions of each project are kept automatically: one every few minutes while editing, and one right before the project is deleted, replaced by an import or a loaded file, or overwritten by an external edit. On desktop they are in `backups/<project>/` in the data folder (the newest 20, plus one per day for two weeks); in the browser only the newest three per project are kept, and older backups make room if storage is full. The project menu's "Earlier versions…" lists them with Restore, which is an ordinary change that Undo can take back. "Deleted projects…" brings back a deleted project from its latest backup.
+Earlier versions of each project are kept automatically: one every few minutes while editing, and one right before the project is deleted, replaced by an import or a loaded file, or overwritten by an external edit. On desktop they are in the project's `backups/` folder (the newest 20, plus one per day for two weeks); in the browser only the newest three per project are kept, and older backups make room if storage is full. The project menu's "Earlier versions…" lists them with Restore, which is an ordinary change that Undo can take back. "Deleted projects…" brings back a deleted project from its latest backup.

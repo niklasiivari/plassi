@@ -165,7 +165,7 @@ fn table_json(
     json!({ "label": table_name(project, &table.id), "rows": seat_rows })
 }
 
-/// A table's printed name: its label, or "Table 2" / "Pöytä 2" by its place
+/// A table's printed name: its label, or "Table 2" in the print language by its place
 /// in the room when it has none, so guests can tell the tables apart.
 fn table_name(project: &Project, table_id: &str) -> String {
     let tables = project.layout.rows.iter().flat_map(|r| &r.tables);
@@ -363,9 +363,20 @@ pub fn render(project: &Project, candidate: usize, kind: PrintKind) -> Result<Ve
         .map_err(|error| anyhow!(error))
 }
 
-/// File name of a print, e.g. "plassi-kitchen.pdf".
-pub fn file_name(kind: PrintKind) -> String {
-    format!("plassi-{}.pdf", kind.key())
+/// File name of a print in the print language, after the project, e.g.
+/// "<project> - kitchen.pdf", so it stays recognisable when sent on.
+pub fn file_name(project: &Project, project_name: &str, kind: PrintKind) -> String {
+    let word = match (project.event.print_language.code(), kind) {
+        ("fi", PrintKind::Chart) => "istumajärjestys",
+        ("fi", PrintKind::Kitchen) => "keittiö",
+        ("fi", PrintKind::Bar) => "baari",
+        ("fi", PrintKind::Door) => "ovilista",
+        (_, PrintKind::Chart) => "seating",
+        (_, PrintKind::Kitchen) => "kitchen",
+        (_, PrintKind::Bar) => "bar",
+        (_, PrintKind::Door) => "door list",
+    };
+    format!("{project_name} - {word}.pdf")
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -381,7 +392,10 @@ pub fn export(
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(std::path::Path::new("."));
-    let path = dir.join(file_name(kind));
+    let name = project_path
+        .file_stem()
+        .map_or("plassi".into(), |s| s.to_string_lossy());
+    let path = dir.join(file_name(project, &name, kind));
     std::fs::write(&path, pdf)?;
     Ok(path)
 }

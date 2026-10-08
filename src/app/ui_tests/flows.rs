@@ -246,18 +246,19 @@ fn print_page_saves_four_pdfs() {
     );
     ui.click("Save all PDFs");
     ui.wait_until(60, |app| app.printing.job.is_none());
-    let folder = ui.dir.path().join("projects");
-    let pdfs = std::fs::read_dir(&folder)
+    // In the project's own folder, named after the project.
+    let name = ui.app().file.name.clone();
+    let folder = ui.dir.path().join("projects").join(&name);
+    let pdfs: Vec<String> = std::fs::read_dir(&folder)
         .unwrap()
-        .filter(|e| {
-            e.as_ref()
-                .unwrap()
-                .path()
-                .extension()
-                .is_some_and(|x| x == "pdf")
-        })
-        .count();
-    assert_eq!(pdfs, 4, "{}", ui.app().status);
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|f| f.ends_with(".pdf"))
+        .collect();
+    assert_eq!(pdfs.len(), 4, "{}", ui.app().status);
+    assert!(
+        pdfs.iter().all(|f| f.starts_with(&format!("{name} - "))),
+        "{pdfs:?}"
+    );
 }
 
 #[test]

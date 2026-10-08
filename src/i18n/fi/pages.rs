@@ -161,8 +161,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Print", "Tulosta"),
     ("Download A4 PDFs.", "Lataa A4-PDF:t."),
     (
-        "A4 PDFs saved beside the project.",
-        "A4-PDF:t tallennetaan projektin viereen.",
+        "A4 PDFs saved in the project's folder.",
+        "A4-PDF:t tallennetaan projektin kansioon.",
     ),
     ("Saved event details", "Tallennettiin tapahtuman tiedot"),
     ("Save all PDFs", "Tallenna kaikki PDF:t"),
@@ -210,8 +210,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Tapahtuman tiedot näkyvät jokaisessa PDF:ssä.",
     ),
     (
-        "Browser: download. Desktop: save beside the project.",
-        "Selaimessa: lataa. Työpöytäsovelluksessa: tallenna projektin viereen.",
+        "Browser: download. Desktop: save in the project's folder.",
+        "Selaimessa: lataa. Työpöytäsovelluksessa: tallenna projektin kansioon.",
     ),
     ("Add tag", "Lisää tunniste"),
     ("Remove", "Poista"),

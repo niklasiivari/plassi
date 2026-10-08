@@ -33,6 +33,9 @@ impl Store {
 
     /// Writes atomically: a temporary file renamed over the old one.
     pub fn write(&self, bytes: &[u8]) -> Result<()> {
+        let folder = self.folder();
+        fs::create_dir_all(&folder)
+            .with_context(|| fill("Could not create {}", &[&folder.display()]))?;
         let temp = self.path.with_extension("json.tmp");
         fs::write(&temp, bytes).with_context(|| fill("Could not write {}", &[&temp.display()]))?;
         fs::rename(&temp, &self.path)
@@ -147,13 +150,12 @@ impl<K: Send + 'static> PdfJob<K> {
     }
 }
 
-/// Projects kept in the app's data folder, one JSON file each:
-/// `$PLASSI_HOME` if set, otherwise the platform's usual place
-/// (`~/.local/share/plassi` on Linux).
+/// Projects kept in the app's data folder, a folder each holding everything
+/// of that project: `projects/<name>/<name>.json`, its prints and its earlier
+/// versions in `backups/<time>.json`. The data folder is `$PLASSI_HOME` if
+/// set, otherwise the platform's usual place (`~/.local/share/plassi` on Linux).
 pub struct Library {
     folder: PathBuf,
-    /// Earlier versions: `backups/<project>/<time>.json`.
-    backups: PathBuf,
 }
 
 /// Backups kept per project on disk.
@@ -188,32 +190,39 @@ impl Library {
     pub fn at(data: &Path) -> Self {
         let folder = data.join("projects");
         let _ = fs::create_dir_all(&folder);
-        Self {
-            folder,
-            backups: data.join("backups"),
-        }
+        Self { folder }
+    }
+
+    /// A project's folder.
+    fn project_folder(&self, name: &str) -> PathBuf {
+        self.folder.join(name)
     }
 
     fn path(&self, name: &str) -> PathBuf {
-        self.folder.join(format!("{name}.json"))
+        self.project_folder(name).join(format!("{name}.json"))
     }
 
-    /// Project names, alphabetically.
-    pub fn projects(&self) -> Vec<String> {
+    fn backup_folder(&self, name: &str) -> PathBuf {
+        self.project_folder(name).join("backups")
+    }
+
+    /// Names of the folders in the library that `has` holds for, alphabetically.
+    fn folders_where(&self, has: impl Fn(&str) -> bool) -> Vec<String> {
         let mut names: Vec<String> = fs::read_dir(&self.folder)
             .into_iter()
             .flatten()
             .flatten()
-            .filter_map(|entry| {
-                let path = entry.path();
-                if path.extension()? != "json" {
-                    return None;
-                }
-                Some(path.file_stem()?.to_string_lossy().into_owned())
-            })
+            .filter(|entry| entry.path().is_dir())
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| has(name))
             .collect();
         names.sort_by_key(|n| n.to_lowercase());
         names
+    }
+
+    /// Project names, alphabetically.
+    pub fn projects(&self) -> Vec<String> {
+        self.folders_where(|name| self.path(name).is_file())
     }
 
     pub fn store(&self, name: &str) -> Store {
@@ -222,16 +231,23 @@ impl Library {
         }
     }
 
+    /// Renames the project's folder and file; its prints and backups move along.
     pub fn rename(&self, from: &str, to: &str) -> Result<()> {
-        fs::rename(self.path(from), self.path(to))
-            .with_context(|| fill("Could not rename {} to {}", &[&from, &to]))?;
-        let _ = fs::rename(self.backups.join(from), self.backups.join(to));
-        Ok(())
+        let error = || fill("Could not rename {} to {}", &[&from, &to]);
+        if self.project_folder(to).exists() {
+            anyhow::bail!(error());
+        }
+        fs::rename(self.project_folder(from), self.project_folder(to)).with_context(error)?;
+        fs::rename(
+            self.project_folder(to).join(format!("{from}.json")),
+            self.path(to),
+        )
+        .with_context(error)
     }
 
     /// Keeps `bytes` as an earlier version of `name`, and drops old ones.
     pub fn backup(&self, name: &str, bytes: &[u8]) -> Result<()> {
-        let folder = self.backups.join(name);
+        let folder = self.backup_folder(name);
         fs::create_dir_all(&folder)
             .with_context(|| fill("Could not create {}", &[&folder.display()]))?;
         let now = super::now_stamp().max(self.backups(name).first().map_or(0, |s| s + 1));
@@ -244,14 +260,13 @@ impl Library {
     }
 
     fn backup_path(&self, name: &str, stamp: u64) -> PathBuf {
-        self.backups
-            .join(name)
+        self.backup_folder(name)
             .join(format!("{}.json", super::backup_plan::stamp_name(stamp)))
     }
 
     /// The times of `name`'s backups, newest first.
     pub fn backups(&self, name: &str) -> Vec<u64> {
-        let mut stamps: Vec<u64> = fs::read_dir(self.backups.join(name))
+        let mut stamps: Vec<u64> = fs::read_dir(self.backup_folder(name))
             .into_iter()
             .flatten()
             .flatten()
@@ -271,17 +286,11 @@ impl Library {
 
     /// Names that have backups, including deleted projects.
     pub fn backed_up(&self) -> Vec<String> {
-        let mut names: Vec<String> = fs::read_dir(&self.backups)
-            .into_iter()
-            .flatten()
-            .flatten()
-            .filter(|entry| entry.path().is_dir())
-            .map(|entry| entry.file_name().to_string_lossy().into_owned())
-            .collect();
-        names.sort_by_key(|n| n.to_lowercase());
-        names
+        self.folders_where(|name| !self.backups(name).is_empty())
     }
 
+    /// Removes the project file; its folder keeps the prints and backups,
+    /// so the project can be restored.
     pub fn delete(&self, name: &str) -> Result<()> {
         fs::remove_file(self.path(name)).with_context(|| fill("Could not delete {}", &[&name]))
     }
@@ -368,6 +377,9 @@ mod tests {
         library.delete("B").unwrap();
         assert!(library.projects().is_empty());
         assert_eq!(library.backed_up(), vec!["B".to_string()]);
+        // Everything of a project is in its folder.
+        assert!(data.join("projects/B/backups").is_dir());
+        assert!(!data.join("projects/A").exists());
         let _ = fs::remove_dir_all(&data);
     }
 }

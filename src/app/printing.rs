@@ -31,7 +31,7 @@ impl PlassiApp {
             Some(if cfg!(target_arch = "wasm32") {
                 tr("Download A4 PDFs.")
             } else {
-                tr("A4 PDFs saved beside the project.")
+                tr("A4 PDFs saved in the project's folder.")
             }),
         );
         if self.event_settings(ui, p) {
@@ -277,7 +277,8 @@ impl PlassiApp {
         let mut failed = Vec::new();
         for (kind, pdf) in pdfs {
             let result = pdf.and_then(|bytes| {
-                crate::platform::save_file(&self.file.store, &crate::print::file_name(kind), &bytes)
+                let name = crate::print::file_name(&self.project, &self.file.name, kind);
+                crate::platform::save_file(&self.file.store, &name, &bytes)
                     .map_err(|e| format!("{e:#}"))
             });
             match result {
