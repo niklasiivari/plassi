@@ -28,6 +28,8 @@ impl PolicyReport {
 
 pub(super) const HARD: i64 = 1_000_000;
 pub(super) const NONE: usize = usize::MAX;
+/// Organization members beyond this many nearest weigh nothing.
+const DECAY_RANKS: usize = 10;
 
 /// Where a part of the score comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46,7 +48,8 @@ pub(super) struct Term {
     pub(super) costs: [i64; crate::model::CLASSES],
     /// Distance classes that break a hard rule.
     pub(super) forbidden: [bool; crate::model::CLASSES],
-    /// Group wishes can include many members; later members have diminishing weight.
+    /// An organization wish: every member counts, each one half as much as
+    /// the next nearer one, and the nearest decides hard limits and "met".
     pub(super) decaying_targets: bool,
     pub(super) source: Source,
 }
@@ -218,7 +221,9 @@ impl Problem {
 
     /// How a term fares: the distance to the `required`-th nearest target
     /// (which decides hard limits) and the penalty, the mean cost of the
-    /// `required` nearest, so each target that comes closer counts.
+    /// `required` nearest, so each target that comes closer counts. For an
+    /// organization the nearest member decides instead, since a big one
+    /// always has someone far away.
     pub(super) fn term_outcome(
         &self,
         t: usize,
@@ -240,22 +245,22 @@ impl Problem {
         scratch.sort_unstable();
         scratch.resize(scratch.len().max(k), DistanceClass::Far);
         if term.decaying_targets {
-            const SCALE: i64 = 1_024;
+            // Halving weights: the nearest few decide, the rest add next to nothing.
             let mut weighted = 0;
             let mut total_weight = 0;
-            for (rank, class) in scratch[..k].iter().enumerate() {
-                let weight = (SCALE / (rank as i64 + 1)).max(1);
+            for (rank, class) in scratch[..k].iter().take(DECAY_RANKS).enumerate() {
+                let weight = 1 << (DECAY_RANKS - 1 - rank);
                 weighted += term.costs[*class as usize] * weight;
                 total_weight += weight;
             }
-            (scratch[k - 1], weighted / total_weight)
+            (scratch[0], weighted / total_weight)
         } else {
             let sum: i64 = scratch[..k].iter().map(|c| term.costs[*c as usize]).sum();
             (scratch[k - 1], sum / k as i64)
         }
     }
 
-    /// Extra cost if none of a requester's wishes is near them.
+    /// Extra cost if none of a requester's wishes is beside, opposite or diagonal.
     pub(super) fn left_out_cost(
         &self,
         g: usize,
@@ -264,7 +269,7 @@ impl Problem {
     ) -> i64 {
         let near = self.fairness.groups[g]
             .iter()
-            .any(|&t| self.term_outcome(t, seat_of, scratch).0 <= DistanceClass::Near);
+            .any(|&t| self.term_outcome(t, seat_of, scratch).0 <= DistanceClass::Diagonal);
         if near { 0 } else { self.fairness.penalty }
     }
 

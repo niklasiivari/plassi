@@ -169,7 +169,8 @@ pub struct SeatingPolicy {
     pub sprinkle: i64,
     /// Cost for anyone with nobody beside or opposite them.
     pub isolation_penalty: i64,
-    /// Extra cost for anyone with wishes of whom none is near them, so no
+    /// Extra cost for anyone with wishes of whom none is beside, opposite or
+    /// diagonal to them, so no
     /// one loses all their wishes to save a little elsewhere.
     pub left_out_penalty: i64,
     pub empty_seats: EmptySeatPlacement,
@@ -283,8 +284,10 @@ pub enum Area {
 pub struct ProximityCosts(pub [i64; CLASSES]);
 
 impl ProximityCosts {
-    pub const AVEC: Self = Self([0, 3, 18, 22, 25, 40]);
-    pub const WISH: Self = Self([0, 0, 2, 8, 15, 40]);
+    // Only beside, opposite and diagonal are together; a few seats down the
+    // same table is nearly as bad as another table.
+    pub const AVEC: Self = Self([0, 3, 18, 32, 39, 40]);
+    pub const WISH: Self = Self([0, 0, 2, 25, 38, 40]);
     /// Default importance of an avec and of an ordinary wish.
     pub const AVEC_WEIGHT: i64 = 100;
     pub const WISH_WEIGHT: i64 = 10;

@@ -71,21 +71,7 @@ fn organization_wish_counts_every_matching_member() {
     let mut project = fixture();
     project.attendees[1].organization = "ABC".into();
     project.attendees[2].organization = "ABC".into();
-    project.rules.push(Rule {
-        id: 1,
-        label: "Organization wish".into(),
-        source: "test".into(),
-        enabled: true,
-        kind: RuleKind::Proximity {
-            requester: 0,
-            target: Target::Organization { name: "ABC".into() },
-            // Opposite costs, so meeting only the nearest member is not enough.
-            costs: ProximityCosts([0, 10, 20, 30, 40, 50]),
-            weight: 1,
-            weight_mode: WeightMode::Fixed,
-            max_class: None,
-        },
-    });
+    project.rules.push(organization_wish(1, 0, "ABC", None));
     let assignment = BTreeMap::from([
         (0, "table-a:left:0".into()),
         (1, "table-a:right:0".into()),
@@ -93,8 +79,66 @@ fn organization_wish_counts_every_matching_member() {
         (3, "table-a:right:1".into()),
     ]);
     let evaluation = crate::score::evaluate(&project, &assignment);
-    assert!(evaluation.results[0].detail.contains("2 wished people"));
+    // Opposite costs something, so meeting only the nearest member is not enough.
     assert!(evaluation.wish_penalty > 0);
+    assert!(evaluation.results[0].detail.contains("Person 2"));
+}
+
+#[test]
+fn organization_wish_is_met_by_the_nearest_member() {
+    let mut project = fixture();
+    let mut far = project.attendees[3].clone();
+    far.id = 4;
+    project.attendees.push(far);
+    for id in [1, 4] {
+        project.attendees[id].organization = "ABC".into();
+    }
+    project.layout.rows[0].tables.push(TableSpec {
+        id: "table-b".into(),
+        label: "B".into(),
+        left: 1,
+        right: 0,
+    });
+    project.rules.push(organization_wish(
+        1,
+        0,
+        "ABC",
+        Some(DistanceClass::Diagonal),
+    ));
+    let assignment = BTreeMap::from([
+        (0, "table-a:left:0".into()),
+        (1, "table-a:left:1".into()),
+        (2, "table-a:right:0".into()),
+        (3, "table-a:right:1".into()),
+        (4, "table-b:left:0".into()),
+    ]);
+    let evaluation = crate::score::evaluate(&project, &assignment);
+    // A colleague at another table neither breaks the limit nor leaves them out.
+    assert_eq!(evaluation.hard_violations, 0);
+    assert!(evaluation.left_out.is_empty());
+    assert!(evaluation.results[0].detail.contains("Person 1"));
+}
+
+fn organization_wish(
+    id: u64,
+    requester: usize,
+    name: &str,
+    max_class: Option<DistanceClass>,
+) -> Rule {
+    Rule {
+        id,
+        label: "Organization wish".into(),
+        source: "test".into(),
+        enabled: true,
+        kind: RuleKind::Proximity {
+            requester,
+            target: Target::Organization { name: name.into() },
+            costs: ProximityCosts([0, 10, 20, 30, 40, 50]),
+            weight: 1,
+            weight_mode: WeightMode::Fixed,
+            max_class,
+        },
+    }
 }
 
 #[test]

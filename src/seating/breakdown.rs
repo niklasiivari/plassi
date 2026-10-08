@@ -13,7 +13,7 @@ pub struct TermResult {
     pub source: Source,
     /// Distance to the target that decides the cost.
     pub class: DistanceClass,
-    /// With one required target: the nearest one (attendee ID).
+    /// With one required target, or for an organization: the nearest one (attendee ID).
     pub nearest: Option<usize>,
     pub seated_targets: usize,
     pub required: usize,
@@ -54,7 +54,7 @@ impl Scorer {
             .map(|t| {
                 let term = &pr.terms[t];
                 let (class, penalty) = pr.term_outcome(t, &seat_of, &mut scratch);
-                let nearest = (term.required == 1)
+                let nearest = (term.required == 1 || term.decaying_targets)
                     .then(|| {
                         term.targets
                             .iter()
@@ -67,7 +67,12 @@ impl Scorer {
                     class,
                     nearest,
                     seated_targets: term.targets.iter().filter(|&&x| seat_of[x] != NONE).count(),
-                    required: term.required,
+                    // An organization needs one member seated, not all.
+                    required: if term.decaying_targets {
+                        1
+                    } else {
+                        term.required
+                    },
                     penalty,
                     hard_violation: term.forbidden[class as usize],
                 }

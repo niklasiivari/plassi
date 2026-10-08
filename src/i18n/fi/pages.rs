@@ -57,8 +57,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Sakko, jos vieressä tai vastapäätä ei ole ketään.",
     ),
     (
-        "Penalty if no wish is within two rows at the same table.",
-        "Sakko, jos yhtään toivetta ei ole samassa pöydässä kahden rivin sisällä.",
+        "Penalty if no wish is beside, opposite or diagonal.",
+        "Sakko, jos yksikään toive ei ole vieressä, vastapäätä tai vinottain.",
     ),
     ("Where spare seats go.", "Minne tyhjät paikat tulevat."),
     ("Organizations", "Järjestöt"),

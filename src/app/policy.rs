@@ -94,7 +94,7 @@ impl PlassiApp {
             ui,
             p,
             tr("At least one wish"),
-            tr("Penalty if no wish is within two rows at the same table."),
+            tr("Penalty if no wish is beside, opposite or diagonal."),
             |ui| {
                 ui.horizontal(|ui| {
                     let r = theme::slider(
