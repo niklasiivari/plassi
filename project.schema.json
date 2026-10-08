@@ -305,7 +305,7 @@
           }
         },
         "mark": {
-          "description": "Short mark for the kitchen print, e.g. \"VE\". Empty prints the name.",
+          "description": "Short mark for the kitchen and bar prints, e.g. \"VE\". Empty prints the name.",
           "type": "string",
           "default": ""
         },

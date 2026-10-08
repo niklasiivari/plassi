@@ -127,23 +127,24 @@
   }
 }
 
-// ------------------------------------------------------------- kitchen --
-// Tables as on the wall chart, each seat with a short meal mark (none for the
-// most common meal) and its allergies; a legend and long allergy notes below.
+// ------------------------------------------------------- kitchen and bar --
+// Tables as on the wall chart, each seat with a short mark for the meal or
+// drink (none for the most common one) and its allergies; a legend and long
+// allergy notes below.
 #let mark-chip(mark) = if mark != "" {
   box(fill: accent, radius: 2pt, inset: (x: 2.5pt, y: 1.5pt), text(size: 7pt, weight: "bold", fill: white, mark))
 }
 
-#let kitchen() = {
+#let service-chart(service) = {
   set page(paper: "a4", flipped: true, margin: (x: 10mm, top: 9mm, bottom: 9mm))
-  let diets = data.diets
+  let marks = data.marks
   grid(
     columns: (auto, 1fr, auto),
     align: horizon,
     column-gutter: 8pt,
-    eyebrow(t("Kitchen", "Keittiö")),
+    eyebrow(if service == "food" { t("Kitchen", "Keittiö") } else { t("Bar", "Baari") }),
     [#text(font: serif, size: 14pt, weight: "semibold", data.title) #h(6pt) #text(font: serif, style: "italic", fill: muted, data.subtitle)],
-    text(size: 8pt, fill: muted, t("Unmarked: ", "Ilman merkintää: ") + if diets.plain != none { diets.plain.name } else { "" }),
+    text(size: 8pt, fill: muted, t("Unmarked: ", "Ilman merkintää: ") + if marks.plain != none { marks.plain.name } else { "" }),
   )
   v(2pt)
   line(length: 100%, stroke: 0.5pt + hair)
@@ -159,7 +160,7 @@
   let name-w = (table-w - band) / 2 - 2mm
   let seat(p, side) = {
     if p == none { return text(size: 7pt, style: "italic", fill: muted, t("Empty", "tyhjä")) }
-    let d = p.diet
+    let d = p.service
     let mark = mark-chip(d.mark)
     let name = fit(p.name, name-w - (if d.mark != "" { 10mm } else { 0mm }), 9pt)
     let first = if side == "left" { [#name #mark] } else { [#mark #name] }
@@ -201,17 +202,17 @@
   // Legend: each mark with its meal and count.
   let entry(mark, name, count) = box[#mark #text(size: 8pt)[#name] #text(size: 8pt, weight: "bold", str(count))]
   let items = ()
-  if diets.plain != none { items.push(entry(text(size: 7pt, fill: muted, "—"), diets.plain.name, diets.plain.count)) }
-  for m in diets.legend { items.push(entry(mark-chip(m.mark), m.name, m.count)) }
+  if marks.plain != none { items.push(entry(text(size: 7pt, fill: muted, "—"), marks.plain.name, marks.plain.count)) }
+  for m in marks.legend { items.push(entry(mark-chip(m.mark), m.name, m.count)) }
   align(center, items.join(h(12pt)))
 
-  if diets.notes.len() > 0 {
+  if marks.notes.len() > 0 {
     v(3mm)
     eyebrow(t("Allergy notes", "Allergiat"))
     v(2pt)
     columns(3, gutter: 6mm, {
       set text(size: 7.5pt)
-      for note in diets.notes {
+      for note in marks.notes {
         block(below: 3pt)[#text(fill: warn, weight: "bold", str(note.n)) #h(2pt) *#note.name:* #note.text]
       }
     })
@@ -251,6 +252,6 @@
 }
 
 #if data.kind == "chart" { chart() }
-#if data.kind == "kitchen" { kitchen() }
-#if data.kind == "bar" { chart(service: "drink") }
+#if data.kind == "kitchen" { service-chart("food") }
+#if data.kind == "bar" { service-chart("drink") }
 #if data.kind == "door" { door() }

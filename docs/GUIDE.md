@@ -82,8 +82,8 @@ On the chart: Ctrl+F finds someone (arrow keys and Enter pick from the matches),
 The Print page saves A4 PDFs next to the project file, typeset with a Typst template (`typeset/src/print.typ`) and the bundled Source Serif and Source Sans fonts:
 
 - Seating chart: all tables with names for the wall. Tables without a name are printed as "Table 1", "Table 2" … ("Pöytä" in Finnish) by their place in the room.
-- Kitchen chart: the same table shapes on one page, with a small header. The most common meal is left unmarked; every other meal gets its category's print mark (set on the Categories page, e.g. "VE"; the name when empty), explained with counts in a legend. Allergies are written out in red under the name; long ones become a numbered note listed under the chart. Answers like "-" or "ei ole" count as no allergies.
-- Bar chart: the same table shapes, with drinks at each seat and drink totals.
+- Kitchen chart: the same table shapes on one page, with a small header. The most common meal is left unmarked; every other meal gets its category's print mark (set on the Categories page for foods and drinks, e.g. "VE"; the name when empty), explained with counts in a legend. Allergies are written out in red under the name; long ones become a numbered note listed under the chart. Answers like "-" or "ei ole" count as no allergies.
+- Bar chart: laid out like the kitchen chart, with drinks instead of meals: the most common drink is unmarked and the others carry their mark (e.g. "0 %" for alcohol-free), with the same allergies and notes.
 - Door list: alphabetical names and the total ticket, food and drink price.
 
 Event title, subtitle and print language (Finnish or English) are in `event`.

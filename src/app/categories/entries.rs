@@ -50,7 +50,7 @@ impl PlassiApp {
                         changed |= theme::price_input(ui, tr("Price"), &mut category.price_cents);
                         theme::hint(ui, p, tr("Added to the ticket total. Use 0 if included."));
                     }
-                    if kind == Kind::Food {
+                    if matches!(kind, Kind::Food | Kind::Drink) {
                         ui.horizontal(|ui| {
                             ui.label(tr("Print mark"));
                             changed |= ui
@@ -59,7 +59,7 @@ impl PlassiApp {
                             theme::hint(
                                 ui,
                                 p,
-                                tr("Shown on the kitchen print, e.g. VE. The most common meal is left unmarked."),
+                                tr("Shown on the kitchen and bar prints, e.g. VE or 0 %. The most common choice is left unmarked."),
                             );
                         });
                     }

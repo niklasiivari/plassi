@@ -91,14 +91,18 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
     } else {
         project.event.title.clone()
     };
-    let diets = (kind == PrintKind::Kitchen).then(|| Diets::new(project, &option.assignment));
+    let marks = match kind {
+        PrintKind::Kitchen => Some(Marks::new(project, &option.assignment, Kind::Food)),
+        PrintKind::Bar => Some(Marks::new(project, &option.assignment, Kind::Drink)),
+        _ => None,
+    };
     Ok(json!({
         "kind": kind.key(),
         "title": title,
         "subtitle": project.event.subtitle,
         "lang": project.event.print_language.code(),
-        "rows": rows_json(project, &option.assignment, diets.as_ref()),
-        "diets": diets.as_ref().map(Diets::summary),
+        "rows": rows_json(project, &option.assignment, marks.as_ref()),
+        "marks": marks.as_ref().map(Marks::summary),
         "people": people_json(project),
         "max_rows": max_rows,
         "max_tables": max_tables,
@@ -114,7 +118,7 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
 fn rows_json(
     project: &Project,
     assignment: &BTreeMap<usize, String>,
-    diets: Option<&Diets>,
+    marks: Option<&Marks>,
 ) -> Vec<Value> {
     let occupant: HashMap<&str, usize> = assignment.iter().map(|(p, s)| (s.as_str(), *p)).collect();
     let seats = project.layout.seats();
@@ -126,7 +130,7 @@ fn rows_json(
             let tables: Vec<Value> = row
                 .tables
                 .iter()
-                .map(|table| table_json(project, table, &seats, &occupant, diets))
+                .map(|table| table_json(project, table, &seats, &occupant, marks))
                 .collect();
             json!({ "label": row.label, "tables": tables })
         })
@@ -138,7 +142,7 @@ fn table_json(
     table: &TableSpec,
     seats: &[Seat],
     occupant: &HashMap<&str, usize>,
-    diets: Option<&Diets>,
+    marks: Option<&Marks>,
 ) -> Value {
     let side = |side: Side, index: usize| {
         seats
@@ -147,8 +151,8 @@ fn table_json(
             .and_then(|s| occupant.get(s.id.as_str()))
             .map(|p| {
                 let mut person = person_json(project, *p);
-                if let Some(diet) = diets.and_then(|d| d.seat.get(p)) {
-                    person["diet"] = diet.clone();
+                if let Some(mark) = marks.and_then(|m| m.seat.get(p)) {
+                    person["service"] = mark.clone();
                 }
                 person
             })
@@ -181,48 +185,50 @@ fn table_name(project: &Project, table_id: &str) -> String {
 /// Allergy notes longer than this go under the chart, numbered.
 const LONG_ALLERGY: usize = 48;
 
-/// What the kitchen needs at each seat: a short meal mark (none for the most
-/// common meal), the allergies or a note number, and the legend and notes.
-struct Diets {
+/// What the kitchen or bar needs at each seat: a short mark for the meal or
+/// drink (none for the most common one), the allergies or a note number,
+/// and the legend and notes.
+struct Marks {
     /// Per attendee ID: `{mark, allergy, note}`.
     seat: HashMap<usize, Value>,
-    /// The unmarked meal and how many have it.
+    /// The unmarked choice and how many have it.
     plain: Value,
-    /// Every other meal: `{mark, name, count}`, most common first.
+    /// Every other choice: `{mark, name, count}`, most common first.
     legend: Vec<Value>,
     /// Long allergy texts: `{n, name, text}`, in seating order.
     notes: Vec<Value>,
 }
 
-impl Diets {
-    fn new(project: &Project, assignment: &BTreeMap<usize, String>) -> Self {
-        let meals: HashMap<usize, Meal> = project
+impl Marks {
+    /// For `kind` food or drinks.
+    fn new(project: &Project, assignment: &BTreeMap<usize, String>, kind: Kind) -> Self {
+        let choices: HashMap<usize, Choice> = project
             .attendees
             .iter()
-            .map(|a| (a.id, Meal::of(project, a)))
+            .map(|a| (a.id, Choice::of(project, a, kind)))
             .collect();
-        let mut counts: Vec<(&Meal, usize)> = Vec::new();
-        for meal in meals.values().filter(|m| !m.key.is_empty()) {
-            match counts.iter_mut().find(|(m, _)| m.key == meal.key) {
+        let mut counts: Vec<(&Choice, usize)> = Vec::new();
+        for choice in choices.values().filter(|c| !c.key.is_empty()) {
+            match counts.iter_mut().find(|(c, _)| c.key == choice.key) {
                 Some((_, count)) => *count += 1,
-                None => counts.push((meal, 1)),
+                None => counts.push((choice, 1)),
             }
         }
         counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.name.cmp(&b.0.name)));
         let plain_key = counts
             .first()
-            .map(|(m, _)| m.key.clone())
+            .map(|(c, _)| c.key.clone())
             .unwrap_or_default();
-        let mut diets = Self {
+        let mut marks = Self {
             seat: HashMap::new(),
             plain: counts
                 .first()
-                .map(|(m, n)| json!({ "name": m.name, "count": n }))
+                .map(|(c, n)| json!({ "name": c.name, "count": n }))
                 .unwrap_or(Value::Null),
             legend: counts
                 .iter()
                 .skip(1)
-                .map(|(m, n)| json!({ "mark": m.mark, "name": m.name, "count": n }))
+                .map(|(c, n)| json!({ "mark": c.mark, "name": c.name, "count": n }))
                 .collect(),
             notes: Vec::new(),
         };
@@ -233,22 +239,22 @@ impl Diets {
             let Some(attendee) = project.person(id) else {
                 continue;
             };
-            let meal = &meals[&id];
-            let mark = if meal.key == plain_key {
+            let choice = &choices[&id];
+            let mark = if choice.key == plain_key {
                 ""
             } else {
-                meal.mark.as_str()
+                choice.mark.as_str()
             };
             let allergy = allergy_text(&attendee.allergies);
             let note = (allergy.chars().count() > LONG_ALLERGY).then(|| {
-                diets.notes.push(json!({
-                    "n": diets.notes.len() + 1,
+                marks.notes.push(json!({
+                    "n": marks.notes.len() + 1,
                     "name": attendee.name,
                     "text": allergy,
                 }));
-                diets.notes.len()
+                marks.notes.len()
             });
-            diets.seat.insert(
+            marks.seat.insert(
                 id,
                 json!({
                     "mark": mark,
@@ -257,7 +263,7 @@ impl Diets {
                 }),
             );
         }
-        diets
+        marks
     }
 
     fn summary(&self) -> Value {
@@ -265,19 +271,19 @@ impl Diets {
     }
 }
 
-/// A person's meal: what groups it, its name and its print mark.
-struct Meal {
+/// A person's meal or drink: what groups it, its name and its print mark.
+struct Choice {
     key: String,
     name: String,
     mark: String,
 }
 
-impl Meal {
-    fn of(project: &Project, attendee: &crate::model::Attendee) -> Self {
-        let list = project.catalog.list(Kind::Food);
-        let found = project.catalog.find_all(Kind::Food, &attendee.food);
+impl Choice {
+    fn of(project: &Project, attendee: &crate::model::Attendee, kind: Kind) -> Self {
+        let list = project.catalog.list(kind);
+        let raw = kind.raw(attendee).trim();
+        let found = project.catalog.find_all(kind, raw);
         if found.is_empty() {
-            let raw = attendee.food.trim();
             return Self {
                 key: crate::catalog::normalize(raw),
                 name: raw.to_string(),

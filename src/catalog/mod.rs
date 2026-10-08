@@ -56,7 +56,7 @@ pub struct Category {
     /// Additive charge in euro cents; None means the price has not been set.
     #[serde(default)]
     pub price_cents: Option<u32>,
-    /// Short mark for the kitchen print, e.g. "VE". Empty prints the name.
+    /// Short mark for the kitchen and bar prints, e.g. "VE". Empty prints the name.
     #[serde(default)]
     pub mark: String,
 }

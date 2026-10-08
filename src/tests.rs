@@ -783,7 +783,7 @@ fn every_print_renders() {
 }
 
 #[test]
-fn kitchen_print_marks_meals_and_numbers_long_allergies() {
+fn kitchen_and_bar_prints_mark_choices_and_number_long_allergies() {
     use crate::catalog::Kind;
     let mut project = fixture();
     for (id, food, allergies) in [
@@ -811,7 +811,10 @@ fn kitchen_print_marks_meals_and_numbers_long_allergies() {
         for row in table["rows"].as_array().unwrap() {
             for side in ["left", "right"] {
                 let p = &row[side];
-                seats.insert(p["name"].as_str().unwrap().to_string(), p["diet"].clone());
+                seats.insert(
+                    p["name"].as_str().unwrap().to_string(),
+                    p["service"].clone(),
+                );
             }
         }
     }
@@ -823,9 +826,29 @@ fn kitchen_print_marks_meals_and_numbers_long_allergies() {
     assert_eq!(seats["Person 3"]["allergy"], "");
     // A long allergy text becomes a numbered note under the chart.
     assert_eq!(seats["Person 2"]["note"], 1);
-    assert_eq!(data["diets"]["notes"][0]["name"], "Person 2");
-    assert_eq!(data["diets"]["plain"]["name"], "Mixed");
-    assert_eq!(data["diets"]["legend"][0]["mark"], "VE");
+    assert_eq!(data["marks"]["notes"][0]["name"], "Person 2");
+    assert_eq!(data["marks"]["plain"]["name"], "Mixed");
+    assert_eq!(data["marks"]["legend"][0]["mark"], "VE");
+
+    // The bar marks drinks the same way and keeps the allergies.
+    for a in &mut project.attendees {
+        a.drink = "Wine".into();
+    }
+    project.attendees[1].drink = "Alcohol-free".into();
+    let free = project.catalog.create(Kind::Drink, "Alcohol-free");
+    project.catalog.list_mut(Kind::Drink)[free].mark = "0 %".into();
+    let bar = crate::print::data(&project, 0, crate::print::PrintKind::Bar).unwrap();
+    let marks: Vec<&serde_json::Value> = bar["rows"][0]["tables"][0]["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|row| [&row["left"]["service"], &row["right"]["service"]])
+        .collect();
+    assert!(
+        marks
+            .iter()
+            .any(|m| m["mark"] == "0 %" && m["allergy"] == "Nuts")
+    );
 }
 
 #[test]
