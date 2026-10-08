@@ -110,19 +110,3 @@ pub fn solve(
     search.run_to_end();
     Ok(candidate(project, search.finish(), budget))
 }
-
-/// Improves an existing seating, keeping `fixed` people (and pins) in place.
-pub fn improve(
-    project: &Project,
-    assignment: &BTreeMap<usize, String>,
-    fixed: &HashSet<usize>,
-    budget: Duration,
-) -> BTreeMap<usize, String> {
-    match improve_search(project, assignment, fixed, budget) {
-        Ok(mut search) => {
-            search.run_to_end();
-            search.finish().assignment
-        }
-        Err(_) => assignment.clone(),
-    }
-}

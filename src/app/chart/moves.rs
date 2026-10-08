@@ -116,8 +116,8 @@ impl PlassiApp {
         }
         if let Some(index) = apply {
             let mv = moves[index].clone();
-            let polished = crate::groups::polish(&self.project, &mv, &group);
             let scorer = crate::seating::Scorer::new(&self.project);
+            let polished = crate::groups::polish(&mv, |a| total_score(&scorer, &self.project, a));
             let before = self
                 .project
                 .candidates

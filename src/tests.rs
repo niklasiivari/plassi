@@ -672,6 +672,57 @@ fn merge_import_keeps_rules_and_adds_food() {
 }
 
 #[test]
+fn group_move_leaves_pinned_members_and_is_not_undone() {
+    let mut project = fixture();
+    project.layout.rows[0].tables[0].left = 3;
+    project.layout.rows[0].tables[0].right = 3;
+    let template = project.attendees[0].clone();
+    project.attendees.extend((4..6).map(|id| Attendee {
+        id,
+        name: format!("Person {id}"),
+        ..template.clone()
+    }));
+    // 0 is pinned; 3 wishes for 0 and 4 for 3, so all three are one group.
+    project.pin(0, "table-a:left:0");
+    for (id, from, to) in [(1, 3, 0), (2, 4, 3)] {
+        project.rules.push(crate::import::wish_rule(
+            id,
+            from,
+            vec![to],
+            WishKind::Seating,
+            "",
+        ));
+    }
+    let assignment: BTreeMap<usize, String> = [
+        (0, "table-a:left:0"),
+        (1, "table-a:right:0"),
+        (2, "table-a:left:1"),
+        (3, "table-a:right:2"),
+        (4, "table-a:left:2"),
+        (5, "table-a:right:1"),
+    ]
+    .into_iter()
+    .map(|(p, s)| (p, s.to_string()))
+    .collect();
+    let group = crate::groups::group_of(&project, 3).unwrap();
+    assert!(group.contains(&0));
+    let score = |a: &BTreeMap<usize, String>| {
+        let e = crate::score::evaluate(&project, a);
+        (e.penalty(), e.hard_violations)
+    };
+    let moves = crate::groups::suggest_moves(&project, &assignment, &group, score);
+    assert!(!moves.is_empty());
+    for mv in &moves {
+        assert_eq!(mv.assignment[&0], "table-a:left:0");
+        let polished = crate::groups::polish(mv, score);
+        // The group stays in the block it was moved to.
+        for p in [3, 4] {
+            assert!(mv.seats.contains(&polished[&p]), "{mv:?}");
+        }
+    }
+}
+
+#[test]
 fn group_moves_keep_group_together() {
     let mut project = fixture();
     project.layout.rows[0].tables[0].left = 3;
@@ -1134,6 +1185,59 @@ fn solver_seats_a_group_as_a_block() {
 }
 
 #[test]
+fn solver_moves_a_group_next_to_a_pinned_person() {
+    // A pinned person at the top of one table; a group of four, one of whom
+    // wishes for the pinned person, has to settle around them.
+    let mut project = synthetic_project(16, 0);
+    project.layout.rows.push(RowSpec {
+        id: "row".into(),
+        label: "Row 1".into(),
+        tables: (1..=2)
+            .map(|i| TableSpec {
+                id: format!("t{i}"),
+                label: format!("Table {i}"),
+                left: 4,
+                right: 4,
+            })
+            .collect(),
+    });
+    project.pin(0, "t1:left:0");
+    let wish = |project: &mut Project, from: usize, to: usize| {
+        let id = project.next_rule_id();
+        project.rules.push(crate::import::wish_rule(
+            id,
+            from,
+            vec![to],
+            WishKind::Seating,
+            "",
+        ));
+    };
+    wish(&mut project, 1, 0);
+    for (a, b) in [
+        (1, 2),
+        (2, 1),
+        (2, 3),
+        (3, 2),
+        (3, 4),
+        (4, 3),
+        (1, 4),
+        (4, 1),
+    ] {
+        wish(&mut project, a, b);
+    }
+    let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(800))
+        .expect("seating");
+    let result = crate::score::evaluate(&project, &candidate.assignment);
+    let unmet: Vec<&str> = result
+        .results
+        .iter()
+        .filter(|r| r.outcome() != crate::score::Outcome::Met)
+        .map(|r| r.detail.as_str())
+        .collect();
+    assert!(unmet.is_empty(), "{unmet:?}");
+}
+
+#[test]
 fn report_score_matches_solver_score() {
     use crate::preferences::{Closeness, PreferenceKind, Strength};
     let mut project = synthetic_project(40, 30);
@@ -1199,12 +1303,15 @@ fn improve_moves_a_pinned_person_to_their_pin() {
         .map(|(_, s)| s.clone())
         .unwrap();
     project.pin(0, &other);
-    let improved = crate::seating::improve(
+    let mut search = crate::seating::improve_search(
         &project,
         &seating.assignment,
         &Default::default(),
         web_time::Duration::from_millis(200),
-    );
+    )
+    .expect("search");
+    search.run_to_end();
+    let improved = search.finish().assignment;
     assert_eq!(improved[&0], other);
     assert_eq!(
         crate::score::evaluate(&project, &improved).hard_violations,

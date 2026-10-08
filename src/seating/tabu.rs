@@ -169,6 +169,49 @@ fn delta(pr: &Problem, st: &mut State, ev: &mut Evaluator, x: usize, y: usize) -
     after - before
 }
 
+/// Two row blocks of the same height: (table, first row) each, and the height.
+type RowBlocks = ((usize, usize), (usize, usize), usize);
+
+/// Most rows a block swap moves at once.
+const MAX_BLOCK_ROWS: usize = 4;
+
+/// Every pair of non-overlapping row blocks up to `MAX_BLOCK_ROWS` high.
+fn row_block_pairs(pr: &Problem) -> impl Iterator<Item = RowBlocks> + '_ {
+    let starts = |k: usize| {
+        pr.table_rows
+            .iter()
+            .enumerate()
+            .flat_map(move |(t, rows)| (0..(rows.len() + 1).saturating_sub(k)).map(move |r| (t, r)))
+    };
+    (1..=MAX_BLOCK_ROWS).flat_map(move |k| {
+        starts(k).flat_map(move |a| {
+            starts(k)
+                .filter(move |&b| b > a && (b.0 != a.0 || b.1 >= a.1 + k))
+                .map(move |b| (a, b, k))
+        })
+    })
+}
+
+/// Seats that trade places in a row block swap: same row offset, same side.
+fn seat_pairs(
+    pr: &Problem,
+    ((ta, ra), (tb, rb), k): RowBlocks,
+) -> impl Iterator<Item = (usize, usize)> + '_ {
+    (0..k).flat_map(move |i| {
+        let (a, b) = (pr.table_rows[ta][ra + i], pr.table_rows[tb][rb + i]);
+        [(a[0], b[0]), (a[1], b[1])]
+    })
+}
+
+/// Who sits in a seat; nobody for a missing seat.
+fn seat_occupant(st: &State, seat: usize) -> usize {
+    if seat == NONE {
+        NONE
+    } else {
+        st.occupant[seat]
+    }
+}
+
 fn valid_swap(pr: &Problem, st: &State, x: usize, y: usize) -> bool {
     let (a, b) = (st.occupant[x], st.occupant[y]);
     if x == y || (a == NONE && b == NONE) {
@@ -284,6 +327,8 @@ pub(super) struct Run {
     breakouts: usize,
     evaluator: Evaluator,
     moves: Vec<usize>,
+    /// Swaps made while scoring a row block swap, to undo them.
+    swapped: Vec<(usize, usize)>,
 }
 
 impl Run {
@@ -299,6 +344,7 @@ impl Run {
             breakouts: 0,
             evaluator: Evaluator::new(pr),
             moves,
+            swapped: Vec::new(),
             state,
         }
     }
@@ -367,9 +413,63 @@ impl Run {
         } else {
             self.stall += 1;
         }
-        if self.stall > (pr.people.len() as u64 / 2).max(60) {
+        if self.stall > (pr.people.len() as u64 / 2).max(60) && !self.improve_by_row_blocks(pr) {
             self.breakout(pr, rng);
         }
+    }
+
+    /// From the best seating, swaps the row block that improves it most, if
+    /// any. Single swaps can't move a whole group: on the way it is torn
+    /// apart, which costs more than the move gains.
+    fn improve_by_row_blocks(&mut self, pr: &Problem) -> bool {
+        self.state = self.best.clone();
+        let mut best: Option<(i64, RowBlocks)> = None;
+        for blocks in row_block_pairs(pr) {
+            if let Some(d) = self.row_block_delta(pr, blocks, false)
+                && best.is_none_or(|(b, _)| d < b)
+            {
+                best = Some((d, blocks));
+            }
+        }
+        let Some((d, blocks)) = best.filter(|(d, _)| *d < 0) else {
+            return false;
+        };
+        self.row_block_delta(pr, blocks, true);
+        self.state.cost += d;
+        self.best = self.state.clone();
+        self.stall = 0;
+        true
+    }
+
+    /// Score change of swapping two row blocks, or `None` if someone in them
+    /// may not sit in the other block or a seat has no counterpart. People
+    /// who may not move (pinned) stay where they are, and so does whoever
+    /// sits in the matching seat of the other block. With `keep` the swap
+    /// stays made; otherwise it is undone.
+    fn row_block_delta(&mut self, pr: &Problem, blocks: RowBlocks, keep: bool) -> Option<i64> {
+        let mut total = Some(0);
+        self.swapped.clear();
+        for (x, y) in seat_pairs(pr, blocks) {
+            let (a, b) = (seat_occupant(&self.state, x), seat_occupant(&self.state, y));
+            let stays = |p: usize| p != NONE && pr.fixed[p];
+            if (a == NONE && b == NONE) || stays(a) || stays(b) {
+                continue;
+            }
+            if x == NONE || y == NONE || !valid_swap(pr, &self.state, x, y) {
+                total = None;
+                break;
+            }
+            let d = delta(pr, &mut self.state, &mut self.evaluator, x, y);
+            swap(pr, &mut self.state, x, y);
+            self.swapped.push((x, y));
+            total = total.map(|t| t + d);
+        }
+        if total.is_none() || !keep {
+            for &(x, y) in self.swapped.iter().rev() {
+                swap(pr, &mut self.state, x, y);
+            }
+        }
+        total
     }
 
     /// The best of a sample of block moves: two neighbouring seats swap
@@ -407,10 +507,20 @@ impl Run {
         best
     }
 
-    /// Restarts from the best solution with a growing number of random swaps.
+    /// Restarts from the best solution with a growing number of random swaps,
+    /// every other time after swapping a random pair of row blocks, which
+    /// moves groups without breaking them up.
     fn breakout(&mut self, pr: &Problem, rng: &mut impl Rng) {
         self.breakouts += 1;
         self.state = self.best.clone();
+        if rng.random_bool(0.5) {
+            let count = row_block_pairs(pr).count();
+            if count > 0
+                && let Some(blocks) = row_block_pairs(pr).nth(rng.random_range(0..count))
+            {
+                self.row_block_delta(pr, blocks, true);
+            }
+        }
         let strength = (2 + self.breakouts).min(pr.people.len() / 3 + 2);
         let mut done = 0;
         let mut attempts = 0;

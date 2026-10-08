@@ -2,7 +2,6 @@
 //! for moving a whole group to another part of the room.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use web_time::Duration;
 
 use crate::i18n::{fill, tr};
 use crate::model::{Project, RuleKind, Seat, Side, Target};
@@ -89,7 +88,8 @@ fn table_order(seats: &[Seat]) -> Vec<Vec<&Seat>> {
 }
 
 /// Ranks places a group could move to: blocks of consecutive rows on one
-/// table. Whoever sits there swaps into the group's old seats.
+/// table. Whoever sits there swaps into the group's old seats. Pinned
+/// members stay where they are; the rest of the group moves.
 pub fn suggest_moves(
     project: &Project,
     assignment: &BTreeMap<usize, String>,
@@ -97,20 +97,25 @@ pub fn suggest_moves(
     score: impl Fn(&BTreeMap<usize, String>) -> (i64, usize),
 ) -> Vec<GroupMove> {
     let pinned = project.pinned_people();
-    if group.is_empty() || group.iter().any(|p| pinned.contains(p)) {
+    let movers: Vec<usize> = group
+        .iter()
+        .copied()
+        .filter(|p| !pinned.contains(p))
+        .collect();
+    if movers.is_empty() {
         return Vec::new();
     }
     let seats = project.layout.seats();
-    let group_set: HashSet<usize> = group.iter().copied().collect();
+    let group_set: HashSet<usize> = movers.iter().copied().collect();
     let occupant: HashMap<&str, usize> = assignment.iter().map(|(p, s)| (s.as_str(), *p)).collect();
     let (before, hard_before) = score(assignment);
     let gaps_before = crate::model::gaps(&seats, assignment).len();
-    let members = in_seating_order(&seats, assignment, group);
+    let members = in_seating_order(&seats, assignment, &movers);
 
     let mut moves = Vec::new();
     let mut seen: HashSet<Vec<String>> = HashSet::new();
     for table in table_order(&seats) {
-        for block in table.windows(group.len()) {
+        for block in table.windows(movers.len()) {
             let block_ids: Vec<String> = block.iter().map(|s| s.id.clone()).collect();
             if !seen.insert(block_ids.clone()) {
                 continue;
@@ -227,15 +232,50 @@ fn describe_move(project: &Project, block: &[&Seat], displaced: &[usize]) -> Str
     fill("{}, rows {}–{}, {}", &[&table_label, lo, hi, &who])
 }
 
-/// After applying a group move, tidies seating among the people who moved.
-pub fn polish(project: &Project, mv: &GroupMove, group: &[usize]) -> BTreeMap<usize, String> {
-    let moving: HashSet<usize> = group.iter().chain(&mv.displaced).copied().collect();
-    let fixed = project
-        .attendees
+/// After applying a group move, tidies its seating: the group reorders
+/// within its new seats, and the people it displaced within the seats it
+/// left, keeping each swap that lowers the score. Nobody leaves their part,
+/// so the move itself is never undone.
+pub fn polish(
+    mv: &GroupMove,
+    score: impl Fn(&BTreeMap<usize, String>) -> (i64, usize),
+) -> BTreeMap<usize, String> {
+    let mut assignment = mv.assignment.clone();
+    let vacated: Vec<String> = mv
+        .displaced
         .iter()
-        .map(|a| a.id)
-        .filter(|p| !moving.contains(p))
-        .chain(project.pinned_people())
+        .filter_map(|p| assignment.get(p).cloned())
         .collect();
-    crate::seating::improve(project, &mv.assignment, &fixed, Duration::from_millis(300))
+    let mut best = score(&assignment);
+    let mut improved = true;
+    while improved {
+        improved = false;
+        for part in [&mv.seats, &vacated] {
+            for i in 0..part.len() {
+                for j in (i + 1)..part.len() {
+                    let next = swap_seats(&assignment, &part[i], &part[j]);
+                    let (cost, hard) = score(&next);
+                    if (hard, cost) < (best.1, best.0) {
+                        assignment = next;
+                        best = (cost, hard);
+                        improved = true;
+                    }
+                }
+            }
+        }
+    }
+    assignment
+}
+
+/// `assignment` with the people in seats `a` and `b` swapped (either may be free).
+fn swap_seats(assignment: &BTreeMap<usize, String>, a: &str, b: &str) -> BTreeMap<usize, String> {
+    let mut next = assignment.clone();
+    for seat in next.values_mut() {
+        if seat == a {
+            *seat = b.to_string();
+        } else if seat == b {
+            *seat = a.to_string();
+        }
+    }
+    next
 }

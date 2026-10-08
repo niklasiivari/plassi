@@ -166,6 +166,8 @@ pub(super) struct Problem {
     pub(super) fixed: Vec<bool>,
     /// Seat order used to place groups in contiguous blocks.
     pub(super) seat_order: Vec<usize>,
+    /// Per table, per row: the left and right seat (`NONE` where a side is shorter).
+    pub(super) table_rows: Vec<Vec<[usize; 2]>>,
     pub(super) groups: Vec<Vec<usize>>,
     /// For "different option": each constrained person's previous seat.
     pub(super) prior: Option<(Vec<usize>, usize)>,
@@ -219,6 +221,7 @@ impl Problem {
             placement_rules,
             seat_ids: seats.iter().map(|s| s.id.clone()).collect(),
             seat_spot: seat_spots(&seats),
+            table_rows: table_rows(&seats),
             n_seats: n,
             class,
             neighbours,
@@ -690,6 +693,23 @@ fn seat_spots(seats: &[Seat]) -> Vec<(usize, usize)> {
             (*tables.entry(&s.table_id).or_insert(next), s.index)
         })
         .collect()
+}
+
+/// Per table, per row: its left and right seat, `NONE` where a side has no seat.
+fn table_rows(seats: &[Seat]) -> Vec<Vec<[usize; 2]>> {
+    let spots = seat_spots(seats);
+    let mut tables: Vec<Vec<[usize; 2]>> = Vec::new();
+    for (s, (seat, &(table, row))) in seats.iter().zip(&spots).enumerate() {
+        if tables.len() <= table {
+            tables.resize(table + 1, Vec::new());
+        }
+        let rows = &mut tables[table];
+        if rows.len() <= row {
+            rows.resize(row + 1, [NONE; 2]);
+        }
+        rows[row][usize::from(seat.side == Side::Right)] = s;
+    }
+    tables
 }
 
 /// Wishes and the planner's preferences as terms.
