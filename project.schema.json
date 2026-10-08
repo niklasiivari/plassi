@@ -1047,7 +1047,7 @@
           ]
         },
         {
-          "description": "Everyone whose organization matches (case-insensitive).",
+          "description": "Everyone whose organization matches (case-insensitive).\nEveryone in the organization counts, so there is no count to meet.",
           "type": "object",
           "properties": {
             "Organization": {
@@ -1055,16 +1055,10 @@
               "properties": {
                 "name": {
                   "type": "string"
-                },
-                "required": {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0
                 }
               },
               "required": [
-                "name",
-                "required"
+                "name"
               ]
             }
           },
