@@ -235,7 +235,7 @@
     ),
     ..people.map(p => (
       text(weight: "semibold", p.name),
-      if p.price_cents == none { text(fill: muted, t("Not set", "Ei asetettu")) } else {
+      if p.price_cents == none { text(fill: muted, t("Not set", "Ei määritetty")) } else {
         let cents = p.price_cents
         let fraction = str(calc.rem(cents, 100))
         str(calc.floor(cents / 100)) + (if fi { "," } else { "." }) + (if fraction.len() == 1 { "0" } else { "" }) + fraction + " €"
