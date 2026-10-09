@@ -4,11 +4,11 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Connections", "Yhteydet"),
     (
         "Seating wishes between people.",
-        "Henkilöiden väliset pöytäseuratoiveet.",
+        "Kuka toivoo ketä pöytäseuraksi.",
     ),
     (
         "Show people without wishes",
-        "Näytä henkilöt ilman toiveita",
+        "Näytä myös henkilöt, joilla ei ole toiveita",
     ),
     ("Arrange by table", "Järjestä pöydittäin"),
     (
@@ -19,7 +19,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Summary", "Yhteenveto"),
     (
         "{} wishes between {} people",
-        "{} toivetta {} ihmisen välillä",
+        "{} toivetta {} henkilön välillä",
     ),
     (
         "{} wish groups · largest: {} people",
@@ -27,26 +27,32 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     (
         "{} people without wishes hidden",
-        "{} ihmistä ilman toiveita piilotettu",
+        "Piilotettu {} henkilöä, joilla ei ole toiveita",
     ),
     ("{} of {} wishes met", "{} / {} toivetta toteutuu"),
     ("Edit wishes", "Muokkaa toiveita"),
     ("Wish met", "Toive toteutuu"),
     ("Wish partly met", "Toive toteutuu osittain"),
     ("No seating yet", "Ei vielä istumajärjestystä"),
-    ("Avec (thicker)", "Avec (paksumpi)"),
+    ("Avec (thicker)", "Avec (paksumpi viiva)"),
     (
         "Arrow: requester. No arrow: mutual. Colour: organization. Size: connections.",
-        "Nuoli: toiveen esittäjä. Ei nuolta: molemminpuolinen. Väri: järjestö. Koko: yhteydet.",
+        "Nuoli osoittaa toivotun pöytäseuran. Viiva ilman nuolta tarkoittaa molemminpuolista toivetta. Väri kertoo järjestön, koko yhteyksien määrän.",
     ),
     (
         "Add wishes on People & wishes",
-        "Lisää toiveita Ihmiset ja toiveet -sivulla",
+        "Lisää toiveita Henkilöt ja toiveet -sivulla",
     ),
     ("Fit everyone into view", "Sovita kaikki näkymään"),
     ("Rearrange", "Järjestä uudelleen"),
-    ("1 wish to other tables", "1 toive muihin pöytiin"),
-    ("{} wishes to other tables", "{} toivetta muihin pöytiin"),
+    (
+        "1 wish to other tables",
+        "1 toive koskee eri pöydässä istuvaa henkilöä",
+    ),
+    (
+        "{} wishes to other tables",
+        "{} toivetta koskee eri pöydissä istuvia henkilöitä",
+    ),
     ("Hard rule broken", "Ehdoton sääntö rikkoutuu"),
     ("Legend", "Selite"),
 ];
