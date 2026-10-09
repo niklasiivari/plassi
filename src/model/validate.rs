@@ -43,6 +43,7 @@ impl Project {
             || !(-50..=50).contains(&self.policy.sprinkle)
             || !(0..=2_000).contains(&self.policy.isolation_penalty)
             || !(0..=2_000).contains(&self.policy.left_out_penalty)
+            || !(0..=2_000).contains(&self.policy.lone_end_penalty)
         {
             bail!(tr("Seating policy value out of range"));
         }
@@ -139,6 +140,7 @@ impl Project {
             .saturating_add(pairs.saturating_mul(policy_pair))
             .saturating_add(people.saturating_mul(i128::from(self.policy.isolation_penalty)))
             .saturating_add(people.saturating_mul(i128::from(self.policy.left_out_penalty)))
+            .saturating_add(people.saturating_mul(i128::from(self.policy.lone_end_penalty)))
             .saturating_add(people.saturating_mul(5_000));
         (soft, hard)
     }

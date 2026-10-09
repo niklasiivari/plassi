@@ -167,6 +167,7 @@ fn progress_keeps_large_soft_scores_separate_from_hard_violations() {
     project.policy.sprinkle = 0;
     project.policy.isolation_penalty = 0;
     project.policy.left_out_penalty = 0;
+    project.policy.lone_end_penalty = 0;
     // Pinned to one seat, with eleven costly wishes for another.
     let placement = |id, hard, penalty| Rule {
         id,
@@ -1052,6 +1053,53 @@ fn synthetic_project(people: usize, wishes: usize) -> Project {
 }
 
 #[test]
+fn people_without_wishes_stay_off_table_ends() {
+    let mut project = synthetic_project(6, 0);
+    project.layout.rows.push(RowSpec {
+        id: "row".into(),
+        label: "Row 1".into(),
+        tables: vec![TableSpec {
+            id: "t".into(),
+            label: "Table".into(),
+            left: 3,
+            right: 3,
+        }],
+    });
+    // Two pairs who wished for each other; 4 and 5 have no wishes.
+    for (from, to) in [(0, 1), (1, 0), (2, 3), (3, 2)] {
+        let id = project.next_rule_id();
+        project.rules.push(crate::import::wish_rule(
+            id,
+            from,
+            vec![to],
+            WishKind::Seating,
+            "",
+        ));
+    }
+    project.policy.organization = OrganizationMixing::Indifferent;
+    project.policy.sprinkle = 0;
+    crate::seating::check_deltas(&project);
+    let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(400))
+        .expect("seating");
+    for p in [4, 5] {
+        assert!(
+            candidate.assignment[&p].ends_with(":1"),
+            "{:?}",
+            candidate.assignment
+        );
+    }
+    let result = crate::score::evaluate(&project, &candidate.assignment);
+    assert!(result.policy.lone_at_ends.is_empty());
+
+    // Turned off, nothing counts.
+    project.policy.lone_end_penalty = 0;
+    let mut ends = candidate.assignment.clone();
+    ends.insert(4, candidate.assignment[&0].clone());
+    ends.insert(0, candidate.assignment[&4].clone());
+    assert_eq!(crate::score::evaluate(&project, &ends).policy.lone_ends, 0);
+}
+
+#[test]
 fn avoid_table_end_keeps_people_off_the_ends() {
     let mut project = fixture();
     project.layout.rows[0].tables[0].left = 3;
@@ -1273,6 +1321,9 @@ fn solver_moves_a_group_next_to_a_pinned_person() {
             .collect(),
     });
     project.pin(0, "t1:left:0");
+    // About moving groups; keeping people without wishes off the ends
+    // would trade against the wishes here.
+    project.policy.lone_end_penalty = 0;
     let wish = |project: &mut Project, from: usize, to: usize| {
         let id = project.next_rule_id();
         project.rules.push(crate::import::wish_rule(

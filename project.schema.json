@@ -57,6 +57,7 @@
         "empty_seats": "TableBottoms",
         "isolation_penalty": 400,
         "left_out_penalty": 300,
+        "lone_end_penalty": 100,
         "organization": "Indifferent",
         "organization_weight": 15,
         "sprinkle": 10
@@ -305,7 +306,7 @@
           }
         },
         "mark": {
-          "description": "Short mark for the kitchen and bar prints, e.g. \"VE\". Empty prints the name.",
+          "description": "Short mark for the kitchen and bar prints, e.g. \"VG\". Empty prints the name.",
           "type": "string",
           "default": ""
         },
@@ -813,6 +814,12 @@
           "type": "integer",
           "format": "int64",
           "default": 300
+        },
+        "lone_end_penalty": {
+          "description": "Cost for someone who neither wishes for anyone nor is wished for (nor\nis in a group) sitting at a table end, where they have the fewest\npeople to talk to; groups take the ends instead.",
+          "type": "integer",
+          "format": "int64",
+          "default": 100
         },
         "organization": {
           "description": "Whether unconstrained attendees should sit with their own organization.",

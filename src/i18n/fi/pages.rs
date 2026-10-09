@@ -82,6 +82,11 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Toiveryhmän vieressä: {} pistettä",
     ),
     ("Avoid sitting alone", "Vältä yksin istumista"),
+    ("Table ends", "Pöydän päädyt"),
+    (
+        "Penalty for someone without wishes at a table end; groups take the ends instead.",
+        "Sakkopisteet, jos pöydän päädyssä istuu joku ilman toiveita; päädyt jäävät ryhmille.",
+    ),
     ("At least one wish", "Vähintään yksi toive toteutuu"),
     ("Empty seats", "Tyhjät paikat"),
     (

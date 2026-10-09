@@ -186,6 +186,10 @@ pub struct SeatingPolicy {
     /// diagonal to them, so no
     /// one loses all their wishes to save a little elsewhere.
     pub left_out_penalty: i64,
+    /// Cost for someone who neither wishes for anyone nor is wished for (nor
+    /// is in a group) sitting at a table end, where they have the fewest
+    /// people to talk to; groups take the ends instead.
+    pub lone_end_penalty: i64,
     pub empty_seats: EmptySeatPlacement,
 }
 
@@ -197,6 +201,7 @@ impl Default for SeatingPolicy {
             sprinkle: 10,
             isolation_penalty: 400,
             left_out_penalty: 300,
+            lone_end_penalty: 100,
             empty_seats: EmptySeatPlacement::TableBottoms,
         }
     }

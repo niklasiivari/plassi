@@ -97,6 +97,8 @@ A pin is a hard `Placement` rule with `Area::Seat` (label `Pinned`). Pin or unpi
 - `organization` (`SameOrganization`, `Mixed`, `Indifferent`) and `organization_weight`: cost per beside/opposite pair involving an unconstrained attendee that goes against the setting.
 - `sprinkle`: positive values spread unconstrained attendees among wish groups; negative values keep them apart.
 - `isolation_penalty`: cost for anyone with nobody beside or opposite them.
+- `left_out_penalty`: extra cost for anyone with wishes of whom none is beside, opposite or diagonal.
+- `lone_end_penalty`: cost for someone who neither wishes for anyone nor is wished for (nor is in a group) sitting at a table end, where they have the fewest people to talk to; groups take the ends instead. Pinned people don't count.
 - `empty_seats`: `TableBottoms` leaves spare seats at the bottom of tables in left/right pairs (an odd one is the bottom right seat); `Anywhere` does not restrict them.
 
 The seating policy is part of the same score the solver minimises (see Solving).

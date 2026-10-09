@@ -109,6 +109,22 @@ impl PlassiApp {
         section(
             ui,
             p,
+            tr("Table ends"),
+            tr("Penalty for someone without wishes at a table end; groups take the ends instead."),
+            |ui| {
+                ui.horizontal(|ui| {
+                    let r = theme::slider(
+                        ui,
+                        egui::Slider::new(&mut policy.lone_end_penalty, 0..=2000),
+                    );
+                    settled &= !r.dragged();
+                });
+            },
+        );
+
+        section(
+            ui,
+            p,
             tr("Empty seats"),
             tr("Where spare seats go."),
             |ui| {

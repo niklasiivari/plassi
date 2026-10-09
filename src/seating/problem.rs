@@ -18,11 +18,14 @@ pub struct PolicyReport {
     /// Attendee IDs of people with nobody beside or opposite them.
     pub isolated: Vec<usize>,
     pub isolation: i64,
+    /// Attendee IDs of people without wishes at a table end.
+    pub lone_at_ends: Vec<usize>,
+    pub lone_ends: i64,
 }
 
 impl PolicyReport {
     pub fn total(&self) -> i64 {
-        self.organization + self.sprinkle + self.isolation
+        self.organization + self.sprinkle + self.isolation + self.lone_ends
     }
 }
 
@@ -454,6 +457,11 @@ impl Problem {
                 report.isolated.push(self.people[a]);
                 report.isolation += self.isolation;
             }
+            let lone = self.ends.lone_cost_at(s, occupant);
+            if lone > 0 {
+                report.lone_at_ends.push(self.people[a]);
+                report.lone_ends += lone;
+            }
         }
         report
     }
@@ -534,7 +542,7 @@ impl Problem {
         }
         total
             + self.policy_report(occupant).total()
-            + self.ends.total(occupant)
+            + self.ends.rules_total(occupant)
             + self.diversity_cost(self.changed(seat_of))
     }
 
