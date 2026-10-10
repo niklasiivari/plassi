@@ -11,7 +11,7 @@ impl PlassiApp {
     pub(super) fn wish_draft_form(&mut self, ui: &mut egui::Ui, p: Palette) -> bool {
         let names = self.person_names();
         let tags = self.all_tags();
-        let organizations = self.organization_names();
+        let organizations = self.category_choices(Kind::Organization);
         let Some(draft) = self.people.wish_draft.as_mut() else {
             return false;
         };
@@ -98,9 +98,8 @@ impl PlassiApp {
         tags
     }
 
-    /// Category names, plus spellings not mapped to a category yet.
-    fn organization_names(&self) -> Vec<String> {
-        let kind = Kind::Organization;
+    /// Category names of `kind`, plus spellings not mapped to a category yet.
+    pub(super) fn category_choices(&self, kind: Kind) -> Vec<String> {
         let mut names: Vec<String> = self
             .project
             .catalog

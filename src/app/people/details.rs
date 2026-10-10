@@ -91,6 +91,8 @@ impl PlassiApp {
     }
 
     fn details_fields(&mut self, ui: &mut egui::Ui, p: Palette, id: usize) -> bool {
+        let foods = self.category_choices(crate::catalog::Kind::Food);
+        let drinks = self.category_choices(crate::catalog::Kind::Drink);
         let Some(a) = self.project.attendees.iter_mut().find(|a| a.id == id) else {
             return false;
         };
@@ -102,15 +104,13 @@ impl PlassiApp {
                 ui.label(RichText::new(tr("Price")).color(p.muted));
                 changed |= theme::price_input(ui, tr("Custom price"), &mut a.price_override_cents);
                 ui.end_row();
-                for (label, value) in [
-                    (tr("Food"), &mut a.food),
-                    (tr("Drinks"), &mut a.drink),
-                    (tr("Allergies / diet"), &mut a.allergies),
+                for (label, value, choices) in [
+                    (tr("Food"), &mut a.food, &foods[..]),
+                    (tr("Drinks"), &mut a.drink, &drinks[..]),
+                    (tr("Allergies / diet"), &mut a.allergies, &[][..]),
                 ] {
                     ui.label(RichText::new(label).color(p.muted));
-                    changed |= ui
-                        .add(theme::field(value).desired_width(360.0))
-                        .lost_focus();
+                    changed |= super::roster::field_with_choices(ui, label, value, choices, 360.0);
                     ui.end_row();
                 }
             });

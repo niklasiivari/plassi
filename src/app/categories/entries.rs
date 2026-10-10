@@ -56,12 +56,12 @@ impl PlassiApp {
                             changed |= ui
                                 .add(theme::field(&mut category.mark).desired_width(60.0))
                                 .lost_focus();
-                            theme::hint(
-                                ui,
-                                p,
-                                tr("Shown on the kitchen and bar prints, e.g. VG or 0 %. The most common choice is left unmarked."),
-                            );
                         });
+                        theme::hint(
+                            ui,
+                            p,
+                            tr("Shown on the kitchen and bar prints, e.g. VG or 0 %. The most common choice is left unmarked."),
+                        );
                     }
                     changed |= alias_chips(ui, p, &mut category.aliases);
                     changed |= add_spelling(ui, category, &spellings);

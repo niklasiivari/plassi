@@ -510,3 +510,17 @@ fn reopens_on_the_option_last_shown() {
     let ui = ui.reopen();
     assert_eq!(ui.app().selected_candidate, 1);
 }
+
+#[test]
+fn adding_a_person_offers_existing_categories() {
+    let mut ui = Ui::with_example();
+    ui.go_to("People & wishes");
+    ui.click("+ Add person");
+    // The first dropdown beside a field is the organization's.
+    ui.open_combo("");
+    ui.choose("Org B");
+    let Some(crate::app::people::RosterEdit::Add(person)) = ui.app().people.roster.as_ref() else {
+        panic!("the add form");
+    };
+    assert_eq!(person.organization, "Org B");
+}
