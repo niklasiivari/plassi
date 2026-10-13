@@ -79,6 +79,8 @@ pub(in crate::app) struct ChartState {
     /// The person hovered, else selected, in the "Not seated" list, and the
     /// edge of their card there: their wish lines start at it.
     pub(in crate::app) tray_anchor: Option<(usize, Pos2)>,
+    /// Person to scroll the "Not seated" list to on the next frame.
+    pub(in crate::app) tray_reveal: Option<usize>,
     /// Search in the "Not seated" list.
     pub(in crate::app) tray_search: String,
     /// Person under the pointer last frame; their wish lines are drawn.
@@ -189,10 +191,12 @@ impl PlassiApp {
         self.chart_tour(ui.ctx(), p);
     }
 
-    /// Pans the canvas so the person's card is centred on the next frame.
+    /// Pans the canvas so the person's card is centred on the next frame,
+    /// or scrolls the "Not seated" list to them.
     fn focus_person(&mut self, person: usize, scene: &Scene) {
-        if let Some(centre) = scene.card_centre(person) {
-            self.chart.view.camera.focus(centre);
+        match scene.card_centre(person) {
+            Some(centre) => self.chart.view.camera.focus(centre),
+            None => self.chart.tray_reveal = Some(person),
         }
     }
 }

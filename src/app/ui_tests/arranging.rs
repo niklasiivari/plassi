@@ -363,3 +363,18 @@ fn a_block_with_someone_from_the_list_keeps_its_shape() {
     assert_eq!(ui.seat_of(b), seat_d);
     assert!(ui.option().assignment.contains_key(&u));
 }
+
+#[test]
+fn finding_someone_without_a_seat_scrolls_the_list_to_them() {
+    let mut ui = Ui::with_example();
+    ui.click("Seat by hand");
+    ui.key(Modifiers::NONE, Key::Escape);
+    let last = ui.app().project.attendees.last().expect("people").clone();
+    ui.key(Modifiers::COMMAND, Key::F);
+    ui.type_text(&last.name);
+    ui.key(Modifiers::NONE, Key::Enter);
+    assert_eq!(ui.app().selected_person, Some(last.id));
+    // Selected and in view in the list, their wish lines start there.
+    let anchor = ui.app().chart.tray_anchor.map(|(person, _)| person);
+    assert_eq!(anchor, Some(last.id));
+}
