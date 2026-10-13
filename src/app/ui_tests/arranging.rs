@@ -175,6 +175,18 @@ fn taking_someone_off_the_seats_names_the_list_in_the_history() {
 }
 
 #[test]
+fn delete_takes_the_picked_people_off_their_seats() {
+    let mut ui = solved();
+    let [a, b] = ui.two_unpinned();
+    let primary = PointerButton::Primary;
+    ui.click_at(ui.card_of(a).center(), primary, Modifiers::COMMAND);
+    ui.click_at(ui.card_of(b).center(), primary, Modifiers::COMMAND);
+    ui.key(Modifiers::NONE, Key::Delete);
+    assert_eq!(ui.option().spot_of(a), Spot::Unseated);
+    assert_eq!(ui.option().spot_of(b), Spot::Unseated);
+}
+
+#[test]
 fn a_block_with_someone_from_the_list_keeps_its_shape() {
     let mut ui = solved();
     let [[a, b], [c, d]] = two_blocks(&ui);

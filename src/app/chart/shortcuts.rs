@@ -4,7 +4,8 @@ use super::*;
 
 impl PlassiApp {
     /// Single-key shortcuts on the chart: F fits the room, P pins or unpins
-    /// the picked people (or the selected person), G groups the picked people.
+    /// the picked people (or the selected person), Delete takes them off
+    /// their seats, G groups the picked people.
     pub(super) fn chart_shortcuts(&mut self, ui: &egui::Ui) {
         if ui.ctx().memory(|m| m.focused().is_some()) {
             return;
@@ -19,6 +20,17 @@ impl PlassiApp {
                 self.toggle_seat_pins(&people);
             } else if let Some(person) = self.selected_person {
                 self.toggle_seat_pin(person);
+            }
+        }
+        if key(egui::Key::Delete) || key(egui::Key::Backspace) {
+            let people: Vec<usize> = match self.selected_person {
+                _ if !self.chart.multi.is_empty() => self.chart.multi.iter().copied().collect(),
+                Some(person) => vec![person],
+                None => Vec::new(),
+            };
+            let wanted: Vec<_> = people.into_iter().map(|p| (p, Spot::Unseated)).collect();
+            if !wanted.is_empty() {
+                self.rearrange(&wanted);
             }
         }
         if key(egui::Key::G) && self.chart.multi.len() >= 2 {

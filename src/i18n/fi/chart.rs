@@ -289,6 +289,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Pin person or selection",
         "Lukitse henkilön tai valittujen paikat",
     ),
+    (
+        "Take person or selection off the seats",
+        "Poista henkilö tai valitut paikoiltaan",
+    ),
     ("Group selection", "Ryhmitä valitut"),
     ("Cancel / clear selection", "Peruuta / tyhjennä valinta"),
     (
