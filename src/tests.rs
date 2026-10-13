@@ -320,6 +320,10 @@ fn a_wish_waits_only_while_a_wished_person_is_not_seated() {
     assert_eq!(waiting(&alone), [true, false]);
     let both = BTreeMap::from([(0, "table-a:left:0".into()), (1, "table-a:left:1".into())]);
     assert_eq!(waiting(&both), [false, false]);
+    // Without a seat, the requester's wishes just say so.
+    let other = BTreeMap::from([(1, "table-a:left:1".into())]);
+    let evaluation = crate::score::evaluate(&project, &other);
+    assert!(evaluation.results.iter().all(|r| r.detail == "not seated"));
 }
 
 #[test]

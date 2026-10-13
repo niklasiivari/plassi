@@ -174,7 +174,10 @@ fn rule_result(
                 t.penalty,
                 t.hard_violation,
                 t.class <= DistanceClass::Diagonal,
-                proximity_detail(project, *requester, target, t),
+                match assignment.contains_key(requester) {
+                    true => proximity_detail(project, *requester, target, t),
+                    false => tr("not seated").into(),
+                },
             )
         }
         RuleKind::AvoidTableEnd { .. } => {
