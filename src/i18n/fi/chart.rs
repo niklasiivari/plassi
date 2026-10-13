@@ -332,6 +332,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Vedä henkilöitä paikoille tai minne tahansa istumajärjestykseen, tai valitse henkilö ja napsauta vapaata paikkaa.",
     ),
     ("Seat the rest", "Sijoita loput"),
+    ("Wait for the search to finish", "Odota, että haku päättyy"),
+    ("Add enough seats first", "Lisää ensin riittävästi paikkoja"),
     ("Take off the seat", "Poista paikalta"),
     (
         "Take {} people off their seats",

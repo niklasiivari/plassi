@@ -42,14 +42,20 @@ impl PlassiApp {
             ),
         );
         ui.add_space(theme::space::S);
+        let enough = self.project.layout.seat_count() >= self.project.attendees.len();
         if ui
             .add_enabled(
-                self.solving.is_none(),
+                self.solving.is_none() && enough && !self.file.external_invalid,
                 theme::primary_button(tr("Seat the rest"), p),
             )
             .on_hover_text(tr(
                 "Seat everyone without a seat in a new option; people placed by hand stay",
             ))
+            .on_disabled_hover_text(if enough {
+                tr("Wait for the search to finish")
+            } else {
+                tr("Add enough seats first")
+            })
             .clicked()
         {
             self.start_improve();
