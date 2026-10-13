@@ -188,6 +188,9 @@ fn someone_without_a_seat_is_offered_the_best_free_seats() {
     let first = ui.app().project.attendees[0].clone();
     ui.click(&first.name);
     assert!(ui.has_text("Seat here"), "{:?}", ui.dump());
+    // Their wish lines start at their card in the list.
+    let anchor = ui.app().chart.tray_anchor.map(|(person, _)| person);
+    assert_eq!(anchor, Some(first.id));
     let best = {
         let app = ui.app();
         crate::arrange::free_seats(&app.project, ui.option(), first.id)[0]

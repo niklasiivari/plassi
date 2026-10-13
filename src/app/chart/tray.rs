@@ -17,6 +17,7 @@ impl PlassiApp {
         }
         if !shown {
             self.chart.tray_rect = None;
+            self.chart.tray_anchor = None;
             return;
         }
         let panel = egui::Panel::left("chart-tray")
@@ -68,6 +69,7 @@ impl PlassiApp {
     /// One draggable card per person without a seat.
     fn tray_cards(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
         let needle = crate::app::search::Needle::new(&self.chart.tray_search);
+        let (mut hovered, mut selected) = (None, None);
         for &person in &scene.unseated {
             let Some(attendee) = self.project.person(person) else {
                 continue;
@@ -102,9 +104,16 @@ impl PlassiApp {
                 let response = response.clone();
                 response.on_hover_ui(|ui| self.hover_card(ui, p, scene, person, None));
             }
+            let anchor = Some((person, rect.right_center()));
+            if response.hovered() {
+                hovered = anchor;
+            } else if self.selected_person == Some(person) && ui.is_rect_visible(rect) {
+                selected = anchor;
+            }
             self.tray_card_input(ui, scene, &response, person);
             ui.add_space(theme::space::XS);
         }
+        self.chart.tray_anchor = hovered.or(selected);
     }
 
     fn tray_card_input(

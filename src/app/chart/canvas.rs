@@ -141,7 +141,8 @@ impl PlassiApp {
 
     /// Lines from the selected person to the people they wished for (bold) and
     /// from people who wished for them (faint), coloured by how well each wish
-    /// is met. While someone is dragged, their lines follow the pointer.
+    /// is met. While someone is dragged, their lines follow the pointer; for
+    /// someone in the "Not seated" list they start at the list.
     fn paint_wish_lines(
         &self,
         ui: &egui::Ui,
@@ -150,17 +151,16 @@ impl PlassiApp {
         p: Palette,
         scene: &Scene,
     ) {
-        let dragged = self.chart.drag.as_ref().map(|d| d.people[0]);
-        let Some(selected) = dragged
-            .or(self.chart.hovered_person)
-            .or(self.selected_person)
-        else {
-            return;
-        };
         let centre_of = |person: usize| scene.card_centre(person).map(|c| view.point(c));
-        let from = match dragged {
-            Some(_) => ui.input(|i| i.pointer.interact_pos()),
-            None => centre_of(selected),
+        let dragged = self.chart.drag.as_ref().map(|d| d.people[0]);
+        let (selected, from) = match (dragged, self.chart.hovered_person, self.chart.tray_anchor) {
+            (Some(person), ..) => (person, ui.input(|i| i.pointer.interact_pos())),
+            (None, Some(person), _) => (person, centre_of(person)),
+            (None, None, Some((person, at))) => (person, Some(at)),
+            (None, None, None) => match self.selected_person {
+                Some(person) => (person, centre_of(person)),
+                None => return,
+            },
         };
         let Some(from) = from else {
             return;
