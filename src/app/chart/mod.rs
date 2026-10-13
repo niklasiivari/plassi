@@ -9,6 +9,7 @@ mod inspector;
 mod interact;
 mod marquee;
 mod moves;
+mod nudge;
 mod options;
 mod person;
 mod pins;

@@ -11,6 +11,7 @@ impl PlassiApp {
             return;
         }
         let key = |k| ui.input(|i| i.key_pressed(k) && i.modifiers.is_none());
+        self.nudge_keys(ui);
         if key(egui::Key::F) {
             self.chart.view.fit_pending = true;
         }

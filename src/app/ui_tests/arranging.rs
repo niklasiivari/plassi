@@ -187,6 +187,41 @@ fn delete_takes_the_picked_people_off_their_seats() {
 }
 
 #[test]
+fn arrow_keys_move_the_selected_person_one_seat() {
+    let mut ui = solved();
+    let seats = ui.app().project.layout.seats();
+    let top = &seats[0];
+    let below = seats
+        .iter()
+        .find(|s| s.table_id == top.table_id && s.side == top.side && s.index == top.index + 1)
+        .expect("seat below")
+        .id
+        .clone();
+    let occupant = |ui: &Ui, seat: &str| {
+        let option = ui.option();
+        option
+            .assignment
+            .iter()
+            .find(|(_, s)| *s == seat)
+            .map(|(p, _)| *p)
+    };
+    let a = occupant(&ui, &top.id).expect("someone on the top seat");
+    let b = occupant(&ui, &below).expect("someone below");
+    ui.click_at(
+        ui.card_of(a).center(),
+        PointerButton::Primary,
+        Modifiers::NONE,
+    );
+    ui.key(Modifiers::NONE, Key::ArrowDown);
+    assert_eq!(ui.seat_of(a), below);
+    assert_eq!(ui.seat_of(b), top.id);
+    // Nothing above the top seat.
+    ui.key(Modifiers::NONE, Key::ArrowUp);
+    ui.key(Modifiers::NONE, Key::ArrowUp);
+    assert_eq!(ui.seat_of(a), top.id);
+}
+
+#[test]
 fn a_block_with_someone_from_the_list_keeps_its_shape() {
     let mut ui = solved();
     let [[a, b], [c, d]] = two_blocks(&ui);

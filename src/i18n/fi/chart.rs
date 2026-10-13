@@ -293,6 +293,11 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Take person or selection off the seats",
         "Poista henkilö tai valitut paikoiltaan",
     ),
+    (
+        "Move person or selection one seat",
+        "Siirrä henkilöä tai valittuja yksi paikka",
+    ),
+    ("No seat there", "Siinä ei ole paikkaa"),
     ("Group selection", "Ryhmitä valitut"),
     ("Cancel / clear selection", "Peruuta / tyhjennä valinta"),
     (

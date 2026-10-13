@@ -82,6 +82,7 @@ impl HelpPage {
                 ("F", "Fit to window"),
                 ("P", "Pin person or selection"),
                 ("Delete", "Take person or selection off the seats"),
+                ("↑ ↓ ← →", "Move person or selection one seat"),
                 ("G", "Group selection"),
                 ("Esc", "Cancel / clear selection"),
                 ("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"),
