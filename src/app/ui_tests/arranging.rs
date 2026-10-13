@@ -1,6 +1,6 @@
 //! Arranging people by hand: blocks, loose people, empty options and table pins.
 
-use eframe::egui::{Key, Modifiers, PointerButton, Pos2};
+use eframe::egui::{self, Key, Modifiers, PointerButton, Pos2};
 
 use super::harness::Ui;
 use crate::model::{Pin, Spot};
@@ -62,6 +62,20 @@ fn a_selected_block_dropped_on_another_block_swaps_them() {
         now,
         [&seats[2], &seats[3], &seats[0], &seats[1]].map(|s| s.clone())
     );
+}
+
+#[test]
+fn shift_dragging_a_box_on_the_floor_selects_the_people_in_it() {
+    let mut ui = solved();
+    let [[a, b], [c, _]] = two_blocks(&ui);
+    let (top, bottom) = (ui.card_of(a), ui.card_of(b));
+    let pan = ui.app().chart.view.camera.pan;
+    // From beside the first card to inside the second: both are touched.
+    let from = top.left_top() - egui::vec2(12.0, 12.0);
+    ui.drag_holding(from, bottom.center(), Modifiers::SHIFT);
+    assert_eq!(ui.app().chart.multi, [a, b].into());
+    assert_eq!(ui.app().chart.view.camera.pan, pan, "the box does not pan");
+    assert!(!ui.app().chart.multi.contains(&c));
 }
 
 #[test]

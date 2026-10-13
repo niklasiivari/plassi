@@ -118,7 +118,7 @@ A solve runs one independent search per CPU core for 30 seconds (Improve: 10 sec
 The Chart page shows the option's score (wish penalties plus seating-policy cost; lower is better) and every broken wish. Hand editing:
 
 - Drag a person onto another seat to swap them. While dragging, a badge shows how the score would change and whether a hard rule would break.
-- Ctrl-click several people and drag one of them to move them all as a block: everyone keeps their place relative to the person dragged. People in the seats the block lands on take the seats it left, so dropping six people on six others swaps the two groups.
+- Ctrl-click several people, or Shift-drag a box around them on the floor of the chart, and drag one of them to move them all as a block: everyone keeps their place relative to the person dragged. People in the seats the block lands on take the seats it left, so dropping six people on six others swaps the two groups.
 - Drag people off the tables to leave them anywhere on the chart, or onto the "Not seated" list beside it. People without a seat are listed there; drag them back onto seats or the chart. Dropping someone on a taken seat sends that seat's occupant to where the dropped person came from.
 - "Empty option" (under +, or "Seat by hand" before the first solve) adds an option where only people pinned to a seat are seated, next to the existing options. Place the people you know, then "Seat the rest" in the list makes a new option that seats everyone else and keeps the people placed by hand.
 - Right-click a person to pin them, keep them at the table, take them off the seat, or choose "Swap with…" and click the second person.

@@ -183,8 +183,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Avaa toiminnot hiiren oikealla painikkeella",
     ),
     (
-        "Drag to move. Ctrl-click to select. Right-click for actions.",
-        "Siirrä vetämällä. Valitse pitämällä Ctrl pohjassa ja napsauttamalla. Avaa toiminnot hiiren oikealla painikkeella.",
+        "Drag to move. Ctrl-click or Shift-drag a box to select. Right-click for actions.",
+        "Siirrä vetämällä. Valitse napsauttamalla Ctrl pohjassa tai rajaamalla alue Shift pohjassa. Avaa toiminnot hiiren oikealla painikkeella.",
     ),
     (
         "Moves people up; keeps pinned seats.",
@@ -246,8 +246,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Valitse vaihtoehto. Pienempi pistemäärä on parempi.",
     ),
     (
-        "Drag to move or swap. Ctrl-click to select.",
-        "Siirrä tai vaihda paikkoja vetämällä. Valitse pitämällä Ctrl pohjassa ja napsauttamalla.",
+        "Drag to move or swap. Ctrl-click or Shift-drag to select.",
+        "Siirrä tai vaihda paikkoja vetämällä. Valitse napsauttamalla Ctrl pohjassa tai rajaamalla alue Shift pohjassa.",
     ),
     (
         "Drag a selection to move it as a block.",

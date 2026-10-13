@@ -195,7 +195,7 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
     theme::hint(
         ui,
         p,
-        tr("Drag to move. Ctrl-click to select. Right-click for actions."),
+        tr("Drag to move. Ctrl-click or Shift-drag a box to select. Right-click for actions."),
     );
     ui.add_space(theme::space::M);
     theme::section_title(ui, p, tr("Keys"));

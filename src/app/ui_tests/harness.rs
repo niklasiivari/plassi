@@ -228,6 +228,17 @@ impl Ui {
 
     /// Drags from `from` to `to` with the primary button, in a few moves.
     pub(super) fn drag(&mut self, from: egui::Pos2, to: egui::Pos2) {
+        self.drag_holding(from, to, egui::Modifiers::NONE);
+    }
+
+    /// Like [`Self::drag`], with `modifiers` held from start to end.
+    pub(super) fn drag_holding(
+        &mut self,
+        from: egui::Pos2,
+        to: egui::Pos2,
+        modifiers: egui::Modifiers,
+    ) {
+        self.h.event(egui::Event::ModifiersChanged(modifiers));
         self.h.hover_at(from);
         self.h.step();
         self.h.drag_at(from);
@@ -237,6 +248,8 @@ impl Ui {
             self.h.step();
         }
         self.h.drop_at(to);
+        self.h
+            .event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
         self.h.step();
         self.settle();
     }

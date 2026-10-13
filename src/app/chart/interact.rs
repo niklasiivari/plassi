@@ -345,8 +345,8 @@ impl PlassiApp {
         }
     }
 
-    /// Esc cancels, one step at a time: swap mode, the selection, a drag,
-    /// then the selected person.
+    /// Esc cancels, one step at a time: swap mode, the selection, a drag or
+    /// box, then the selected person.
     fn escape_pressed(&mut self, ui: &egui::Ui) {
         let typing = ui.ctx().memory(|m| m.focused().is_some());
         if !typing
@@ -354,6 +354,7 @@ impl PlassiApp {
             && self.chart.swap_from.take().is_none()
             && std::mem::take(&mut self.chart.multi).is_empty()
             && self.chart.drag.take().is_none()
+            && self.chart.marquee.take().is_none()
         {
             self.selected_person = None;
         }

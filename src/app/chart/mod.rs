@@ -6,6 +6,7 @@ mod drag;
 mod edits;
 mod inspector;
 mod interact;
+mod marquee;
 mod moves;
 mod options;
 mod person;
@@ -71,6 +72,8 @@ pub(in crate::app) struct ChartState {
     /// Option whose differences are marked on the chart.
     pub(in crate::app) compare_with: Option<usize>,
     pub(in crate::app) drag: Option<drag::Drag>,
+    /// Where a box selection started, in chart units.
+    pub(in crate::app) marquee: Option<Pos2>,
     /// Where the "Not seated" list was drawn last frame; dropping there unseats.
     pub(in crate::app) tray_rect: Option<Rect>,
     /// Search in the "Not seated" list.

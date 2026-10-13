@@ -61,6 +61,7 @@ impl PlassiApp {
         };
         let actions = self.cards(ui, &paint, targets.as_ref());
         self.paint_drag(ui, &view, p, scene, targets.as_ref());
+        self.marquee(ui, &painter, &view, p, scene);
         self.apply_card_actions(ui, &background, actions);
         self.finish_drag(ui, targets);
         self.chart_shortcuts(ui);
@@ -87,12 +88,15 @@ impl PlassiApp {
             .chain(scene.seats.iter().map(card_rect))
             .fold(Rect::NOTHING, Rect::union)
             .expand2(Vec2::new(30.0, 50.0));
-        let can_pan = self.chart.drag.is_none();
         let view = &mut self.chart.view;
         if view.fit_pending && rect.width() > 50.0 {
             view.camera.fit(rect, world, 1.4);
             view.fit_pending = false;
         }
+        let before = view.camera.viewport(rect);
+        self.start_marquee(ui, background, &before);
+        let can_pan = self.chart.drag.is_none() && self.chart.marquee.is_none();
+        let view = &mut self.chart.view;
         view.camera.handle_input(ui, rect, background, can_pan);
         view.camera.animate(ui.ctx());
         view.camera.viewport(rect)
