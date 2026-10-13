@@ -12,6 +12,7 @@ mod validate;
 
 pub use layout::*;
 pub use pins::Pin;
+pub use refit::RoomFit;
 pub use spots::{Point, Spot};
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

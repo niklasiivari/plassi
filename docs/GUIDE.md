@@ -109,7 +109,7 @@ Rows and tables are data in `layout.rows`. Tables are vertical: tables in a row 
 
 The template infers beside, opposite, diagonal and near (same table, at most two rows apart) positions for its standard seats; anything farther on the same table is "same table". `layout.relations` can override any pair, including pairs on different tables. The Room page exposes seat counts, tags, and relation overrides; an agent may also edit the JSON.
 
-Changing the room keeps the options: everyone whose seat still exists stays on it, and people on removed seats are listed as not seated in that option. Pins on removed seats or tables are dropped.
+Changing the room keeps the options: everyone whose seat still exists stays on it, and people on removed seats are listed as not seated in that option. Rules about removed seats, tables or rows (pins included) are deleted, and so are the tags and distances of removed seats; the status line says how many people lost a seat and how many rules went.
 
 ## Solving and review
 

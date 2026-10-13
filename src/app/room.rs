@@ -222,16 +222,9 @@ impl PlassiApp {
 
     fn save_room(&mut self, edit: RoomEdit) {
         if edit.geometry {
-            let unseated = self.project.fit_to_room();
+            let fit = self.project.fit_to_room();
             self.chart.view.fit_pending = true;
-            self.commit(&if unseated > 0 {
-                fill(
-                    "Changed the room; {} people lost their seats and are not seated",
-                    &[&unseated],
-                )
-            } else {
-                tr("Saved room layout").into()
-            });
+            self.commit(&room_message(&fit));
         } else if edit.labels {
             self.commit(tr("Saved room layout"));
         }
@@ -513,4 +506,22 @@ fn seat_picker(ui: &mut egui::Ui, salt: &str, selected: &mut String, seats: &[Se
 
 fn same_pair(a: &str, b: &str, c: &str, d: &str) -> bool {
     (a == c && b == d) || (a == d && b == c)
+}
+
+/// The status after a room change, saying what it took away.
+fn room_message(fit: &crate::model::RoomFit) -> String {
+    let mut parts = vec![tr("Saved room layout").to_string()];
+    if fit.unseated > 0 {
+        parts.push(fill(
+            "{} people lost their seats and are not seated",
+            &[&fit.unseated],
+        ));
+    }
+    if fit.rules_removed > 0 {
+        parts.push(fill(
+            "{} rules about removed places were deleted",
+            &[&fit.rules_removed],
+        ));
+    }
+    parts.join("; ")
 }
