@@ -67,6 +67,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Pin {} people to their seats (P)",
         "Lukitse {} henkilön paikat (P)",
     ),
+    ("Option {}", "Vaihtoehto {}"),
     ("{} (copy)", "{} (kopio)"),
     ("{} (copy {})", "{} (kopio {})"),
     ("Duplicated option", "Vaihtoehto kopioitiin"),

@@ -77,10 +77,11 @@ impl Candidate {
 }
 
 impl Project {
-    /// "Option N" for the lowest N from the option count up that no option
+    /// "Option N", in the interface language, for the lowest N from the option count up that no option
     /// is called yet, so a deleted option's name is not repeated.
     pub fn new_option_name(&self) -> String {
-        self.free_option_name((self.candidates.len() + 1..).map(|n| format!("Option {n}")))
+        let names = (self.candidates.len() + 1..).map(|n| crate::i18n::fill("Option {}", &[&n]));
+        self.free_option_name(names)
     }
 
     /// The first of `names` that no option is called yet.
