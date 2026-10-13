@@ -98,6 +98,10 @@ impl PlassiApp {
                 egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &attendee.name)
             });
             self.paint_card(ui.painter(), p, rect, Some(person), look);
+            if self.chart.drag.is_none() {
+                let response = response.clone();
+                response.on_hover_ui(|ui| self.hover_card(ui, p, scene, person, None));
+            }
             self.tray_card_input(ui, scene, &response, person);
             ui.add_space(theme::space::XS);
         }
