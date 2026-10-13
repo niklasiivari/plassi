@@ -64,22 +64,33 @@ pub(super) fn stat_tile(
         .response
 }
 
-fn stat_grid(ui: &mut egui::Ui, p: Palette, scene: &Scene, evaluation: &Evaluation) {
-    let wishers = scene.own.len();
-    let met = scene
-        .own
-        .keys()
-        .filter(|id| scene.status(**id) == Some(Outcome::Met))
+/// Wishes met, as on the option chips, and the other headline counts.
+fn stat_grid(
+    ui: &mut egui::Ui,
+    p: Palette,
+    project: &Project,
+    scene: &Scene,
+    evaluation: &Evaluation,
+) {
+    let wishes: Vec<_> = evaluation
+        .results
+        .iter()
+        .filter(|r| project.is_wish(r.rule_id))
+        .collect();
+    let total = wishes.len();
+    let met = wishes
+        .iter()
+        .filter(|r| r.outcome() == Outcome::Met)
         .count();
     let alone = scene.policy().map_or(0, |p| p.isolated.len());
     let good_if = |ok: bool| if ok { p.good } else { p.bad };
     ui.columns(2, |cols| {
-        let met_color = if met == wishers { p.good } else { p.text };
+        let met_color = if met == total { p.good } else { p.text };
         stat_tile(
             &mut cols[0],
             p,
             tr("Wishes met"),
-            format!("{met}/{wishers}"),
+            format!("{met}/{total}"),
             met_color,
         );
         let hard = evaluation.hard_violations;
@@ -226,7 +237,7 @@ impl PlassiApp {
             unseated_card(ui, p, scene);
         }
         ui.add_space(theme::space::L);
-        stat_grid(ui, p, scene, evaluation);
+        stat_grid(ui, p, &self.project, scene, evaluation);
         self.warnings(ui, p, scene, evaluation);
         ui.add_space(theme::space::XL);
         self.issue_list(ui, p, scene, evaluation);
