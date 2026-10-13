@@ -6,3 +6,4 @@ mod harness;
 
 mod arranging;
 mod flows;
+mod placing;
