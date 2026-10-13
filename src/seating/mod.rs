@@ -88,10 +88,10 @@ pub fn improve_search(
     )
 }
 
-/// A new option, named after its position.
+/// A new option with a name no other option has.
 pub fn candidate(project: &Project, outcome: Outcome, budget: Duration) -> Candidate {
     Candidate {
-        name: format!("Option {}", project.candidates.len() + 1),
+        name: project.new_option_name(),
         solver_status: outcome.status(budget.as_secs_f64()),
         assignment: outcome.assignment,
         hand_placed: Default::default(),

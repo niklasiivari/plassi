@@ -77,6 +77,15 @@ impl Candidate {
 }
 
 impl Project {
+    /// "Option N" for the lowest N from the option count up that no option
+    /// is called yet, so a deleted option's name is not repeated.
+    pub fn new_option_name(&self) -> String {
+        (self.candidates.len() + 1..)
+            .map(|n| format!("Option {n}"))
+            .find(|name| self.candidates.iter().all(|c| c.name != *name))
+            .expect("a free name")
+    }
+
     /// A new option where only people pinned to a seat are seated.
     pub fn empty_option(&self, name: String) -> Candidate {
         let assignment = self

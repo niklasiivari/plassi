@@ -6,8 +6,7 @@ impl PlassiApp {
     /// Adds an option with only the people pinned to a seat seated, for
     /// seating the rest by hand or with "Seat the rest".
     pub(super) fn add_empty_option(&mut self) {
-        let name = format!("Option {}", self.project.candidates.len() + 1);
-        let option = self.project.empty_option(name);
+        let option = self.project.empty_option(self.project.new_option_name());
         self.project.candidates.push(option);
         self.selected_candidate = self.project.candidates.len() - 1;
         self.commit(tr("Added an empty option"));

@@ -156,3 +156,14 @@ fn seating_the_rest_keeps_hand_placed_people_and_table_pins() {
     assert_eq!(seated[&0], "t2:right:1");
     assert_eq!(seat_table(&seated[&1]), "t2");
 }
+
+#[test]
+fn a_new_option_never_repeats_a_name() {
+    let (mut project, _) = seated();
+    project
+        .candidates
+        .push(project.empty_option("Option 2".into()));
+    // Option 1 deleted: "Option 2" is taken, so the next is "Option 3".
+    project.candidates.remove(0);
+    assert_eq!(project.new_option_name(), "Option 3");
+}
