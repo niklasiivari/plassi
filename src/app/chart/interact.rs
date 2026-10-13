@@ -161,6 +161,7 @@ impl PlassiApp {
             moved: person.is_some_and(|id| scene.moved.contains(&id)),
             gap: matches!(place, Place::Seat(seat) if scene.gaps.contains(&seat.id)),
             loose: matches!(place, Place::Loose(..)),
+            placing: self.placing(scene, place).is_some(),
         }
     }
 
@@ -201,6 +202,9 @@ impl PlassiApp {
         let Place::Seat(seat) = place else {
             return None;
         };
+        if self.chart.drag.is_some() {
+            return None;
+        }
         let person = self.selected_person?;
         let free = !scene.occupant.contains_key(&seat.id);
         (free && scene.unseated.contains(&person))

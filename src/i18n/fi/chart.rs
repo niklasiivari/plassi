@@ -4,6 +4,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("all of {}: {}", "kaikki seuraavista: {} · {}"),
     // Cards and drag previews
     ("spare seat", "vapaa paikka"),
+    ("click to seat here", "sijoita tähän napsauttamalla"),
     (
         "gap — close it",
         "tyhjä paikka keskellä pöytää – tiivistä järjestys",

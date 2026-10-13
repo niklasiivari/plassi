@@ -27,6 +27,8 @@ pub(super) struct CardLook {
     pub(super) gap: bool,
     /// Off the seats, left on the chart.
     pub(super) loose: bool,
+    /// An empty seat that a click would seat the selected person on.
+    pub(super) placing: bool,
 }
 
 /// How a person is pinned: a filled lock for a seat, an outlined one for a table.
@@ -71,6 +73,9 @@ fn dashed_outline(painter: &egui::Painter, rect: Rect, zoom: f32, color: Color32
 pub(super) fn paint_empty_seat(painter: &egui::Painter, p: Palette, rect: Rect, look: CardLook) {
     let zoom = rect.height() / CARD_H;
     let (fill, stroke, text, text_color) = match () {
+        _ if look.hovered && look.placing => {
+            (p.accent_soft, p.accent, tr("click to seat here"), p.accent)
+        }
         _ if look.hovered => (p.accent_soft, p.accent, tr("spare seat"), p.muted),
         _ if look.gap => (
             theme::blend(p.canvas, p.bad, 0.12),
