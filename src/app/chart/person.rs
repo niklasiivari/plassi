@@ -64,7 +64,7 @@ impl PlassiApp {
             };
             theme::pill(ui, place, p.text, p.surface_hi);
             let mut status = scene.status(id);
-            if scene.waits(id) && status != Some(Outcome::Broken) {
+            if scene.waits(id) && status.is_none_or(|s| s == Outcome::Met) {
                 status = None;
             }
             let text = match status {

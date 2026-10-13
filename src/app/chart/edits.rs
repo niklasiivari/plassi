@@ -162,6 +162,7 @@ impl PlassiApp {
         // change still does.
         let unfinished = assignment.len() < self.project.attendees.len();
         let message = match unfinished {
+            true if after == before => fill("{} · score unchanged", &[&what]),
             true => fill("{} · score {}", &[&what, &signed(after - before)]),
             false => fill(
                 "{} · score {} → {} ({})",

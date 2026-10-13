@@ -44,6 +44,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Valitse vaihtopari: {} · Peruuta Esc-näppäimellä",
     ),
     ("Score {}", "Pistemuutos {}"),
+    ("Score unchanged", "Pisteet ennallaan"),
+    ("{} · score unchanged", "{} · pisteet ennallaan"),
     // Edits
     ("Edited by hand", "Muokattu käsin"),
     ("Swapped {} ↔ {}", "Paikat vaihdettu: {} ↔ {}"),

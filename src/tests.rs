@@ -288,6 +288,41 @@ fn group_and_direction_are_preserved() {
 }
 
 #[test]
+fn a_wish_waits_only_while_a_wished_person_is_not_seated() {
+    let mut project = fixture();
+    let wish = |id, target| Rule {
+        id,
+        label: "wish".into(),
+        source: String::new(),
+        enabled: true,
+        kind: RuleKind::Proximity {
+            requester: 0,
+            target,
+            wish: WishKind::Seating,
+            importance: Importance::Normal,
+            max_class: None,
+        },
+    };
+    project.rules.push(wish(1, Target::People { ids: vec![1] }));
+    let nobody = Target::Tag {
+        tag: "nobody has this".into(),
+        required: 1,
+    };
+    project.rules.push(wish(2, nobody));
+    let waiting = |assignment: &BTreeMap<usize, String>| {
+        let evaluation = crate::score::evaluate(&project, assignment);
+        let mut results = evaluation.results;
+        results.sort_by_key(|r| r.rule_id);
+        results.iter().map(|r| r.waiting).collect::<Vec<_>>()
+    };
+    let alone = BTreeMap::from([(0, "table-a:left:0".into())]);
+    // A wish nobody can meet is unmet, not waiting.
+    assert_eq!(waiting(&alone), [true, false]);
+    let both = BTreeMap::from([(0, "table-a:left:0".into()), (1, "table-a:left:1".into())]);
+    assert_eq!(waiting(&both), [false, false]);
+}
+
+#[test]
 fn multi_person_wish_counts_every_named_person() {
     let mut project = fixture();
     project.rules.push(Rule {

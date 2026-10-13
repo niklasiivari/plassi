@@ -219,3 +219,29 @@ fn the_list_menu_seats_a_selection_in_the_best_free_seats() {
     let unseated = ui.option().unseated(&ui.app().project);
     assert!(people.iter().all(|p| unseated.contains(&p.id)));
 }
+
+#[test]
+fn the_list_menu_leaves_seated_people_in_the_selection_where_they_are() {
+    let mut ui = solved();
+    let [a, b] = ui.two_unpinned();
+    let seat_b = ui.seat_of(b);
+    let primary = PointerButton::Primary;
+    ui.click_at(ui.card_of(a).center(), primary, Modifiers::NONE);
+    ui.key(Modifiers::NONE, Key::Delete);
+    assert_eq!(ui.option().spot_of(a), Spot::Unseated);
+    ui.key(Modifiers::NONE, Key::Escape);
+    ui.key(Modifiers::NONE, Key::F);
+    ui.click_at(ui.card_of(b).center(), primary, Modifiers::COMMAND);
+    let name = ui.app().project.person_name(a).to_string();
+    let tray = ui.app().chart.tray_rect.expect("list shown");
+    let at =
+        ui.h.query_all_by_label(&name)
+            .map(|n| n.rect().center())
+            .find(|at| tray.contains(*at))
+            .expect("card in the list");
+    ui.click_at(at, primary, Modifiers::COMMAND);
+    ui.click_at(at, PointerButton::Secondary, Modifiers::NONE);
+    ui.click("Seat in the best free seat");
+    assert_eq!(ui.seat_of(b), seat_b);
+    assert!(matches!(ui.option().spot_of(a), Spot::Seat(_)));
+}

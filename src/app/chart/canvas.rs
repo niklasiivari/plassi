@@ -277,7 +277,11 @@ impl PlassiApp {
                 d if d > 0 => p.warn,
                 _ => p.muted,
             };
-            badge(painter, at, &fill("Score {}", &[&signed(delta)]), color, p);
+            let text = match delta {
+                0 => tr("Score unchanged").to_string(),
+                _ => fill("Score {}", &[&signed(delta)]),
+            };
+            badge(painter, at, &text, color, p);
             ui.ctx().request_repaint();
         }
     }

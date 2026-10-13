@@ -17,7 +17,7 @@ pub struct RuleResult {
     pub hard_violation: bool,
     /// Fully met: a wish beside, opposite or diagonal may still cost a little.
     pub met: bool,
-    /// A wished-for person has no seat yet.
+    /// Short of wished-for people because some of them have no seat yet.
     pub waiting: bool,
 }
 
@@ -113,7 +113,7 @@ pub fn evaluate_with(
         .rules
         .iter()
         .filter(|r| r.enabled)
-        .filter_map(|rule| rule_result(project, rule, &breakdown))
+        .filter_map(|rule| rule_result(project, rule, &breakdown, assignment))
         .collect();
     results.sort_by_key(|r| (!r.hard_violation, -r.penalty));
     let preferences: Vec<PreferenceResult> = project
@@ -140,7 +140,12 @@ pub fn evaluate_with(
     }
 }
 
-fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<RuleResult> {
+fn rule_result(
+    project: &Project,
+    rule: &Rule,
+    breakdown: &Breakdown,
+    assignment: &BTreeMap<usize, String>,
+) -> Option<RuleResult> {
     let mut waiting = false;
     let (penalty, hard_violation, met, detail) = match &rule.kind {
         RuleKind::Placement { area, must_be, .. } => {
@@ -160,7 +165,11 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
                 .terms
                 .iter()
                 .find(|t| t.source == Source::Rule(rule.id))?;
-            waiting = t.seated_targets < t.required;
+            waiting = t.seated_targets < t.required
+                && project
+                    .target_ids(*requester, target)
+                    .iter()
+                    .any(|id| project.person(*id).is_some() && !assignment.contains_key(id));
             (
                 t.penalty,
                 t.hard_violation,

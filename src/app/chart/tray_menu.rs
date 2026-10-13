@@ -15,10 +15,23 @@ pub(super) enum TrayAction {
 }
 
 impl PlassiApp {
-    /// The menu for `person`, acting on the whole selection when they are in it.
-    pub(super) fn tray_menu(&self, ui: &mut egui::Ui, person: usize) -> Option<TrayAction> {
+    /// The menu for `person`, acting on everyone selected in the list when
+    /// they are selected.
+    pub(super) fn tray_menu(
+        &self,
+        ui: &mut egui::Ui,
+        scene: &Scene,
+        person: usize,
+    ) -> Option<TrayAction> {
+        // Only the people in the list; seated ones in the selection stay put.
         let people: Vec<usize> = if self.chart.multi.contains(&person) {
-            self.chart.multi.iter().copied().collect()
+            let multi = &self.chart.multi;
+            scene
+                .unseated
+                .iter()
+                .copied()
+                .filter(|p| multi.contains(p))
+                .collect()
         } else {
             vec![person]
         };

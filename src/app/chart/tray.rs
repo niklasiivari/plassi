@@ -101,8 +101,8 @@ impl PlassiApp {
                 .drag
                 .as_ref()
                 .is_some_and(|d| d.people.contains(&person));
+            // Without a seat, their wishes can't be met yet: no status colour.
             let look = CardLook {
-                status: scene.status(person),
                 selected: self.selected_person == Some(person)
                     || self.chart.multi.contains(&person),
                 hovered: response.hovered(),
@@ -133,7 +133,7 @@ impl PlassiApp {
             }
             egui::Popup::context_menu(&response)
                 .style(theme::menu_style)
-                .show(|ui| action = self.tray_menu(ui, person).or(action.take()));
+                .show(|ui| action = self.tray_menu(ui, scene, person).or(action.take()));
             self.tray_card_input(ui, scene, &response, person);
             ui.add_space(theme::space::XS);
         }

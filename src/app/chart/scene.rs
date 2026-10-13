@@ -135,9 +135,10 @@ impl Scene {
             .max()
     }
 
-    /// While people are not seated, a wish for one of them can't be judged.
+    /// A wish for someone not seated yet can't be judged; a broken hard
+    /// rule still shows.
     pub(super) fn pending(&self, result: &RuleResult) -> bool {
-        result.waiting && !self.unseated.is_empty()
+        result.waiting && !result.hard_violation
     }
 
     /// Whether any of this person's wishes is waiting for someone to be seated.
