@@ -17,9 +17,11 @@ The first release.
   progress, Stop, "Keep searching" and alternative options; seating
   policy for mixing organizations, lone guests and spare seats.
 - Editing: drag to move or swap with a score preview, drag selected
-  blocks (Ctrl-click or Shift-drag a box), leave people off the seats or in a "Not seated" list, start
-  an empty option and seat the rest, pins to a seat or a table, group
-  moves, late changes (walk-ins, cancellations, replacements), undo.
+  blocks (Ctrl-click or Shift-drag a box), leave people off the seats
+  or in a "Not seated" list and seat them again by dragging, by clicking
+  an empty seat or from suggested free seats, start an empty option and
+  seat the rest, pins to a seat or a table, group moves, late changes
+  (walk-ins, cancellations, replacements), undo.
 - Views: seating chart, connections graph, per-person wish status.
 - Prints: seating chart, kitchen, bar and door lists as A4 PDFs.
 - Interface in English and Finnish, light and dark themes, a first-run
