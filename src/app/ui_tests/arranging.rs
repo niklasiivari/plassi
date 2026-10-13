@@ -272,3 +272,16 @@ fn clicking_an_empty_seat_seats_the_person_selected_in_the_list() {
     assert_eq!(ui.seat_of(first.id), seat);
     assert_eq!(ui.app().selected_person, None);
 }
+
+#[test]
+fn someone_without_a_seat_can_be_kept_at_a_chosen_table() {
+    let mut ui = Ui::with_example();
+    ui.click("Seat by hand");
+    ui.key(Modifiers::NONE, Key::Escape);
+    let first = ui.app().project.attendees[0].clone();
+    ui.click(&first.name);
+    let table = ui.app().project.layout.rows[0].tables[1].clone();
+    ui.click("Keep at table");
+    ui.click(&table.label);
+    assert_eq!(ui.app().project.pins()[&first.id], Pin::Table(table.id));
+}

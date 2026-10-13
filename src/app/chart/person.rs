@@ -74,7 +74,8 @@ impl PlassiApp {
         });
     }
 
-    /// Pin or unpin; a seated person can also be kept at their table.
+    /// Pin or unpin; a seated person can also be kept at their table, and
+    /// someone without a seat at a table chosen for them.
     fn pin_buttons(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene, id: usize) {
         if let Some(Pin::Table(table)) = scene.pins.get(&id) {
             theme::hint(
@@ -106,7 +107,11 @@ impl PlassiApp {
                     self.keep_at_table(&[id], crate::model::seat_table(&seat));
                 }
             }
-            (None, None) => {}
+            (None, None) => {
+                if let Some(table) = self.keep_at_table_menu(ui, &[id]) {
+                    self.keep_at_table(&[id], &table);
+                }
+            }
         });
     }
 
