@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::app::camera::Viewport;
-use crate::model::Point;
+use crate::model::{Point, SEAT_PITCH};
 
 /// People being dragged.
 pub(in crate::app) struct Drag {
@@ -151,7 +151,8 @@ impl PlassiApp {
 
 /// Each person's spot when the first one's card lands at `anchor`. The
 /// others keep their offset from the first; people without a place on the
-/// chart stack below.
+/// chart stack below, one seat apart, so a stack dropped on a table side
+/// fills its seats in a row.
 fn landing(scene: &Scene, people: &[usize], anchor: Pos2) -> Targets {
     let origin = scene.card_centre(people[0]);
     let mut stacked = usize::from(origin.is_some());
@@ -162,7 +163,7 @@ fn landing(scene: &Scene, people: &[usize], anchor: Pos2) -> Targets {
                 (Some(origin), Some(centre)) => anchor + (centre - origin),
                 _ => {
                     stacked += 1;
-                    anchor + Vec2::new(0.0, (stacked - 1) as f32 * (CARD_H + STACK_GAP))
+                    anchor + Vec2::new(0.0, (stacked - 1) as f32 * SEAT_PITCH)
                 }
             };
             (person, spot_at(scene, at))

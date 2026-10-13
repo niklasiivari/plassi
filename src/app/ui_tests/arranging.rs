@@ -215,3 +215,37 @@ fn p_pins_every_picked_person_and_then_unpins_them() {
     let pins = ui.app().project.pins();
     assert!(!pins.contains_key(&a) && !pins.contains_key(&b));
 }
+
+#[test]
+fn people_dragged_together_from_the_list_fill_a_table_side() {
+    let mut ui = Ui::with_example();
+    ui.click("Seat by hand");
+    ui.key(Modifiers::NONE, Key::Escape);
+    ui.key(Modifiers::NONE, Key::F);
+    let side: Vec<String> = {
+        let seats = ui.app().project.layout.seats();
+        let first = seats[0].clone();
+        seats
+            .into_iter()
+            .filter(|s| s.table_id == first.table_id && s.side == first.side)
+            .map(|s| s.id)
+            .collect()
+    };
+    let unseated = ui.option().unseated(&ui.app().project);
+    let people: Vec<_> = unseated[..side.len()]
+        .iter()
+        .map(|id| ui.app().project.person(*id).expect("person").clone())
+        .collect();
+    for person in &people {
+        let at = ui.node(&person.name).rect().center();
+        ui.click_at(at, PointerButton::Primary, Modifiers::COMMAND);
+    }
+    let to = ui
+        .app()
+        .seat_card_on_screen(&side[0])
+        .expect("seat on screen")
+        .center();
+    ui.drag(ui.node(&people[0].name).rect().center(), to);
+    let seated: Vec<String> = people.iter().map(|p| ui.seat_of(p.id)).collect();
+    assert_eq!(seated, side);
+}
