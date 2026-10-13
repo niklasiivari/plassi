@@ -188,3 +188,25 @@ fn finding_someone_without_a_seat_scrolls_the_list_to_them() {
     let anchor = ui.app().chart.tray_anchor.map(|(person, _)| person);
     assert_eq!(anchor, Some(last.id));
 }
+
+#[test]
+fn the_list_menu_seats_a_selection_in_the_best_free_seats() {
+    let mut ui = Ui::with_example();
+    ui.click("Seat by hand");
+    ui.key(Modifiers::NONE, Key::Escape);
+    let people: Vec<_> = ui.app().project.attendees[..3].to_vec();
+    for person in &people {
+        let at = ui.node(&person.name).rect().center();
+        ui.click_at(at, PointerButton::Primary, Modifiers::COMMAND);
+    }
+    let at = ui.node(&people[0].name).rect().center();
+    ui.click_at(at, PointerButton::Secondary, Modifiers::NONE);
+    ui.click("Seat 3 people in the best free seats");
+    let seats: std::collections::BTreeSet<String> =
+        people.iter().map(|p| ui.seat_of(p.id)).collect();
+    assert_eq!(seats.len(), 3);
+    // One edit, so one undo puts them all back.
+    ui.key(Modifiers::COMMAND, Key::Z);
+    let unseated = ui.option().unseated(&ui.app().project);
+    assert!(people.iter().all(|p| unseated.contains(&p.id)));
+}

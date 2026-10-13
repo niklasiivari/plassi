@@ -19,7 +19,7 @@ The first release.
 - Editing: drag to move or swap with a score preview, drag selected
   blocks (Ctrl-click or Shift-drag a box), leave people off the seats
   or in a "Not seated" list and seat them again by dragging, by clicking
-  an empty seat or from suggested free seats, start an empty option and
+  an empty seat or from suggested free seats or the list's menu, start an empty option and
   seat the rest, pins to a seat or a table, group moves, late changes
   (walk-ins, cancellations, replacements), undo.
 - Views: seating chart, connections graph, per-person wish status.

@@ -84,6 +84,7 @@ impl PlassiApp {
         }
         let needle = crate::app::search::Needle::new(&self.chart.tray_search);
         let (mut hovered, mut selected) = (None, None);
+        let mut action = None;
         for &person in &scene.unseated {
             let Some(attendee) = self.project.person(person) else {
                 continue;
@@ -117,7 +118,7 @@ impl PlassiApp {
             if self.chart.drag.is_none() {
                 let response = response.clone();
                 response.on_hover_ui(|ui| {
-                    let footer = tr("Drag onto a seat or the chart");
+                    let footer = tr("Drag onto a seat or the chart · right-click for actions");
                     self.hover_card(ui, p, scene, person, None, footer)
                 });
             }
@@ -130,10 +131,16 @@ impl PlassiApp {
             } else if self.selected_person == Some(person) && ui.is_rect_visible(rect) {
                 selected = anchor;
             }
+            egui::Popup::context_menu(&response)
+                .style(theme::menu_style)
+                .show(|ui| action = self.tray_menu(ui, person).or(action.take()));
             self.tray_card_input(ui, scene, &response, person);
             ui.add_space(theme::space::XS);
         }
         self.chart.tray_anchor = hovered.or(selected);
+        if let Some(action) = action {
+            self.apply_tray_action(action, scene);
+        }
     }
 
     fn matches_tray_search(&self, person: usize) -> bool {

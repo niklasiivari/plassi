@@ -18,6 +18,7 @@ mod setup;
 mod shortcuts;
 pub(in crate::app) mod toolbar;
 mod tray;
+mod tray_menu;
 
 use canvas::*;
 use card::*;

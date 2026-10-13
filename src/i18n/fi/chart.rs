@@ -343,9 +343,18 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Seat the rest", "Sijoita loput"),
     (
-        "Drag onto a seat or the chart",
-        "Vedä paikalle tai istumajärjestykseen",
+        "Drag onto a seat or the chart · right-click for actions",
+        "Vedä paikalle tai istumajärjestykseen · avaa toiminnot hiiren oikealla painikkeella",
     ),
+    (
+        "Seat in the best free seat",
+        "Sijoita parhaalle vapaalle paikalle",
+    ),
+    (
+        "Seat {} people in the best free seats",
+        "Sijoita {} henkilöä parhaille vapaille paikoille",
+    ),
+    ("No free seat left", "Vapaita paikkoja ei ole jäljellä"),
     (
         "Let Improve move everyone",
         "Anna Paranna-toiminnon siirtää kaikkia",
