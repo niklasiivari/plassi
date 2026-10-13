@@ -10,6 +10,9 @@ use std::sync::atomic::{AtomicU8, Ordering};
 
 mod fi;
 
+#[cfg(test)]
+mod coverage;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Lang {
     En,

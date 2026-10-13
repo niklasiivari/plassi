@@ -234,14 +234,14 @@ impl PlassiApp {
         if ui.button(tr("Swap with…")).clicked() {
             actions.start_swap = Some(id);
         }
-        if matches!(place, Place::Seat(_)) {
-            let off = match people.len() {
-                1 => tr("Take off the seat").to_string(),
-                n => fill("Take {} people off their seats", &[&n]),
-            };
-            if ui.button(off).clicked() {
-                actions.moves = Some(people.iter().map(|p| (*p, Spot::Unseated)).collect());
-            }
+        let off = match (place, people.len()) {
+            (Place::Seat(_), 1) => tr("Take off the seat").to_string(),
+            (Place::Seat(_), n) => fill("Take {} people off their seats", &[&n]),
+            (Place::Loose(..), 1) => tr("Move to the Not seated list").to_string(),
+            (Place::Loose(..), n) => fill("Move {} people to the Not seated list", &[&n]),
+        };
+        if ui.button(off).clicked() {
+            actions.moves = Some(people.iter().map(|p| (*p, Spot::Unseated)).collect());
         }
         self.selection_items(ui, id, actions);
     }
