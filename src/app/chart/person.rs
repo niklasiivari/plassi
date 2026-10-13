@@ -63,8 +63,12 @@ impl PlassiApp {
                 None => tr("Not seated").into(),
             };
             theme::pill(ui, place, p.text, p.surface_hi);
-            let status = scene.status(id);
+            let mut status = scene.status(id);
+            if scene.waits(id) && status != Some(Outcome::Broken) {
+                status = None;
+            }
             let text = match status {
+                None if scene.waits(id) => tr("Waiting for people not seated"),
                 Some(Outcome::Met) => tr("All wishes met"),
                 Some(Outcome::Partial) => tr("Partly met"),
                 Some(Outcome::Broken) => tr("Hard rule broken"),

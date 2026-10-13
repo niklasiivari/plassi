@@ -347,6 +347,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Vedä paikalle tai istumajärjestykseen · avaa toiminnot hiiren oikealla painikkeella",
     ),
     (
+        "Waiting for people not seated",
+        "Odottaa sijoittamattomia henkilöitä",
+    ),
+    (
         "Seat in the best free seat",
         "Sijoita parhaalle vapaalle paikalle",
     ),

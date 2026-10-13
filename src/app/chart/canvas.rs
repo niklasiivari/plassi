@@ -181,6 +181,7 @@ impl PlassiApp {
                 .own
                 .get(requester)
                 .and_then(|rs| rs.iter().find(|(id, _)| *id == rule.id))
+                .filter(|(_, r)| !scene.pending(r))
                 .map(|(_, r)| r.outcome());
             let color = theme::outcome_color(p, result);
             let stroke = if outgoing {

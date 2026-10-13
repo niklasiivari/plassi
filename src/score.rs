@@ -17,6 +17,8 @@ pub struct RuleResult {
     pub hard_violation: bool,
     /// Fully met: a wish beside, opposite or diagonal may still cost a little.
     pub met: bool,
+    /// A wished-for person has no seat yet.
+    pub waiting: bool,
 }
 
 /// How one of the planner's preferences fares in a seating.
@@ -139,6 +141,7 @@ pub fn evaluate_with(
 }
 
 fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<RuleResult> {
+    let mut waiting = false;
     let (penalty, hard_violation, met, detail) = match &rule.kind {
         RuleKind::Placement { area, must_be, .. } => {
             let r = breakdown.placements.iter().find(|r| r.rule_id == rule.id)?;
@@ -157,6 +160,7 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
                 .terms
                 .iter()
                 .find(|t| t.source == Source::Rule(rule.id))?;
+            waiting = t.seated_targets < t.required;
             (
                 t.penalty,
                 t.hard_violation,
@@ -182,6 +186,7 @@ fn rule_result(project: &Project, rule: &Rule, breakdown: &Breakdown) -> Option<
         penalty,
         hard_violation,
         met,
+        waiting,
     })
 }
 

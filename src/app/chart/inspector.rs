@@ -319,7 +319,7 @@ impl PlassiApp {
         for a in evaluation
             .left_out
             .iter()
-            .filter(|id| scene.seat_of.contains_key(id))
+            .filter(|id| scene.seat_of.contains_key(id) && !scene.waits(**id))
             .filter_map(|id| self.project.person(*id))
         {
             ui.label(
@@ -373,7 +373,7 @@ impl PlassiApp {
         let mut issues: Vec<_> = evaluation
             .results
             .iter()
-            .filter(|r| r.outcome() != crate::score::Outcome::Met)
+            .filter(|r| r.outcome() != crate::score::Outcome::Met && !scene.pending(r))
             .map(|r| (owner_of(r), r))
             .filter(|(owner, _)| owner.is_none_or(|id| scene.seat_of.contains_key(&id)))
             .collect();

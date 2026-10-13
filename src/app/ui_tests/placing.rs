@@ -34,9 +34,18 @@ fn an_empty_option_is_seated_by_hand_and_then_the_rest() {
     );
     assert!(!ui.has_text("SCORE"));
     assert!(!ui.has_text("No wished-for people near"));
-    assert!(ui.has_text("Nothing for the people seated so far"));
+    assert!(
+        ui.has_text("Nothing for the people seated so far"),
+        "{:?}",
+        ui.dump()
+    );
     ui.drag(ui.node(&first.name).rect().center(), to);
     assert_eq!(ui.seat_of(first.id), seat);
+    // Their partner has no seat yet, so that wish is not flagged.
+    assert!(ui.has_text("Waiting for people not seated"));
+    ui.key(Modifiers::NONE, Key::Escape);
+    assert!(!ui.has_text("No wished-for people near"));
+    assert!(ui.has_text("Nothing for the people seated so far"));
     // "Seat the rest" adds an option with everyone seated, keeping the
     // person placed by hand.
     ui.click("Seat the rest");

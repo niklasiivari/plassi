@@ -124,13 +124,27 @@ impl Scene {
         Some(&self.evaluation.as_ref()?.policy)
     }
 
-    /// The worst outcome of this person's rules; `None` without any.
+    /// The worst outcome of this person's rules; `None` without any. Wishes
+    /// waiting for someone to be seated don't count yet.
     pub(super) fn status(&self, person: usize) -> Option<Outcome> {
         self.own
             .get(&person)?
             .iter()
+            .filter(|(_, r)| !self.pending(r))
             .map(|(_, r)| r.outcome())
             .max()
+    }
+
+    /// While people are not seated, a wish for one of them can't be judged.
+    pub(super) fn pending(&self, result: &RuleResult) -> bool {
+        result.waiting && !self.unseated.is_empty()
+    }
+
+    /// Whether any of this person's wishes is waiting for someone to be seated.
+    pub(super) fn waits(&self, person: usize) -> bool {
+        self.own
+            .get(&person)
+            .is_some_and(|rs| rs.iter().any(|(_, r)| self.pending(r)))
     }
 }
 
