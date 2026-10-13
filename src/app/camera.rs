@@ -100,6 +100,11 @@ impl Camera {
         self.zoom_to_with_pan(zoom * factor, zoom, pan);
     }
 
+    /// The zoom and pan the view is moving toward, or showing.
+    pub(super) fn target(&self) -> (f32, Vec2) {
+        self.goal.unwrap_or((self.zoom, self.pan))
+    }
+
     /// The zoom level the view is currently moving toward, or displaying.
     pub(super) fn zoom_target(&self) -> f32 {
         self.goal.map_or(self.zoom, |(zoom, _)| zoom)

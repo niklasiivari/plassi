@@ -92,6 +92,7 @@ impl PlassiApp {
         if view.fit_pending && rect.width() > 50.0 {
             view.camera.fit(rect, world, 1.4);
             view.fit_pending = false;
+            view.fitted = Some(view.camera.target());
         }
         let before = view.camera.viewport(rect);
         self.start_marquee(ui, background, &before);

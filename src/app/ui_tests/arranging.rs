@@ -300,3 +300,23 @@ fn p_on_a_selection_with_someone_unseated_pins_the_seated() {
     ui.key(Modifiers::NONE, Key::P);
     assert!(!ui.app().project.pins().contains_key(&a));
 }
+
+#[test]
+fn the_list_appearing_keeps_a_zoomed_in_view() {
+    let mut ui = solved();
+    let [a, b] = ui.two_unpinned();
+    let primary = PointerButton::Primary;
+    // Fitted, the room is fitted again when the list appears.
+    let fitted = ui.app().chart.view.camera.target();
+    ui.click_at(ui.card_of(a).center(), primary, Modifiers::NONE);
+    ui.key(Modifiers::NONE, Key::Delete);
+    assert_ne!(ui.app().chart.view.camera.target(), fitted);
+    // Zoomed in by hand, the view stays when the list appears.
+    ui.key(Modifiers::COMMAND, Key::Z);
+    ui.app_mut().chart.view.camera.zoom_by(2.0);
+    ui.settle();
+    let zoomed = ui.app().chart.view.camera.target();
+    ui.click_at(ui.card_of(b).center(), primary, Modifiers::NONE);
+    ui.key(Modifiers::NONE, Key::Delete);
+    assert_eq!(ui.app().chart.view.camera.target(), zoomed);
+}

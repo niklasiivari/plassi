@@ -11,9 +11,10 @@ impl PlassiApp {
     pub(super) fn tray(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
         let shown = !scene.unseated.is_empty() && !self.project.candidates.is_empty();
         // The canvas changes width; fit the room again so no table ends up
-        // out of view.
-        if shown != self.chart.tray_rect.is_some() {
-            self.chart.view.fit_pending = true;
+        // out of view, unless the user has zoomed or panned since the last fit.
+        let view = &mut self.chart.view;
+        if shown != self.chart.tray_rect.is_some() && view.fitted == Some(view.camera.target()) {
+            view.fit_pending = true;
         }
         if !shown {
             self.chart.tray_rect = None;
