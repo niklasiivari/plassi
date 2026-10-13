@@ -67,6 +67,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Lukitse {} henkilön paikat (P)",
     ),
     ("{} (copy)", "{} (kopio)"),
+    ("{} (copy {})", "{} (kopio {})"),
     ("Duplicated option", "Vaihtoehto kopioitiin"),
     ("Deleted {}", "Poistettu: {}"),
     (
@@ -321,10 +322,13 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Siirrä {} henkilöä Ei paikkaa -listaan",
     ),
     ("Moved {} people", "{} henkilöä siirretty"),
-    ("Took {} off the seats", "{} poistettu paikalta"),
     (
-        "Took {} people off the seats",
-        "{} henkilöä poistettu paikoiltaan",
+        "Moved {} to the Not seated list",
+        "{} siirretty Ei paikkaa -listaan",
+    ),
+    (
+        "Moved {} people to the Not seated list",
+        "{} henkilöä siirretty Ei paikkaa -listaan",
     ),
     ("Not seated · {}", "Ei paikkaa · {}"),
     (

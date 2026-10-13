@@ -159,7 +159,7 @@ fn p_pins_every_picked_person_and_then_unpins_them() {
 }
 
 #[test]
-fn taking_someone_off_the_seats_says_so_in_the_history() {
+fn taking_someone_off_the_seats_names_the_list_in_the_history() {
     let mut ui = solved();
     let [a, _] = ui.two_unpinned();
     let name = ui.app().project.person_name(a).to_string();
@@ -170,7 +170,7 @@ fn taking_someone_off_the_seats_says_so_in_the_history() {
     );
     ui.click("Take off the seat");
     assert_eq!(ui.option().spot_of(a), Spot::Unseated);
-    let said = format!("Took {name} off the seats");
+    let said = format!("Moved {name} to the Not seated list");
     assert!(ui.has_text(&said), "{:?}", ui.dump());
 }
 
@@ -215,4 +215,41 @@ fn an_option_can_forget_who_was_placed_by_hand() {
     ui.click_at(at, PointerButton::Secondary, Modifiers::NONE);
     ui.click("Let Improve move everyone");
     assert!(ui.option().hand_placed.is_empty());
+}
+
+#[test]
+fn a_box_takes_in_whoever_was_selected_like_a_ctrl_click() {
+    let mut ui = solved();
+    let [[a, b], [c, _]] = two_blocks(&ui);
+    ui.click_at(
+        ui.card_of(c).center(),
+        PointerButton::Primary,
+        Modifiers::NONE,
+    );
+    let (top, bottom) = (ui.card_of(a), ui.card_of(b));
+    let from = top.left_top() - egui::vec2(12.0, 12.0);
+    ui.drag_holding(from, bottom.center(), Modifiers::SHIFT);
+    assert_eq!(ui.app().chart.multi, [a, b, c].into());
+}
+
+#[test]
+fn p_on_a_selection_with_someone_unseated_pins_the_seated() {
+    let mut ui = solved();
+    let [a, b] = ui.two_unpinned();
+    let primary = PointerButton::Primary;
+    ui.click_at(
+        ui.card_of(b).center(),
+        PointerButton::Secondary,
+        Modifiers::NONE,
+    );
+    ui.click("Take off the seat");
+    ui.click_at(ui.card_of(a).center(), primary, Modifiers::COMMAND);
+    ui.key(Modifiers::NONE, Key::P);
+    assert!(ui.app().project.pins().contains_key(&a));
+    // With b in the selection, P still unpins a.
+    let name = ui.app().project.person_name(b).to_string();
+    ui.click_at(ui.node(&name).rect().center(), primary, Modifiers::COMMAND);
+    assert_eq!(ui.app().chart.multi, [a, b].into());
+    ui.key(Modifiers::NONE, Key::P);
+    assert!(!ui.app().project.pins().contains_key(&a));
 }

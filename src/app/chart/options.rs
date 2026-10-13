@@ -16,7 +16,9 @@ impl PlassiApp {
         let Some(mut copy) = self.project.candidates.get(index).cloned() else {
             return;
         };
-        copy.name = fill("{} (copy)", &[&copy.name]);
+        let first = std::iter::once(fill("{} (copy)", &[&copy.name]));
+        let more = (2..).map(|n| fill("{} (copy {})", &[&copy.name, &n]));
+        copy.name = self.project.free_option_name(first.chain(more));
         self.project.candidates.insert(index + 1, copy);
         self.selected_candidate = index + 1;
         if let Some(compare) = self.chart.compare_with.as_mut().filter(|c| **c > index) {

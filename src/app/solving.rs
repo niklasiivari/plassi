@@ -51,8 +51,6 @@ impl PlassiApp {
         }
     }
 
-    /// Re-optimizes the current option, keeping pinned and hand-placed people
-    /// where they are. The result becomes a new option.
     /// How many people Improve and "Seat the rest" keep where they are in the
     /// selected option: pinned to a seat or placed by hand.
     pub(super) fn kept_by_improve(&self) -> usize {
@@ -65,6 +63,8 @@ impl PlassiApp {
         kept.len()
     }
 
+    /// Re-optimizes the current option, keeping pinned and hand-placed people
+    /// where they are. The result becomes a new option.
     pub(super) fn start_improve(&mut self) {
         if self.solving.is_some() || self.file.external_invalid {
             return;

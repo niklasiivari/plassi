@@ -80,8 +80,12 @@ impl Project {
     /// "Option N" for the lowest N from the option count up that no option
     /// is called yet, so a deleted option's name is not repeated.
     pub fn new_option_name(&self) -> String {
-        (self.candidates.len() + 1..)
-            .map(|n| format!("Option {n}"))
+        self.free_option_name((self.candidates.len() + 1..).map(|n| format!("Option {n}")))
+    }
+
+    /// The first of `names` that no option is called yet.
+    pub fn free_option_name(&self, mut names: impl Iterator<Item = String>) -> String {
+        names
             .find(|name| self.candidates.iter().all(|c| c.name != *name))
             .expect("a free name")
     }

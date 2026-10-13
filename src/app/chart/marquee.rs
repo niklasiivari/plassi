@@ -49,7 +49,14 @@ impl PlassiApp {
             return;
         }
         self.chart.marquee = None;
-        self.chart.multi.extend(people_in(scene, world));
+        let found = people_in(scene, world);
+        // Like the first Ctrl-click, the first box takes in whoever was selected.
+        if !found.is_empty() && self.chart.multi.is_empty() {
+            let selected = self.selected_person;
+            let selected = selected.filter(|id| self.project.person(*id).is_some());
+            self.chart.multi.extend(selected);
+        }
+        self.chart.multi.extend(found);
     }
 }
 

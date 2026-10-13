@@ -205,3 +205,11 @@ fn two_pinned_people_swapping_keep_both_pins() {
     assert_eq!(pins[&0], Pin::Seat("t2:left:0".into()));
     assert_eq!(pins[&4], Pin::Seat("t1:left:0".into()));
 }
+
+#[test]
+fn a_free_option_name_skips_names_in_use() {
+    let (mut project, _) = seated();
+    project.candidates[0].name = "A (copy)".into();
+    let names = ["A (copy)", "A (copy 2)"].map(String::from).into_iter();
+    assert_eq!(project.free_option_name(names), "A (copy 2)");
+}

@@ -18,6 +18,7 @@ impl PlassiApp {
         if !shown {
             self.chart.tray_rect = None;
             self.chart.tray_anchor = None;
+            self.chart.tray_reveal = None;
             return;
         }
         let panel = egui::Panel::left("chart-tray")
@@ -52,10 +53,10 @@ impl PlassiApp {
                 "Seat everyone without a seat in a new option; {} people placed by hand or pinned stay",
                 &[&self.kept_by_improve()],
             ))
-            .on_disabled_hover_text(if enough {
-                tr("Wait for the search to finish")
-            } else {
-                tr("Add enough seats first")
+            .on_disabled_hover_text(match () {
+                _ if !enough => tr("Add enough seats first"),
+                _ if self.solving.is_some() => tr("Wait for the search to finish"),
+                _ => tr("Invalid project file"),
             })
             .clicked()
         {

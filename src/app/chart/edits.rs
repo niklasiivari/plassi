@@ -164,15 +164,15 @@ impl PlassiApp {
         ));
     }
 
-    /// "Moved X", "Swapped X ↔ Y", "Moved 6 people" or "Took X off the
-    /// seats", for the history.
+    /// "Moved X", "Swapped X ↔ Y", "Moved 6 people" or "Moved X to the Not
+    /// seated list", for the history.
     fn describe_edit(&self, wanted: &[(usize, Spot)], edit: &Rearrangement) -> String {
         let name = |id: usize| self.project.person_name(id).to_string();
         let moved = edit.moves.len() - edit.displaced;
         if wanted.iter().all(|(_, spot)| *spot == Spot::Unseated) {
             return match wanted {
-                [(person, _)] => fill("Took {} off the seats", &[&name(*person)]),
-                _ => fill("Took {} people off the seats", &[&moved]),
+                [(person, _)] => fill("Moved {} to the Not seated list", &[&name(*person)]),
+                _ => fill("Moved {} people to the Not seated list", &[&moved]),
             };
         }
         match (wanted, edit.displaced) {

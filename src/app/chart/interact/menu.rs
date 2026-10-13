@@ -17,7 +17,7 @@ impl PlassiApp {
         let people = self.acting_on(id);
         match (place, pin) {
             _ if people.len() > 1 => {
-                let label = if people.iter().all(|p| scene.pins.contains_key(p)) {
+                let label = if self.would_unpin(&people) {
                     fill("Unpin {} people (P)", &[&people.len()])
                 } else {
                     fill("Pin {} people to their seats (P)", &[&people.len()])

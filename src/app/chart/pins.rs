@@ -43,6 +43,16 @@ impl PlassiApp {
         }
     }
 
+    /// Whether P would unpin these people: everyone among them who is pinned
+    /// or seated is pinned already. People with neither do not count.
+    pub(super) fn would_unpin(&self, people: &[usize]) -> bool {
+        let pins = self.project.pins();
+        people
+            .iter()
+            .filter(|p| pins.contains_key(p) || self.seat_in_option(**p).is_some())
+            .all(|p| pins.contains_key(p))
+    }
+
     /// Pins each seated person to their seat, or unpins them all when every
     /// one of them is pinned already. Existing pins are kept as they are.
     pub(super) fn toggle_seat_pins(&mut self, people: &[usize]) {
@@ -50,11 +60,19 @@ impl PlassiApp {
             return;
         }
         let pins = self.project.pins();
-        if people.iter().all(|p| pins.contains_key(p)) {
-            for &person in people {
+        if self.would_unpin(people) {
+            let pinned: Vec<usize> = people
+                .iter()
+                .copied()
+                .filter(|p| pins.contains_key(p))
+                .collect();
+            if pinned.is_empty() {
+                return;
+            }
+            for &person in &pinned {
                 self.project.unpin(person);
             }
-            self.commit(&fill("Unpinned {} people", &[&people.len()]));
+            self.commit(&fill("Unpinned {} people", &[&pinned.len()]));
             return;
         }
         let seats: Vec<(usize, String)> = people
@@ -62,14 +80,23 @@ impl PlassiApp {
             .filter(|p| !pins.contains_key(p))
             .filter_map(|&p| Some((p, self.seat_in_option(p)?)))
             .collect();
-        if seats.is_empty() {
-            return;
-        }
         let count = seats.len();
+        let mut unpinned = Vec::new();
         for (person, seat) in seats {
-            self.project.pin(person, Pin::Seat(seat));
+            unpinned.extend(self.project.pin(person, Pin::Seat(seat)));
         }
-        self.commit(&fill("Pinned {} people", &[&count]));
+        let mut message = fill("Pinned {} people", &[&count]);
+        if !unpinned.is_empty() {
+            let names: Vec<String> = unpinned
+                .iter()
+                .map(|p| self.project.person_name(*p).to_string())
+                .collect();
+            message = fill(
+                "{}; {} is no longer pinned to that seat",
+                &[&message, &names.join(", ")],
+            );
+        }
+        self.commit(&message);
     }
 
     /// Keeps people at a table: the solver may change their seats there.
