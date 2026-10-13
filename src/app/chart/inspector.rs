@@ -156,6 +156,25 @@ fn issue_row(ui: &mut egui::Ui, p: Palette, name: &str, result: &RuleResult) -> 
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
+/// Stands in for the score while people have no seat: their wishes and the
+/// seating policy would only add noise.
+fn unseated_card(ui: &mut egui::Ui, p: Palette, scene: &Scene) {
+    theme::card(p).fill(p.accent_soft).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.label(
+            RichText::new(fill("{} not seated", &[&scene.unseated.len()]))
+                .size(theme::text::PAGE)
+                .strong()
+                .color(p.warn),
+        );
+        theme::hint(
+            ui,
+            p,
+            tr("Place people by hand, or use “Seat the rest”. The score is shown once everyone has a seat."),
+        );
+    });
+}
+
 fn legend(ui: &mut egui::Ui, p: Palette) {
     theme::section_title(ui, p, tr("Legend"));
     theme::text_rows(ui, |ui| {
@@ -201,7 +220,11 @@ impl PlassiApp {
             ui.label(RichText::new(tr("No seating yet")).color(p.muted));
             return;
         };
-        self.score_card(ui, p, scene, evaluation);
+        if scene.unseated.is_empty() {
+            self.score_card(ui, p, scene, evaluation);
+        } else {
+            unseated_card(ui, p, scene);
+        }
         ui.add_space(theme::space::L);
         stat_grid(ui, p, scene, evaluation);
         self.warnings(ui, p, scene, evaluation);
@@ -285,6 +308,7 @@ impl PlassiApp {
         for a in evaluation
             .left_out
             .iter()
+            .filter(|id| scene.seat_of.contains_key(id))
             .filter_map(|id| self.project.person(*id))
         {
             ui.label(
@@ -305,6 +329,7 @@ impl PlassiApp {
         let broken = scene
             .own
             .keys()
+            .filter(|id| scene.seat_of.contains_key(id))
             .filter(|id| scene.status(**id) == Some(Outcome::Broken))
             .count();
         if broken > 0 {
@@ -317,7 +342,8 @@ impl PlassiApp {
         }
     }
 
-    /// Unmet wishes, worst first; clicking one selects and centres its owner.
+    /// Unmet wishes of seated people, worst first; clicking one selects and
+    /// centres its owner.
     fn issue_list(
         &mut self,
         ui: &mut egui::Ui,
@@ -326,23 +352,26 @@ impl PlassiApp {
         evaluation: &Evaluation,
     ) {
         theme::section_title(ui, p, tr("Needs attention"));
+        let owner_of = |result: &RuleResult| {
+            self.project
+                .rules
+                .iter()
+                .find(|r| r.id == result.rule_id)
+                .map(crate::model::Rule::owner)
+        };
         let mut issues: Vec<_> = evaluation
             .results
             .iter()
             .filter(|r| r.outcome() != crate::score::Outcome::Met)
+            .map(|r| (owner_of(r), r))
+            .filter(|(owner, _)| owner.is_none_or(|id| scene.seat_of.contains_key(&id)))
             .collect();
-        issues.sort_by_key(|r| (!r.hard_violation, -r.penalty));
+        issues.sort_by_key(|(_, r)| (!r.hard_violation, -r.penalty));
         if issues.is_empty() {
             ui.label(RichText::new(tr("All wishes met")).color(p.good));
         }
         let mut select = None;
-        for result in issues {
-            let owner = self
-                .project
-                .rules
-                .iter()
-                .find(|r| r.id == result.rule_id)
-                .map(crate::model::Rule::owner);
+        for (owner, result) in issues {
             let name = owner
                 .and_then(|id| self.project.person(id))
                 .map_or("?", |a| a.name.as_str());

@@ -124,7 +124,7 @@ The Chart page shows the option's score (wish penalties plus seating-policy cost
 - Right-click a person to pin them, keep them at the table, take them off the seat, or choose "Swap with…" and click the second person.
 - The person panel lists "Better seats": the swaps that improve the score most, each with an Apply button.
 - Ctrl+Z / Ctrl+Shift+Z undo and redo any saved change. Right-click an option chip to duplicate it (edit a copy), compare it with the current one, or delete it.
-- Moves by hand may leave an empty seat mid-table while you rearrange. Such gaps are marked, the print check flags them, and "Close gaps" slides people up each table side (pinned people stay put). Options with people not seated show how many on their chip.
+- Moves by hand may leave an empty seat mid-table while you rearrange. Such gaps are marked, the print check flags them, and "Close gaps" slides people up each table side (pinned people stay put). Options with people not seated show how many on their chip. While anyone is not seated, the overview shows how many instead of the score, and its warnings and "Needs attention" leave out people without a seat.
 
 Manual edits may violate hard rules; the report shows them rather than silently moving people back.
 

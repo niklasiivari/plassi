@@ -101,6 +101,15 @@ fn an_empty_option_is_seated_by_hand_and_then_the_rest() {
         .seat_card_on_screen(&seat)
         .expect("seat on screen")
         .center();
+    // Unfinished, the overview counts people without a seat instead of
+    // scoring them, and lists nothing about them.
+    assert!(
+        ui.has_text(&format!("{people} not seated")),
+        "{:?}",
+        ui.dump()
+    );
+    assert!(!ui.has_text("SCORE"));
+    assert!(!ui.has_text("No wished-for people near"));
     ui.drag(ui.node(&first.name).rect().center(), to);
     assert_eq!(ui.seat_of(first.id), seat);
     // "Seat the rest" adds an option with everyone seated, keeping the
