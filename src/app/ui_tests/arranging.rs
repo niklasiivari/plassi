@@ -1,6 +1,7 @@
 //! Arranging people by hand: blocks, loose people, empty options and table pins.
 
 use eframe::egui::{self, Key, Modifiers, PointerButton, Pos2};
+use egui_kittest::kittest::Queryable;
 
 use super::harness::Ui;
 use crate::model::{Pin, Spot};
@@ -300,4 +301,40 @@ fn taking_someone_off_the_seats_says_so_in_the_history() {
     assert_eq!(ui.option().spot_of(a), Spot::Unseated);
     let said = format!("Took {name} off the seats");
     assert!(ui.has_text(&said), "{:?}", ui.dump());
+}
+
+#[test]
+fn a_right_button_drag_in_the_list_moves_nobody() {
+    let mut ui = solved();
+    let [a, _] = ui.two_unpinned();
+    ui.drag(ui.card_of(a).center(), floor(&ui));
+    let loose = ui.option().spot_of(a);
+    assert!(matches!(loose, Spot::Loose(_)));
+    ui.key(Modifiers::NONE, Key::F);
+    let name = ui.app().project.person_name(a).to_string();
+    // Their card in the list, not the one on the chart.
+    let tray = ui.app().chart.tray_rect.expect("list shown");
+    let from =
+        ui.h.query_all_by_label(&name)
+            .map(|n| n.rect().center())
+            .find(|at| tray.contains(*at))
+            .expect("card in the list");
+    let press = |pos, pressed| egui::Event::PointerButton {
+        pos,
+        button: PointerButton::Secondary,
+        pressed,
+        modifiers: Modifiers::NONE,
+    };
+    ui.h.hover_at(from);
+    ui.h.step();
+    ui.h.event(press(from, true));
+    ui.h.step();
+    for dy in [5.0, 15.0, 30.0] {
+        ui.h.hover_at(from + egui::vec2(0.0, dy));
+        ui.h.step();
+    }
+    ui.h.event(press(from + egui::vec2(0.0, 30.0), false));
+    ui.h.step();
+    ui.settle();
+    assert_eq!(ui.option().spot_of(a), loose);
 }

@@ -125,7 +125,7 @@ impl PlassiApp {
         response: &egui::Response,
         person: usize,
     ) {
-        if response.drag_started() {
+        if response.drag_started_by(egui::PointerButton::Primary) {
             self.start_drag(person, Vec2::ZERO);
         } else if response.clicked() && ui.input(|i| i.modifiers.command || i.modifiers.shift) {
             self.toggle_pick(person);

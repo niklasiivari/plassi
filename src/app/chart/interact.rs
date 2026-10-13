@@ -185,7 +185,7 @@ impl PlassiApp {
                 (None, None) => actions.clicked = Some(person),
             }
         }
-        if response.drag_started()
+        if response.drag_started_by(egui::PointerButton::Primary)
             && let Some(person) = person
         {
             let pressed = ui

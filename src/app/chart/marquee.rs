@@ -14,7 +14,7 @@ impl PlassiApp {
         view: &Viewport,
     ) {
         let adding = ui.input(|i| i.modifiers.command || i.modifiers.shift);
-        if background.drag_started()
+        if background.drag_started_by(egui::PointerButton::Primary)
             && adding
             && let Some(at) = ui.input(|i| i.pointer.press_origin())
         {
