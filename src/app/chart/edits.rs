@@ -210,7 +210,7 @@ impl PlassiApp {
         let (before, _) = total_score(&scorer, &self.project, &candidate.assignment);
         let (after, _) = total_score(&scorer, &self.project, &assignment);
         let candidate = &mut self.project.candidates[self.selected_candidate];
-        candidate.assignment = assignment;
+        candidate.reseat(assignment);
         candidate.solver_status = crate::model::SolverStatus::EditedByHand;
         self.chart.last_change = Some((after - before, web_time::Instant::now()));
         self.commit(&fill(

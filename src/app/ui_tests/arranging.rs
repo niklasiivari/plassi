@@ -150,3 +150,32 @@ fn a_person_can_be_kept_at_their_table() {
     ui.click("Keep at this table");
     assert_eq!(ui.app().project.pins()[&a], Pin::Table(table));
 }
+
+#[test]
+fn a_group_move_seats_a_loose_member_and_the_project_stays_valid() {
+    let mut ui = solved();
+    let pinned = ui.app().project.seat_pinned_people();
+    let person = ui
+        .app()
+        .project
+        .attendees
+        .iter()
+        .map(|a| a.id)
+        .find(|id| {
+            crate::groups::group_of(&ui.app().project, *id)
+                .is_some_and(|g| g.len() > 1 && g.iter().all(|p| !pinned.contains(p)))
+        })
+        .expect("an unpinned wish group");
+    ui.drag(ui.card_of(person).center(), floor(&ui));
+    assert!(matches!(ui.option().spot_of(person), Spot::Loose(_)));
+    ui.key(Modifiers::NONE, Key::F);
+    ui.click_at(
+        ui.card_of(person).center(),
+        PointerButton::Primary,
+        Modifiers::NONE,
+    );
+    ui.click("Find places for this group");
+    ui.click("Move");
+    assert!(matches!(ui.option().spot_of(person), Spot::Seat(_)));
+    assert!(ui.app().project.validate().is_ok());
+}

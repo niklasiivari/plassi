@@ -1,6 +1,8 @@
 //! Where each person is in an option: on a seat, loose on the chart, or not
 //! placed anywhere yet.
 
+use std::collections::BTreeMap;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +50,13 @@ impl Candidate {
             }
             Spot::Unseated => {}
         }
+    }
+
+    /// Replaces the whole seating; people it seats are no longer loose.
+    pub fn reseat(&mut self, assignment: BTreeMap<usize, String>) {
+        self.loose
+            .retain(|person, _| !assignment.contains_key(person));
+        self.assignment = assignment;
     }
 
     /// Drops every trace of a person who left the event.
