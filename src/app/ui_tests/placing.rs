@@ -74,6 +74,11 @@ fn someone_without_a_seat_is_offered_the_best_free_seats() {
             .0
             .clone()
     };
+    // Pointing at a suggestion marks its seat on the chart.
+    let row = ui.node("Seat here").rect().center();
+    ui.h.hover_at(row);
+    ui.settle();
+    assert_eq!(ui.app().chart.group_preview, Some(vec![best.clone()]));
     ui.click("Seat here");
     assert_eq!(ui.seat_of(first.id), best);
     // Seated, they get swaps instead.

@@ -25,7 +25,7 @@ impl PlassiApp {
         theme::section_title(ui, p, title);
         let mut apply = None;
         for (seat, other, delta) in moves.iter().take(4) {
-            ui.horizontal(|ui| {
+            let row = ui.horizontal(|ui| {
                 // Someone without a seat gets just the seat and "Seat here".
                 let who = match other.and_then(|o| self.project.person(o)) {
                     Some(a) => Some(fill("Swap with {}", &[&a.name])),
@@ -55,6 +55,10 @@ impl PlassiApp {
                     ui.label(RichText::new(format!("{delta:+}")).color(color).strong());
                 });
             });
+            // Pointing at a row marks its seat on the chart.
+            if row.response.contains_pointer() {
+                self.chart.group_preview = Some(vec![seat.clone()]);
+            }
         }
         if let Some(seat) = apply {
             self.move_to(person, Spot::Seat(seat));
@@ -99,7 +103,6 @@ impl PlassiApp {
             theme::hint(ui, p, tr("No valid seats for this group"));
         }
         let mut apply = None;
-        self.chart.group_preview = None;
         for (index, mv) in moves.iter().enumerate() {
             let response = ui
                 .horizontal(|ui| {

@@ -112,7 +112,8 @@ pub(in crate::app) struct ChartState {
     pub(in crate::app) multi: std::collections::BTreeSet<usize>,
     /// Preference under the pointer in the side panel; its members are outlined.
     pub(in crate::app) preference_preview: Option<u64>,
-    /// Seats of the group move under the pointer, highlighted on the chart.
+    /// Seats of the group move or suggested seat under the pointer,
+    /// highlighted on the chart.
     pub(in crate::app) group_preview: Option<Vec<String>>,
 }
 
