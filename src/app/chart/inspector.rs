@@ -367,7 +367,9 @@ impl PlassiApp {
             .filter(|(owner, _)| owner.is_none_or(|id| scene.seat_of.contains_key(&id)))
             .collect();
         issues.sort_by_key(|(_, r)| (!r.hard_violation, -r.penalty));
-        if issues.is_empty() {
+        if issues.is_empty() && !scene.unseated.is_empty() {
+            theme::hint(ui, p, tr("Nothing for the people seated so far"));
+        } else if issues.is_empty() {
             ui.label(RichText::new(tr("All wishes met")).color(p.good));
         }
         let mut select = None;

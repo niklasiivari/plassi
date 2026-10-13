@@ -122,6 +122,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Some wishes not met", "Osa toiveista ei toteudu"),
     ("SCORE", "PISTEET"),
     (
+        "Nothing for the people seated so far",
+        "Ei huomautettavaa tähän mennessä sijoitetuista",
+    ),
+    (
         "Place people by hand, or use “Seat the rest”. The score is shown once everyone has a seat.",
         "Sijoita henkilöt käsin tai valitse ”Sijoita loput”. Pisteet näytetään, kun kaikilla on paikka.",
     ),

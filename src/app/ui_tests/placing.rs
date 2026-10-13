@@ -34,6 +34,10 @@ fn an_empty_option_is_seated_by_hand_and_then_the_rest() {
     );
     assert!(!ui.has_text("SCORE"));
     assert!(!ui.has_text("No wished-for people near"));
+    assert!(
+        !ui.has_text("All wishes met"),
+        "nobody seated meets anything"
+    );
     ui.drag(ui.node(&first.name).rect().center(), to);
     assert_eq!(ui.seat_of(first.id), seat);
     // "Seat the rest" adds an option with everyone seated, keeping the
