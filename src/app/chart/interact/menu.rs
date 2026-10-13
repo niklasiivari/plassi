@@ -53,7 +53,8 @@ impl PlassiApp {
                 actions.keep = Some((people.clone(), seat_table(&seat.id).to_string()));
             }
         }
-        if ui.button(tr("Swap with…")).clicked() {
+        // Swapping is one person for another, not a selection.
+        if people.len() == 1 && ui.button(tr("Swap with…")).clicked() {
             actions.start_swap = Some(id);
         }
         let off = match (place, people.len()) {
