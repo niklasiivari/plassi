@@ -52,7 +52,11 @@ impl PlassiApp {
                         apply = Some(seat.clone());
                     }
                     let color = if *delta < 0 { p.good } else { p.muted };
-                    ui.label(RichText::new(format!("{delta:+}")).color(color).strong());
+                    let text = match delta {
+                        0 => "0".to_string(),
+                        d => format!("{d:+}"),
+                    };
+                    ui.label(RichText::new(text).color(color).strong());
                 });
             });
             // Pointing at a row marks its seat on the chart.
