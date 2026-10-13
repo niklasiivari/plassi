@@ -22,7 +22,7 @@ impl PlassiApp {
         match scene.own.get(&id) {
             Some(results) => results
                 .iter()
-                .for_each(|(_, result)| result_row(ui, p, result)),
+                .for_each(|(_, result)| result_row(ui, p, result, scene.judged(id, result))),
             None => {
                 ui.label(RichText::new(tr("None")).color(p.muted));
             }
@@ -63,6 +63,10 @@ impl PlassiApp {
                 None => tr("Not seated").into(),
             };
             theme::pill(ui, place, p.text, p.surface_hi);
+            // Without a seat, "Not seated" says it all.
+            if !scene.seat_of.contains_key(&id) {
+                return;
+            }
             let mut status = scene.status(id);
             if scene.waits(id) && status.is_none_or(|s| s == Outcome::Met) {
                 status = None;
@@ -213,7 +217,7 @@ impl PlassiApp {
         if let Some(results) = scene.own.get(&person) {
             ui.separator();
             for (_, result) in results {
-                result_row(ui, p, result);
+                result_row(ui, p, result, scene.judged(person, result));
             }
         } else {
             theme::hint(ui, p, tr("No wishes"));

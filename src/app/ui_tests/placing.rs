@@ -65,6 +65,9 @@ fn someone_without_a_seat_is_offered_the_best_free_seats() {
     let first = ui.app().project.attendees[0].clone();
     ui.click(&first.name);
     assert!(ui.has_text("Seat here"), "{:?}", ui.dump());
+    // Without a seat their wishes are not judged: no status, no penalty.
+    assert!(!ui.has_text("Waiting for people not seated"));
+    assert!(!ui.has_text("−4000"));
     // Their wish lines start at their card in the list.
     let anchor = ui.app().chart.tray_anchor.map(|(person, _)| person);
     assert_eq!(anchor, Some(first.id));

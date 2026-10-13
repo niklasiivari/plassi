@@ -141,6 +141,12 @@ impl Scene {
         result.waiting && !result.hard_violation
     }
 
+    /// Whether a person's rule can be judged: they have a seat and it isn't
+    /// waiting for someone else to get one.
+    pub(super) fn judged(&self, person: usize, result: &RuleResult) -> bool {
+        self.seat_of.contains_key(&person) && !self.pending(result)
+    }
+
     /// Whether any of this person's wishes is waiting for someone to be seated.
     pub(super) fn waits(&self, person: usize) -> bool {
         self.own

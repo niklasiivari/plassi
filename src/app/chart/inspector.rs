@@ -2,15 +2,14 @@
 
 use super::*;
 
-pub(super) fn result_row(ui: &mut egui::Ui, p: Palette, result: &RuleResult) {
-    outcome_row(
-        ui,
-        p,
-        &result.label,
-        &result.detail,
-        result.penalty,
-        result.outcome(),
-    );
+/// A rule's row; one that can't be judged yet (someone involved has no
+/// seat) is muted and shows no penalty.
+pub(super) fn result_row(ui: &mut egui::Ui, p: Palette, result: &RuleResult, judged: bool) {
+    let (penalty, outcome) = match judged {
+        true => (result.penalty, Some(result.outcome())),
+        false => (0, None),
+    };
+    outcome_row(ui, p, &result.label, &result.detail, penalty, outcome);
 }
 
 /// Status dot, label, detail and penalty on one line.
@@ -20,9 +19,9 @@ pub(super) fn outcome_row(
     label: &str,
     detail: &str,
     penalty: i64,
-    outcome: crate::score::Outcome,
+    outcome: Option<crate::score::Outcome>,
 ) {
-    let color = theme::outcome_color(p, Some(outcome));
+    let color = theme::outcome_color(p, outcome);
     ui.horizontal_wrapped(|ui| {
         theme::status_dot(ui, color);
         ui.label(RichText::new(label).size(theme::text::SMALL));
