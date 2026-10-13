@@ -220,8 +220,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Avaa toiminnot hiiren oikealla painikkeella",
     ),
     (
-        "Drag to move. Ctrl-click or Shift-drag a box to select. Right-click for actions.",
-        "Siirrä vetämällä. Valitse napsauttamalla Ctrl pohjassa tai rajaamalla alue Shift pohjassa. Avaa toiminnot hiiren oikealla painikkeella.",
+        "Drag to move. Ctrl-click or Shift-drag a box to select. Right-click for actions. Click a table for its summary.",
+        "Siirrä vetämällä. Valitse napsauttamalla Ctrl pohjassa tai rajaamalla alue Shift pohjassa. Avaa toiminnot hiiren oikealla painikkeella. Napsauta pöytää nähdäksesi sen yhteenvedon.",
     ),
     (
         "Moves people up; keeps pinned seats.",
@@ -421,4 +421,20 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("  {} not seated", "  {} ilman paikkaa"),
     ("{} not seated", "{} ilman paikkaa"),
     (" · {} not seated", " · {} ilman paikkaa"),
+    ("Colour cards by", "Värjää kortit"),
+    ("Nothing", "Ei mitään"),
+    ("Other", "Muut"),
+    ("Not given", "Ei ilmoitettu"),
+    ("Table", "Pöytä"),
+    ("{} of {} seats taken", "{}/{} paikkaa varattu"),
+    ("Nobody sits here yet", "Täällä ei vielä istu ketään"),
+    ("Allergies", "Allergiat"),
+    (
+        "People here whose wishes are all met",
+        "Täällä istuvat, joiden kaikki toiveet toteutuvat",
+    ),
+    (
+        "People here with a hard rule broken",
+        "Täällä istuvat, joiden ehdoton sääntö rikkoutuu",
+    ),
 ];

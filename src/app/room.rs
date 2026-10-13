@@ -37,7 +37,7 @@ impl Default for RoomState {
     }
 }
 
-/// What an edit on the Room page touched. Geometry changes invalidate options.
+/// What an edit on the Room page touched. Geometry changes fit options to the new room.
 #[derive(Default)]
 struct RoomEdit {
     labels: bool,
@@ -222,13 +222,15 @@ impl PlassiApp {
 
     fn save_room(&mut self, edit: RoomEdit) {
         if edit.geometry {
-            let had_options = !self.project.candidates.is_empty();
-            self.project.candidates.clear();
+            let unseated = self.project.fit_to_room();
             self.chart.view.fit_pending = true;
-            self.commit(if had_options {
-                tr("Changed the room; existing options were cleared")
+            self.commit(&if unseated > 0 {
+                fill(
+                    "Changed the room; {} people lost their seats and are not seated",
+                    &[&unseated],
+                )
             } else {
-                tr("Saved room layout")
+                tr("Saved room layout").into()
             });
         } else if edit.labels {
             self.commit(tr("Saved room layout"));

@@ -41,10 +41,12 @@ pub(super) enum PinMark {
 /// What a seat card shows about its person.
 pub(super) struct CardPerson<'a> {
     pub(super) name: &'a str,
-    /// Organization as its category name.
-    pub(super) organization: String,
+    /// The second line: the organization, or the category the chart is coloured by.
+    pub(super) detail: String,
     /// Keeps avatar colours equal for all spellings of one organization.
     pub(super) color_key: String,
+    /// The colour of the category the chart is coloured by, if it is.
+    pub(super) tint: Option<Color32>,
 }
 
 fn card_radius(zoom: f32) -> u8 {
@@ -118,6 +120,9 @@ pub(super) fn paint_person_card(
     } else {
         p.surface
     };
+    let base = person
+        .tint
+        .map_or(base, |tint| theme::blend(base, tint, 0.22));
     let fill = if look.selected { p.accent_soft } else { base }.gamma_multiply(alpha);
     let stroke = match () {
         _ if look.selected => Stroke::new(1.0, p.accent),
@@ -214,7 +219,10 @@ fn paint_avatar(
     painter.circle_filled(
         centre,
         radius,
-        theme::avatar_color(&person.color_key, dark).gamma_multiply(alpha),
+        person
+            .tint
+            .unwrap_or_else(|| theme::avatar_color(&person.color_key, dark))
+            .gamma_multiply(alpha),
     );
     if !compact {
         painter.text(
@@ -228,7 +236,7 @@ fn paint_avatar(
     centre.x + radius + (7.0 * zoom).max(4.0)
 }
 
-/// A readable, elided name; below it the organization unless the card is small.
+/// A readable, elided name; below it the detail line unless the card is small.
 fn paint_card_text(
     painter: &egui::Painter,
     p: Palette,
@@ -264,7 +272,7 @@ fn paint_card_text(
         clipped.text(
             Pos2::new(text_rect.min.x, rect.center().y + 2.0 * zoom),
             Align2::LEFT_TOP,
-            &person.organization,
+            &person.detail,
             FontId::proportional(10.5 * zoom),
             p.muted.gamma_multiply(alpha),
         );
@@ -378,8 +386,9 @@ mod tests {
                         rect,
                         &CardPerson {
                             name,
-                            organization: "Organization".into(),
+                            detail: "Organization".into(),
                             color_key: "Organization".into(),
+                            tint: None,
                         },
                         CardLook {
                             status: Some(Outcome::Met),

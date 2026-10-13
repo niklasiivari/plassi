@@ -219,6 +219,7 @@ impl PlassiApp {
         &mut self,
         ui: &egui::Ui,
         background: &egui::Response,
+        table: Option<String>,
         actions: CardActions,
     ) {
         if let Some(person) = actions.remove {
@@ -259,8 +260,10 @@ impl PlassiApp {
         }
         if let Some(person) = actions.clicked {
             self.selected_person = person;
+            self.chart.selected_table = None;
         } else if background.clicked() && !actions.hovered_card {
             self.selected_person = None;
+            self.chart.selected_table = table;
         }
     }
 
@@ -283,7 +286,7 @@ impl PlassiApp {
     }
 
     /// Esc cancels, one step at a time: swap mode, the selection, a drag or
-    /// box, then the selected person.
+    /// box, then the selected person or table.
     fn escape_pressed(&mut self, ui: &egui::Ui) {
         let typing = ui.ctx().memory(|m| m.focused().is_some());
         if !typing
@@ -294,6 +297,7 @@ impl PlassiApp {
             && self.chart.marquee.take().is_none()
         {
             self.selected_person = None;
+            self.chart.selected_table = None;
         }
     }
 }

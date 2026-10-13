@@ -109,6 +109,8 @@ Rows and tables are data in `layout.rows`. Tables are vertical: tables in a row 
 
 The template infers beside, opposite, diagonal and near (same table, at most two rows apart) positions for its standard seats; anything farther on the same table is "same table". `layout.relations` can override any pair, including pairs on different tables. The Room page exposes seat counts, tags, and relation overrides; an agent may also edit the JSON.
 
+Changing the room keeps the options: everyone whose seat still exists stays on it, and people on removed seats are listed as not seated in that option. Pins on removed seats or tables are dropped.
+
 ## Solving and review
 
 The solver (`src/seating/`) is a tabu search, the approach used in the seating-plan and quadratic-assignment literature (Lewis & Carroll 2016; Taillard's robust tabu search; breakout local search). It minimises exactly the score the app shows: wish penalties, placement penalties and the seating policy. Each iteration evaluates every seat swap incrementally, takes the best one that is not tabu, and forbids moving people straight back for a while; when progress stalls it first tries swapping two blocks of up to four rows (both sides, everyone keeping their place in the block, pinned people staying put), which moves a whole group at once instead of tearing it apart on the way, and otherwise restarts from the best seating with a growing number of random swaps, every other time after a random block swap. The starting seating places pinned and restricted people first, then wish groups in contiguous blocks. Hard rules are never broken by the search. Only beside, opposite and diagonal count as together: a few seats down the same table costs nearly as much as another table. A wish for several people ("near 2 of my team") costs the average of its `required` closest members, so each one who comes closer helps; hard limits apply to the `required`-th closest. An organization wish counts every member, each half as much as the next nearer one, so the nearest few decide; the nearest member decides hard limits and whether the wish is met. "At least one wish" in the seating policy counts a wish as met when it is beside, opposite or diagonal. Spare seats go at table bottoms, but never where people limited by hard rules would run out of room.
@@ -126,6 +128,11 @@ The Chart page shows the option's score (wish penalties plus seating-policy cost
 - The person panel lists "Better seats": the swaps that improve the score most, each with an Apply button. For someone without a seat it lists "Free seats" instead: the top free seat of each table side, best first. Pointing at a suggestion marks its seat on the chart.
 - Ctrl+Z / Ctrl+Shift+Z undo and redo any saved change. Right-click an option chip to duplicate it (edit a copy), compare it with the current one, let Improve move the people placed by hand again, or delete it.
 - Moves by hand may leave an empty seat mid-table while you rearrange. Such gaps are marked, the print check flags them, and "Close gaps" slides people up each table side (pinned people stay put). Options with people not seated show how many on their chip. While anyone is not seated, the overview shows how many instead of the score, and its warnings and "Needs attention" leave out people without a seat. A wish for someone not seated yet waits: it is not flagged until that person has a seat.
+
+Seeing the room at a glance:
+
+- "Colour cards by" in the side panel tints every card by organization, ticket type, food or drink, most common first, with a legend and counts. Categories past the first ten share "Other".
+- Click a table (its body or name) for its summary: seats taken, wishes met and hard rules broken among the people there, who sits there (click a name to select them), the mix of organizations, tickets, food and drinks, and the allergies.
 
 Manual edits may violate hard rules; the report shows them rather than silently moving people back.
 

@@ -144,8 +144,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Import TSV", "Tuo TSV-tiedosto"),
     (
-        "Changed the room; existing options were cleared",
-        "Pöydät ja paikat muutettu. Aiemmat istumajärjestykset poistettu.",
+        "Changed the room; {} people lost their seats and are not seated",
+        "Pöydät ja paikat muutettu. {} henkilöä menetti paikkansa ja on nyt ilman paikkaa.",
     ),
     ("Saved room layout", "Pöydät ja paikat tallennettu"),
     ("Add tables first.", "Lisää ensin pöytiä."),

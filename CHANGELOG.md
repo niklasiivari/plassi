@@ -24,7 +24,11 @@ The first release.
   with Delete, start an empty option and seat the rest, pins to a seat
   or a table, group moves, late changes (walk-ins, cancellations,
   replacements), undo.
-- Views: seating chart, connections graph, per-person wish status.
+- Views: seating chart, connections graph, per-person wish status,
+  cards coloured by organization, ticket type, food or drink, and a
+  summary of each table.
+- Room changes keep the seating: people on removed seats are listed as
+  not seated.
 - Prints: seating chart, kitchen, bar and door lists as A4 PDFs.
 - Interface in English and Finnish, light and dark themes, a first-run
   tour and per-page help.

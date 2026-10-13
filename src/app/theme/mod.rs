@@ -118,6 +118,27 @@ pub fn avatar_color(key: &str, dark: bool) -> Color32 {
     rgb(if dark { on_dark } else { on_light })
 }
 
+/// Distinct colours for colouring the chart by category, most common first
+/// (on dark, on light).
+const CATEGORIES: [(u32, u32); 10] = [
+    (0x6F9BD1, 0x3F6FAD),
+    (0xE8A15A, 0xC9772A),
+    (0x7DBE79, 0x4C8F48),
+    (0xD9777A, 0xB8484C),
+    (0xA98BCF, 0x7A5AA6),
+    (0x6CC0B8, 0x3C8F87),
+    (0xD4B04A, 0xA08022),
+    (0xD88BB7, 0xB0588A),
+    (0xA8907C, 0x7E6450),
+    (0x9AA6B2, 0x67727E),
+];
+
+/// The colour of the `index`-th most common category; `None` past the palette.
+pub fn category_color(index: usize, dark: bool) -> Option<Color32> {
+    let (on_dark, on_light) = *CATEGORIES.get(index)?;
+    Some(rgb(if dark { on_dark } else { on_light }))
+}
+
 /// Consistent row insets for dropdown and context menus.
 pub fn menu_style(style: &mut egui::Style) {
     egui::containers::menu::menu_style(style);

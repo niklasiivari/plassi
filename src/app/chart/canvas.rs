@@ -62,7 +62,10 @@ impl PlassiApp {
         let actions = self.cards(ui, &paint, targets.as_ref());
         self.paint_drag(ui, &view, p, scene, targets.as_ref());
         self.marquee(ui, &painter, &view, p, scene);
-        self.apply_card_actions(ui, &background, actions);
+        let table = background
+            .interact_pointer_pos()
+            .and_then(|at| scene.table_at(&self.project, view.world(at)));
+        self.apply_card_actions(ui, &background, table, actions);
         self.finish_drag(ui, targets);
         self.chart_shortcuts(ui);
         self.paint_status_badge(ui, &painter, rect, p);
@@ -105,21 +108,10 @@ impl PlassiApp {
 
     fn paint_tables(&self, painter: &egui::Painter, view: &Viewport, p: Palette, scene: &Scene) {
         for table in self.project.layout.rows.iter().flat_map(|r| &r.tables) {
-            let seats: Vec<_> = scene
-                .seats
-                .iter()
-                .filter(|s| s.table_id == table.id)
-                .collect();
-            if seats.is_empty() {
+            let Some(body) = scene.table_body(&table.id) else {
                 continue;
-            }
-            let min_x = seats.iter().map(|s| s.x).fold(f32::INFINITY, f32::min);
-            let min_y = seats.iter().map(|s| s.y).fold(f32::INFINITY, f32::min);
-            let max_y = seats.iter().map(|s| s.y).fold(f32::NEG_INFINITY, f32::max);
-            let body = Rect::from_min_max(
-                Pos2::new(min_x, min_y - CARD_H / 2.0 - 6.0),
-                Pos2::new(min_x + TABLE_SPAN, max_y + CARD_H / 2.0 + 6.0),
-            );
+            };
+            let selected = self.chart.selected_table.as_deref() == Some(table.id.as_str());
             painter.rect(
                 view.rect(body),
                 CornerRadius::same(
@@ -127,15 +119,19 @@ impl PlassiApp {
                         as u8,
                 ),
                 p.table,
-                Stroke::NONE,
-                StrokeKind::Inside,
+                if selected {
+                    Stroke::new(2.0, p.accent)
+                } else {
+                    Stroke::NONE
+                },
+                StrokeKind::Outside,
             );
             painter.text(
                 view.point(Pos2::new(body.center().x, body.min.y - 16.0)),
                 Align2::CENTER_CENTER,
                 &table.label,
                 FontId::proportional((13.0 * view.zoom).max(8.0)),
-                p.muted,
+                if selected { p.accent } else { p.muted },
             );
         }
     }
@@ -298,10 +294,16 @@ impl PlassiApp {
     ) {
         match person.and_then(|id| self.project.person(id)) {
             Some(attendee) => {
+                let coloring = self.coloring();
+                let kind = coloring.map_or(Kind::Organization, |c| c.kind);
                 let person = CardPerson {
                     name: &attendee.name,
-                    organization: self.project.category_name(Kind::Organization, attendee),
+                    detail: self.project.category_name(kind, attendee),
                     color_key: self.project.category_key(Kind::Organization, attendee),
+                    tint: coloring.map(|c| {
+                        c.color(&self.project.category_key(kind, attendee), p)
+                            .unwrap_or(p.border)
+                    }),
                 };
                 paint_person_card(painter, p, rect, &person, look)
             }

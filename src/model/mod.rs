@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 mod layout;
 mod pins;
+mod refit;
 mod spots;
 mod validate;
 

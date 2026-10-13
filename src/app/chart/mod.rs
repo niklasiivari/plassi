@@ -3,6 +3,7 @@
 mod canvas;
 mod card;
 mod chips;
+mod colors;
 mod drag;
 mod edits;
 mod inspector;
@@ -17,12 +18,14 @@ mod preferences;
 mod scene;
 mod setup;
 mod shortcuts;
+mod table;
 pub(in crate::app) mod toolbar;
 mod tray;
 mod tray_menu;
 
 use canvas::*;
 use card::*;
+use colors::*;
 use edits::*;
 use scene::*;
 
@@ -115,6 +118,12 @@ pub(in crate::app) struct ChartState {
     /// Seats of the group move or suggested seat under the pointer,
     /// highlighted on the chart.
     pub(in crate::app) group_preview: Option<Vec<String>>,
+    /// Table whose summary the side panel shows.
+    pub(in crate::app) selected_table: Option<String>,
+    /// The category cards are coloured by; `None` colours by wishes only.
+    pub(in crate::app) color_by: Option<Kind>,
+    /// Categories of `color_by`, keyed by (revision, kind).
+    coloring: Memo<(u64, Kind), Coloring>,
 }
 
 use super::memo::Memo;
@@ -158,6 +167,12 @@ impl PlassiApp {
                 evaluation,
             ))
         }));
+        if let Some(kind) = self.chart.color_by {
+            let project = &self.project;
+            self.chart
+                .coloring
+                .get((self.file.revision, kind), || Coloring::new(project, kind));
+        }
         if let Some(id) = self.chart.view.focus_person.take() {
             self.selected_person = Some(id);
             self.focus_person(id, &scene);
@@ -199,6 +214,12 @@ impl PlassiApp {
         self.chart_tour(ui.ctx(), p);
     }
 
+    /// The chart's colouring by category, if one is chosen.
+    fn coloring(&self) -> Option<&Coloring> {
+        let kind = self.chart.color_by?;
+        self.chart.coloring.peek(&(self.file.revision, kind))
+    }
+
     /// Pans the canvas so the person's card is centred on the next frame,
     /// or scrolls the "Not seated" list to them.
     fn focus_person(&mut self, person: usize, scene: &Scene) {
@@ -229,6 +250,13 @@ impl PlassiApp {
     pub(in crate::app) fn seat_card_on_screen(&self, seat_id: &str) -> Option<Rect> {
         let seats = self.project.layout.seats();
         self.world_on_screen(card_rect(seats.iter().find(|s| s.id == seat_id)?))
+    }
+
+    /// A point on a table's body, between its two top seats, in the last frame.
+    pub(in crate::app) fn table_on_screen(&self, table_id: &str) -> Option<Pos2> {
+        let left = self.seat_card_on_screen(&format!("{table_id}:left:0"))?;
+        let right = self.seat_card_on_screen(&format!("{table_id}:right:0"))?;
+        Some(left.center().lerp(right.center(), 0.5))
     }
 
     fn world_on_screen(&self, world: Rect) -> Option<Rect> {

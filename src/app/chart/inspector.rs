@@ -205,7 +205,9 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
     theme::hint(
         ui,
         p,
-        tr("Drag to move. Ctrl-click or Shift-drag a box to select. Right-click for actions."),
+        tr(
+            "Drag to move. Ctrl-click or Shift-drag a box to select. Right-click for actions. Click a table for its summary.",
+        ),
     );
     ui.add_space(theme::space::M);
     theme::section_title(ui, p, tr("Keys"));
@@ -225,6 +227,12 @@ impl PlassiApp {
             self.person_details(ui, p, scene, id);
             return;
         }
+        if let Some(table) = self.chart.selected_table.clone()
+            && scene.table_body(&table).is_some()
+        {
+            self.table_summary(ui, p, scene, &table);
+            return;
+        }
         let Some(evaluation) = &scene.evaluation else {
             theme::section_title(ui, p, tr("Overview"));
             ui.label(RichText::new(tr("No seating yet")).color(p.muted));
@@ -241,6 +249,8 @@ impl PlassiApp {
         ui.add_space(theme::space::XL);
         self.issue_list(ui, p, scene, evaluation);
         self.preferences_section(ui, p, &evaluation.preferences);
+        ui.add_space(theme::space::XL);
+        self.color_section(ui, p);
         ui.add_space(theme::space::XL);
         legend(ui, p);
     }

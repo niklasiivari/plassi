@@ -307,7 +307,7 @@ impl Choice {
 }
 
 /// The allergy text, or nothing for answers that say there are none.
-fn allergy_text(raw: &str) -> &str {
+pub(crate) fn allergy_text(raw: &str) -> &str {
     let text = raw.trim();
     let none = ["ei", "ei ole", "ei mitään", "ei allergioita", "none", "no"];
     if !text.chars().any(char::is_alphabetic) || none.contains(&text.to_lowercase().as_str()) {
