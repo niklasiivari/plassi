@@ -47,7 +47,7 @@ The platform differences live in `src/platform/` (`native.rs`, `web.rs`); the re
 - `src/print.rs` — the data behind the A4 prints; `typeset/` (crate `plassi-typeset`) turns it into PDFs with Typst and the bundled fonts.
 - `src/platform/` — storage, background work and files, for the desktop and the browser.
 - `src/cli.rs` — headless commands.
-- `src/app/` — the user interface (desktop and browser): `mod.rs` (state and frame loop), `project_file.rs` (live file, saves, undo), `solving.rs`, `shell.rs` (sidebar, toast), `camera.rs` (pan, zoom, viewport), `memo.rs`, `search.rs`, `theme/`, and one module per page: `chart/` (scene, canvas, card, interact, drag, tray, toolbar, inspector, person, moves, pins, preferences, edits, options, shortcuts), `graph/` (data, force layout, view, panel), `categories/` (spellings, merges, entries), `people/` (list, overview, editor, rule card, roster), `policy.rs`, `room.rs`, `printing.rs`.
+- `src/app/` — the user interface (desktop and browser): `mod.rs` (state and frame loop), `project_file.rs` (live file, saves, undo), `solving.rs`, `shell.rs` (sidebar, toast), `camera.rs` (pan, zoom, viewport), `memo.rs`, `search.rs`, `theme/`, and one module per page: `chart/` (scene, canvas, card, interact, drag, tray, marquee, toolbar, chips, inspector, person, moves, pins, preferences, edits, options, shortcuts), `graph/` (data, force layout, view, panel), `categories/` (spellings, merges, entries), `people/` (list, overview, editor, rule card, roster), `policy.rs`, `room.rs`, `printing.rs`.
 
 ## Local agent workflow
 

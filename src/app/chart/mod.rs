@@ -2,6 +2,7 @@
 
 mod canvas;
 mod card;
+mod chips;
 mod drag;
 mod edits;
 mod inspector;
@@ -92,7 +93,7 @@ pub(in crate::app) struct ChartState {
     /// Score change from the last hand edit, shown briefly on the chart.
     pub(in crate::app) last_change: Option<(i64, web_time::Instant)>,
     /// Per-option (score, hard violations), keyed by project revision.
-    pub(in crate::app) score_cache: Memo<u64, Vec<toolbar::OptionSummary>>,
+    pub(in crate::app) score_cache: Memo<u64, Vec<chips::OptionSummary>>,
     /// New name being typed for an option.
     pub(in crate::app) rename: String,
     /// The chart scene, keyed by (revision, option, compared option).
