@@ -252,3 +252,23 @@ fn people_dragged_together_from_the_list_fill_a_table_side() {
     let seated: Vec<String> = people.iter().map(|p| ui.seat_of(p.id)).collect();
     assert_eq!(seated, side);
 }
+
+#[test]
+fn clicking_an_empty_seat_seats_the_person_selected_in_the_list() {
+    let mut ui = Ui::with_example();
+    ui.click("Seat by hand");
+    ui.key(Modifiers::NONE, Key::Escape);
+    ui.key(Modifiers::NONE, Key::F);
+    let first = ui.app().project.attendees[0].clone();
+    ui.click(&first.name);
+    let seat = ui.app().project.layout.seats()[3].id.clone();
+    let at = ui.app().seat_card_on_screen(&seat).expect("seat").center();
+    ui.click_at(at, PointerButton::Primary, Modifiers::NONE);
+    assert_eq!(ui.seat_of(first.id), seat);
+    // Seated now, a click on another empty seat only clears the selection.
+    let other = ui.app().project.layout.seats()[5].id.clone();
+    let at = ui.app().seat_card_on_screen(&other).expect("seat").center();
+    ui.click_at(at, PointerButton::Primary, Modifiers::NONE);
+    assert_eq!(ui.seat_of(first.id), seat);
+    assert_eq!(ui.app().selected_person, None);
+}

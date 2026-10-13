@@ -318,8 +318,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Moved {} people", "{} henkilöä siirretty"),
     ("Not seated · {}", "Ei paikkaa · {}"),
     (
-        "Drag people onto seats or anywhere on the chart.",
-        "Vedä henkilöitä paikoille tai minne tahansa istumajärjestykseen.",
+        "Drag people onto seats or anywhere on the chart, or select one and click an empty seat.",
+        "Vedä henkilöitä paikoille tai minne tahansa istumajärjestykseen, tai valitse henkilö ja napsauta vapaata paikkaa.",
     ),
     ("Seat the rest", "Sijoita loput"),
     ("Take off the seat", "Poista paikalta"),

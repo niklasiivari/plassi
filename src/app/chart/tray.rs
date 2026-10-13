@@ -37,7 +37,9 @@ impl PlassiApp {
         theme::hint(
             ui,
             p,
-            tr("Drag people onto seats or anywhere on the chart."),
+            tr(
+                "Drag people onto seats or anywhere on the chart, or select one and click an empty seat.",
+            ),
         );
         ui.add_space(theme::space::S);
         if ui

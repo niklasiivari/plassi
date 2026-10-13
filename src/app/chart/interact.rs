@@ -178,9 +178,10 @@ impl PlassiApp {
         if response.clicked() && adding {
             actions.pick = person;
         } else if response.clicked() {
-            match self.chart.swap_from {
-                Some(from) => actions.moves = Some(swap_moves(paint.scene, from, place)),
-                None => actions.clicked = Some(person),
+            match (self.chart.swap_from, self.placing(paint.scene, place)) {
+                (Some(from), _) => actions.moves = Some(swap_moves(paint.scene, from, place)),
+                (None, Some(moves)) => actions.moves = Some(moves),
+                (None, None) => actions.clicked = Some(person),
             }
         }
         if response.drag_started()
@@ -192,6 +193,18 @@ impl PlassiApp {
             let grip = paint.view.world(pressed) - place.world_rect().center();
             actions.drag_start = Some((person, grip));
         }
+    }
+
+    /// Clicking an empty seat while someone without a seat is selected seats
+    /// them there.
+    fn placing(&self, scene: &Scene, place: Place) -> Option<Targets> {
+        let Place::Seat(seat) = place else {
+            return None;
+        };
+        let person = self.selected_person?;
+        let free = !scene.occupant.contains_key(&seat.id);
+        (free && scene.unseated.contains(&person))
+            .then(|| vec![(person, Spot::Seat(seat.id.clone()))])
     }
 
     /// The right-click menu of a person's card.
