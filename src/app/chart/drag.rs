@@ -115,11 +115,13 @@ impl PlassiApp {
         at: Pos2,
         targets: &Targets,
     ) {
-        // Where a loose card lies does not change the score.
+        // Where a loose card lies does not change the score, but being on
+        // the chart or in the list decides whether there is a move at all.
+        let floor = Spot::Loose(Point { x: 0.0, y: 0.0 });
         let key: Targets = targets
             .iter()
             .map(|(person, spot)| match spot {
-                Spot::Loose(_) => (*person, Spot::Unseated),
+                Spot::Loose(_) => (*person, floor.clone()),
                 _ => (*person, spot.clone()),
             })
             .collect();
