@@ -437,4 +437,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "People here with a hard rule broken",
         "Täällä istuvat, joiden ehdoton sääntö rikkoutuu",
     ),
+    ("Wishes to other tables", "Toiveet muihin pöytiin"),
+    ("{} → {} at {}", "{} → {}, {}"),
+    ("Show who they wished for", "Näytä toivottu henkilö"),
 ];

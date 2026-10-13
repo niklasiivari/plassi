@@ -2,6 +2,7 @@
 //! mix of categories and the allergies.
 
 use super::*;
+use crate::model::Target;
 
 impl Scene {
     /// The table's body in world space, from its top seat to its bottom seat.
@@ -89,6 +90,7 @@ impl PlassiApp {
         table_stats(ui, p, scene, &people);
         ui.add_space(theme::space::XL);
         self.table_people(ui, p, scene, &people);
+        self.wishes_away(ui, p, scene, table_id, &people);
         for kind in Kind::ALL {
             ui.add_space(theme::space::L);
             self.table_mix(ui, p, kind, &people);
@@ -122,6 +124,67 @@ impl PlassiApp {
                         self.selected_person = Some(id);
                     }
                 });
+            }
+        });
+    }
+
+    /// Wishes from people here for people seated at another table.
+    fn wishes_away(
+        &mut self,
+        ui: &mut egui::Ui,
+        p: Palette,
+        scene: &Scene,
+        table_id: &str,
+        people: &[usize],
+    ) {
+        let table_of = |person: usize| {
+            let seat = scene.seat_of.get(&person)?;
+            scene.seat(seat).map(|s| s.table_id.clone())
+        };
+        let mut away: Vec<(usize, usize, String)> = Vec::new();
+        for rule in self.project.rules.iter().filter(|r| r.enabled) {
+            let RuleKind::Proximity {
+                requester,
+                target: Target::People { ids },
+                ..
+            } = &rule.kind
+            else {
+                continue;
+            };
+            if !people.contains(requester) {
+                continue;
+            }
+            for &id in ids {
+                if let Some(other) = table_of(id).filter(|t| t != table_id) {
+                    away.push((*requester, id, other));
+                }
+            }
+        }
+        if away.is_empty() {
+            return;
+        }
+        ui.add_space(theme::space::L);
+        theme::section_title(ui, p, tr("Wishes to other tables"));
+        theme::text_rows(ui, |ui| {
+            for (from, to, table) in away {
+                let name = |id| self.project.person(id).map_or("", |a| a.name.as_str());
+                let text = fill(
+                    "{} → {} at {}",
+                    &[&name(from), &name(to), &self.table_title(&table)],
+                );
+                let label =
+                    egui::Label::new(RichText::new(text).size(theme::text::SMALL).color(p.warn))
+                        .sense(Sense::click());
+                if ui
+                    .add(label)
+                    .on_hover_text(tr("Show who they wished for"))
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .clicked()
+                {
+                    self.chart.selected_table = None;
+                    self.selected_person = Some(to);
+                    self.chart.view.focus_person = Some(to);
+                }
             }
         });
     }

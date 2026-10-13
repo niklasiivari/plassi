@@ -107,3 +107,50 @@ fn clicking_a_table_shows_its_summary() {
     assert_eq!(ui.app().selected_person, Some(someone));
     assert_eq!(ui.app().chart.selected_table, None);
 }
+
+#[test]
+fn a_table_summary_lists_wishes_that_leave_the_table() {
+    use crate::model::{Importance, Rule, RuleKind, Target, WishKind};
+    let mut ui = solved();
+    let tables: Vec<String> = ui.app().project.layout.rows[0]
+        .tables
+        .iter()
+        .map(|t| t.id.clone())
+        .collect();
+    let at = |ui: &Ui, table: &str| {
+        *ui.option()
+            .assignment
+            .iter()
+            .find(|(_, s)| s.starts_with(&format!("{table}:")))
+            .unwrap()
+            .0
+    };
+    let (from, to) = (at(&ui, &tables[0]), at(&ui, &tables[1]));
+    let app = ui.app_mut();
+    let id = app.project.next_rule_id();
+    app.project.rules.push(Rule {
+        id,
+        label: "Seating wish".into(),
+        source: "test".into(),
+        enabled: true,
+        kind: RuleKind::Proximity {
+            requester: from,
+            target: Target::People { ids: vec![to] },
+            wish: WishKind::Seating,
+            importance: Importance::Normal,
+            max_class: None,
+        },
+    });
+    app.commit("Added a wish");
+    ui.settle();
+
+    let point = ui.app().table_on_screen(&tables[0]).unwrap();
+    ui.click_at(point, PointerButton::Primary, Modifiers::NONE);
+    let line = ui
+        .dump()
+        .into_iter()
+        .find(|t| t.contains('→'))
+        .expect("the wish is listed");
+    ui.click(&line);
+    assert_eq!(ui.app().selected_person, Some(to));
+}
