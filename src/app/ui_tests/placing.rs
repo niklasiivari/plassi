@@ -65,7 +65,7 @@ fn someone_without_a_seat_is_offered_the_best_free_seats() {
             .0
             .clone()
     };
-    ui.click("Apply");
+    ui.click("Seat here");
     assert_eq!(ui.seat_of(first.id), best);
     // Seated, they get swaps instead.
     assert!(!ui.has_text("Seat here"));

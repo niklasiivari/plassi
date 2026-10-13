@@ -158,10 +158,17 @@ impl PlassiApp {
         let (after, _) = total_score(&scorer, &self.project, assignment);
         self.chart.last_change = Some((after - before, web_time::Instant::now()));
         let what = self.describe_edit(wanted, &edit);
-        self.commit(&fill(
-            "{} · score {} → {} ({})",
-            &[&what, &before, &after, &signed(after - before)],
-        ));
+        // While people have no seat the score itself means little; the
+        // change still does.
+        let unfinished = assignment.len() < self.project.attendees.len();
+        let message = match unfinished {
+            true => fill("{} · score {}", &[&what, &signed(after - before)]),
+            false => fill(
+                "{} · score {} → {} ({})",
+                &[&what, &before, &after, &signed(after - before)],
+            ),
+        };
+        self.commit(&message);
     }
 
     /// "Moved X", "Swapped X ↔ Y", "Moved 6 people" or "Moved X to the Not

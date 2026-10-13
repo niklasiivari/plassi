@@ -131,7 +131,10 @@ impl PlassiApp {
                 Place::Seat(seat) => Some(seat.id.as_str()),
                 Place::Loose(..) => None,
             };
-            response.on_hover_ui(|ui| self.hover_card(ui, p, scene, person, seat));
+            response.on_hover_ui(|ui| {
+                let footer = tr("Drag to move · right-click for actions");
+                self.hover_card(ui, p, scene, person, seat, footer)
+            });
         }
     }
 

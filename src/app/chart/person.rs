@@ -185,6 +185,7 @@ impl PlassiApp {
         scene: &Scene,
         person: usize,
         seat: Option<&str>,
+        footer: &str,
     ) {
         let Some(attendee) = self.project.person(person) else {
             return;
@@ -213,12 +214,10 @@ impl PlassiApp {
         } else {
             theme::hint(ui, p, tr("No wishes"));
         }
-        {
-            ui.label(
-                RichText::new(tr("Drag to move · right-click for actions"))
-                    .size(theme::text::CAPTION)
-                    .color(p.muted),
-            );
-        }
+        ui.label(
+            RichText::new(footer)
+                .size(theme::text::CAPTION)
+                .color(p.muted),
+        );
     }
 }

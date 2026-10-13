@@ -116,7 +116,10 @@ impl PlassiApp {
             self.paint_card(ui.painter(), p, rect, Some(person), look);
             if self.chart.drag.is_none() {
                 let response = response.clone();
-                response.on_hover_ui(|ui| self.hover_card(ui, p, scene, person, None));
+                response.on_hover_ui(|ui| {
+                    let footer = tr("Drag onto a seat or the chart");
+                    self.hover_card(ui, p, scene, person, None, footer)
+                });
             }
             if reveal == Some(person) {
                 ui.scroll_to_rect(rect, None);

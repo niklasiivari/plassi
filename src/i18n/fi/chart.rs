@@ -17,6 +17,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "toteutuvia toiveita {} vähemmän · ",
     ),
     ("score {}", "pistemuutos {}"),
+    ("{} · score {}", "{} · pistemuutos {}"),
     (" · breaks a hard rule", " · rikkoo ehdottoman säännön"),
     (
         " · fixes a hard rule",
@@ -340,6 +341,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Vedä henkilöitä paikoille tai minne tahansa istumajärjestykseen, tai valitse henkilö ja napsauta vapaata paikkaa.",
     ),
     ("Seat the rest", "Sijoita loput"),
+    (
+        "Drag onto a seat or the chart",
+        "Vedä paikalle tai istumajärjestykseen",
+    ),
     (
         "Let Improve move everyone",
         "Anna Paranna-toiminnon siirtää kaikkia",

@@ -26,22 +26,29 @@ impl PlassiApp {
         let mut apply = None;
         for (seat, other, delta) in moves.iter().take(4) {
             ui.horizontal(|ui| {
+                // Someone without a seat gets just the seat and "Seat here".
                 let who = match other.and_then(|o| self.project.person(o)) {
-                    Some(a) => fill("Swap with {}", &[&a.name]),
-                    None if seated => tr("Move to spare seat").into(),
-                    None => tr("Seat here").into(),
+                    Some(a) => Some(fill("Swap with {}", &[&a.name])),
+                    None if seated => Some(tr("Move to spare seat").into()),
+                    None => None,
                 };
+                let place = self.project.seat_label(seat);
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 0.0;
-                    ui.label(RichText::new(who).size(theme::text::SMALL));
-                    ui.label(
-                        RichText::new(self.project.seat_label(seat))
-                            .size(theme::text::CAPTION)
-                            .color(p.muted),
-                    );
+                    match &who {
+                        Some(who) => {
+                            ui.label(RichText::new(who).size(theme::text::SMALL));
+                            let place = RichText::new(place).size(theme::text::CAPTION);
+                            ui.label(place.color(p.muted));
+                        }
+                        None => {
+                            ui.label(RichText::new(place).size(theme::text::SMALL));
+                        }
+                    }
                 });
+                let button = if seated { tr("Apply") } else { tr("Seat here") };
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(theme::small_button(tr("Apply"))).clicked() {
+                    if ui.add(theme::small_button(button)).clicked() {
                         apply = Some(seat.clone());
                     }
                     let color = if *delta < 0 { p.good } else { p.muted };
