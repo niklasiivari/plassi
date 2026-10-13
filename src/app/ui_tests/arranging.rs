@@ -285,3 +285,19 @@ fn someone_without_a_seat_can_be_kept_at_a_chosen_table() {
     ui.click(&table.label);
     assert_eq!(ui.app().project.pins()[&first.id], Pin::Table(table.id));
 }
+
+#[test]
+fn taking_someone_off_the_seats_says_so_in_the_history() {
+    let mut ui = solved();
+    let [a, _] = ui.two_unpinned();
+    let name = ui.app().project.person_name(a).to_string();
+    ui.click_at(
+        ui.card_of(a).center(),
+        PointerButton::Secondary,
+        Modifiers::NONE,
+    );
+    ui.click("Take off the seat");
+    assert_eq!(ui.option().spot_of(a), Spot::Unseated);
+    let said = format!("Took {name} off the seats");
+    assert!(ui.has_text(&said), "{:?}", ui.dump());
+}
