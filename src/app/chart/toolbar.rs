@@ -8,6 +8,7 @@ enum OptionAction {
     Compare(usize),
     Delete(usize),
     Rename(usize),
+    Release(usize),
 }
 
 /// What an option chip shows.
@@ -243,6 +244,14 @@ impl PlassiApp {
                             if !active && ui.button(tr("Compare with current")).clicked() {
                                 action = Some(OptionAction::Compare(index));
                             }
+                            if !candidate.hand_placed.is_empty()
+                                && ui
+                                    .button(tr("Let Improve move everyone"))
+                                    .on_hover_text(tr("Forget who was placed by hand; pins stay"))
+                                    .clicked()
+                            {
+                                action = Some(OptionAction::Release(index));
+                            }
                             if ui.button(tr("Delete")).clicked() {
                                 action = Some(OptionAction::Delete(index));
                             }
@@ -261,6 +270,7 @@ impl PlassiApp {
             Some(OptionAction::Duplicate(i)) => self.duplicate_option(i),
             Some(OptionAction::Compare(i)) => self.chart.compare_with = Some(i),
             Some(OptionAction::Delete(i)) => self.delete_option(i),
+            Some(OptionAction::Release(i)) => self.release_hand_placed(i),
             Some(OptionAction::Rename(i)) => {
                 let name = self.chart.rename.trim().to_string();
                 if let Some(candidate) = self

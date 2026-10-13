@@ -378,3 +378,21 @@ fn finding_someone_without_a_seat_scrolls_the_list_to_them() {
     let anchor = ui.app().chart.tray_anchor.map(|(person, _)| person);
     assert_eq!(anchor, Some(last.id));
 }
+
+#[test]
+fn an_option_can_forget_who_was_placed_by_hand() {
+    let mut ui = solved();
+    let [[a, _], [c, _]] = two_blocks(&ui);
+    ui.drag(ui.card_of(a).center(), ui.card_of(c).center());
+    assert!(!ui.option().hand_placed.is_empty());
+    let chip = ui.app().project.candidates[0].name.clone();
+    let at =
+        ui.h.query_all_by(|n| n.label().is_some_and(|l| l.starts_with(&chip)))
+            .next()
+            .expect("option chip")
+            .rect()
+            .center();
+    ui.click_at(at, PointerButton::Secondary, Modifiers::NONE);
+    ui.click("Let Improve move everyone");
+    assert!(ui.option().hand_placed.is_empty());
+}

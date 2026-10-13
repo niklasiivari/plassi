@@ -25,6 +25,17 @@ impl PlassiApp {
         self.commit(tr("Duplicated option"));
     }
 
+    /// Forgets who was placed by hand in option `index`, so Improve may move
+    /// them again. Pins stay.
+    pub(super) fn release_hand_placed(&mut self, index: usize) {
+        let Some(candidate) = self.project.candidates.get_mut(index) else {
+            return;
+        };
+        candidate.hand_placed.clear();
+        let name = candidate.name.clone();
+        self.commit(&fill("Improve may move everyone in {}", &[&name]));
+    }
+
     pub(super) fn delete_option(&mut self, index: usize) {
         if index >= self.project.candidates.len() {
             return;
