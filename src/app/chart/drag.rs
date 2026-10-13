@@ -152,22 +152,34 @@ impl PlassiApp {
 /// Each person's spot when the first one's card lands at `anchor`. The
 /// others keep their offset from the first; people without a place on the
 /// chart stack below, one seat apart, so a stack dropped on a table side
-/// fills its seats in a row.
+/// fills its seats in a row. The stack skips seats the others land on.
 fn landing(scene: &Scene, people: &[usize], anchor: Pos2) -> Targets {
     let origin = scene.card_centre(people[0]);
-    let mut stacked = usize::from(origin.is_some());
+    let placed: HashMap<usize, Spot> = people
+        .iter()
+        .filter_map(|&p| {
+            let offset = scene.card_centre(p)? - origin?;
+            Some((p, spot_at(scene, anchor + offset)))
+        })
+        .collect();
+    let taken: HashSet<&str> = placed
+        .values()
+        .filter_map(|spot| match spot {
+            Spot::Seat(id) => Some(id.as_str()),
+            _ => None,
+        })
+        .collect();
+    let mut row = usize::from(origin.is_some());
+    let mut stack = || loop {
+        let spot = spot_at(scene, anchor + Vec2::new(0.0, row as f32 * SEAT_PITCH));
+        row += 1;
+        if !matches!(&spot, Spot::Seat(id) if taken.contains(id.as_str())) {
+            return spot;
+        }
+    };
     people
         .iter()
-        .map(|&person| {
-            let at = match (origin, scene.card_centre(person)) {
-                (Some(origin), Some(centre)) => anchor + (centre - origin),
-                _ => {
-                    stacked += 1;
-                    anchor + Vec2::new(0.0, (stacked - 1) as f32 * SEAT_PITCH)
-                }
-            };
-            (person, spot_at(scene, at))
-        })
+        .map(|&p| (p, placed.get(&p).cloned().unwrap_or_else(&mut stack)))
         .collect()
 }
 

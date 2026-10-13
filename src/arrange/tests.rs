@@ -167,3 +167,15 @@ fn a_new_option_never_repeats_a_name() {
     project.candidates.remove(0);
     assert_eq!(project.new_option_name(), "Option 3");
 }
+
+#[test]
+fn someone_aimed_at_the_seat_of_a_mover_staying_put_is_refused() {
+    let (project, mut candidate) = seated();
+    candidate.place(2, Spot::Unseated);
+    let wanted = [
+        (0, candidate.spot_of(0)),
+        (1, candidate.spot_of(1)),
+        (2, candidate.spot_of(1)),
+    ];
+    assert!(plan(&project, &candidate, &wanted).is_err());
+}

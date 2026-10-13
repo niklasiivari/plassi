@@ -338,3 +338,28 @@ fn a_right_button_drag_in_the_list_moves_nobody() {
     ui.settle();
     assert_eq!(ui.option().spot_of(a), loose);
 }
+
+#[test]
+fn a_block_with_someone_from_the_list_keeps_its_shape() {
+    let mut ui = solved();
+    let [[a, b], [c, d]] = two_blocks(&ui);
+    let u = *ui.option().assignment.keys().max().expect("someone seated");
+    assert!(![a, b, c, d].contains(&u));
+    let secondary = PointerButton::Secondary;
+    ui.click_at(ui.card_of(u).center(), secondary, Modifiers::NONE);
+    ui.click("Take off the seat");
+    ui.key(Modifiers::NONE, Key::F);
+    let primary = PointerButton::Primary;
+    for person in [a, b] {
+        ui.click_at(ui.card_of(person).center(), primary, Modifiers::COMMAND);
+    }
+    let name = ui.app().project.person_name(u).to_string();
+    ui.click_at(ui.node(&name).rect().center(), primary, Modifiers::COMMAND);
+    assert_eq!(ui.app().chart.multi, [a, b, u].into());
+    let (seat_c, seat_d) = (ui.seat_of(c), ui.seat_of(d));
+    // The person from the list stacks below the block, not onto its seats.
+    ui.drag(ui.card_of(a).center(), ui.card_of(c).center());
+    assert_eq!(ui.seat_of(a), seat_c);
+    assert_eq!(ui.seat_of(b), seat_d);
+    assert!(ui.option().assignment.contains_key(&u));
+}

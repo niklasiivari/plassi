@@ -68,6 +68,8 @@ pub fn plan(
         .filter(|(person, spot)| candidate.spot_of(*person) != *spot)
         .cloned()
         .collect();
+    // Two people aimed at one seat clash even when one of them stays put.
+    landing_seats(wanted)?;
     let landing = landing_seats(&movers)?;
     let pins = project.pins();
     let moving: HashSet<usize> = movers.iter().map(|(p, _)| *p).collect();
