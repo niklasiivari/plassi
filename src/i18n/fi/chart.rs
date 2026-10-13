@@ -64,6 +64,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Better seats", "Paremmat paikat"),
     ("Swap with {}", "Vaihda paikkaa: {}"),
     ("Move to spare seat", "Siirrä vapaalle paikalle"),
+    ("Free seats", "Vapaat paikat"),
+    ("Seat here", "Sijoita tähän"),
     ("Apply", "Käytä"),
     ("Wish group · {} people", "Toiveryhmä · {} henkilöä"),
     ("Find places for this group", "Etsi paikat tälle ryhmälle"),

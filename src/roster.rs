@@ -138,27 +138,9 @@ pub fn replace(project: &mut Project, old: usize, person: NewAttendee) -> Result
 
 /// The free seat in option `index` where `person` scores best.
 fn best_free_seat(project: &Project, index: usize, person: usize) -> Option<String> {
-    let assignment = &project.candidates[index].assignment;
-    let taken: std::collections::HashSet<&str> = assignment.values().map(String::as_str).collect();
-    let seats = project.layout.seats();
-    // Filling a seat below a free one on the same side would leave a gap.
-    let no_gap = |seat: &crate::model::Seat| {
-        !seats.iter().any(|s| {
-            s.table_id == seat.table_id
-                && s.side == seat.side
-                && s.index < seat.index
-                && !taken.contains(s.id.as_str())
-        })
-    };
-    let scorer = crate::seating::Scorer::new(project);
-    let score = |seat: &str| {
-        let mut trial = assignment.clone();
-        trial.insert(person, seat.to_string());
-        crate::score::evaluate_with(&scorer, project, &trial).penalty()
-    };
-    seats
-        .iter()
-        .filter(|s| !taken.contains(s.id.as_str()) && no_gap(s))
-        .min_by_key(|s| (score(&s.id), s.index))
-        .map(|s| s.id.clone())
+    let candidate = &project.candidates[index];
+    let (seat, _) = crate::arrange::free_seats(project, candidate, person)
+        .into_iter()
+        .next()?;
+    Some(seat)
 }

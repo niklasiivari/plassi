@@ -122,7 +122,7 @@ The Chart page shows the option's score (wish penalties plus seating-policy cost
 - Drag people off the tables to leave them anywhere on the chart, or onto the "Not seated" list beside it. People without a seat are listed there; drag them back onto seats or the chart. Dropping someone on a taken seat sends that seat's occupant to where the dropped person came from.
 - "Empty option" (under +, or "Seat by hand" before the first solve) adds an option where only people pinned to a seat are seated, next to the existing options. Place the people you know, then "Seat the rest" in the list makes a new option that seats everyone else and keeps the people placed by hand.
 - Right-click a person to pin them, keep them at the table, take them off the seat, or choose "Swap with…" and click the second person.
-- The person panel lists "Better seats": the swaps that improve the score most, each with an Apply button.
+- The person panel lists "Better seats": the swaps that improve the score most, each with an Apply button. For someone without a seat it lists "Free seats" instead: the top free seat of each table side, best first.
 - Ctrl+Z / Ctrl+Shift+Z undo and redo any saved change. Right-click an option chip to duplicate it (edit a copy), compare it with the current one, or delete it.
 - Moves by hand may leave an empty seat mid-table while you rearrange. Such gaps are marked, the print check flags them, and "Close gaps" slides people up each table side (pinned people stay put). Options with people not seated show how many on their chip. While anyone is not seated, the overview shows how many instead of the score, and its warnings and "Needs attention" leave out people without a seat.
 

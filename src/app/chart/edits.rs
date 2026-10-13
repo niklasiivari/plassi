@@ -76,14 +76,21 @@ pub(super) fn preview(
 /// Seats scored in full when looking for better seats.
 const SUGGESTION_CANDIDATES: usize = 12;
 
-/// Improving moves for one seated person, best first. Unlike moves by hand,
-/// suggestions never leave an empty seat mid-table.
+/// Improving moves for a seated person, or the best free seats for someone
+/// without a seat, best first. Unlike moves by hand, suggestions never leave
+/// an empty seat mid-table.
 pub(super) fn best_moves(project: &Project, candidate: usize, person: usize) -> Vec<Suggestion> {
     let Some(option) = project.candidates.get(candidate) else {
         return Vec::new();
     };
-    if project.seat_pinned_people().contains(&person) || !option.assignment.contains_key(&person) {
+    if project.seat_pinned_people().contains(&person) {
         return Vec::new();
+    }
+    if !option.assignment.contains_key(&person) {
+        return arrange::free_seats(project, option, person)
+            .into_iter()
+            .map(|(seat, delta)| (seat, None, delta))
+            .collect();
     }
     let seats = project.layout.seats();
     let gaps_now = gaps(&seats, &option.assignment).len();

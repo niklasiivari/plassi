@@ -3,8 +3,10 @@
 use super::*;
 
 impl PlassiApp {
-    /// Lists the swaps for `person` that improve the score the most.
+    /// Lists the swaps for `person` that improve the score the most, or the
+    /// best free seats when they have no seat.
     pub(super) fn suggestions_ui(&mut self, ui: &mut egui::Ui, p: Palette, person: usize) {
+        let seated = self.seat_in_option(person).is_some();
         let key = (self.file.revision, person, self.selected_candidate);
         let project = &self.project;
         let moves = self
@@ -15,14 +17,20 @@ impl PlassiApp {
             return;
         }
         ui.add_space(theme::space::XL);
-        theme::section_title(ui, p, tr("Better seats"));
+        let title = if seated {
+            tr("Better seats")
+        } else {
+            tr("Free seats")
+        };
+        theme::section_title(ui, p, title);
         let mut apply = None;
         for (seat, other, delta) in moves.iter().take(4) {
             ui.horizontal(|ui| {
-                let who = other
-                    .and_then(|o| self.project.person(o))
-                    .map(|a| fill("Swap with {}", &[&a.name]))
-                    .unwrap_or_else(|| tr("Move to spare seat").into());
+                let who = match other.and_then(|o| self.project.person(o)) {
+                    Some(a) => fill("Swap with {}", &[&a.name]),
+                    None if seated => tr("Move to spare seat").into(),
+                    None => tr("Seat here").into(),
+                };
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 0.0;
                     ui.label(RichText::new(who).size(theme::text::SMALL));
@@ -36,7 +44,8 @@ impl PlassiApp {
                     if ui.add(theme::small_button(tr("Apply"))).clicked() {
                         apply = Some(seat.clone());
                     }
-                    ui.label(RichText::new(format!("{delta}")).color(p.good).strong());
+                    let color = if *delta < 0 { p.good } else { p.muted };
+                    ui.label(RichText::new(format!("{delta:+}")).color(color).strong());
                 });
             });
         }

@@ -160,5 +160,8 @@ fn follow(pin: &Pin, spot: &Spot) -> Option<Option<Pin>> {
     }
 }
 
+mod free_seats;
+pub use free_seats::free_seats;
+
 #[cfg(test)]
 mod tests;
