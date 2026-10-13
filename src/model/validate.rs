@@ -154,11 +154,19 @@ impl Project {
 }
 
 impl Candidate {
-    /// Known people, at most one per seat. Seats that no longer exist are
-    /// allowed (the room may have changed); they show up as assignment errors.
+    /// Known people, at most one per seat, and loose people without a seat.
+    /// Seats that no longer exist are allowed (the room may have changed);
+    /// they show up as assignment errors.
     fn validate(&self, people: &HashSet<usize>) -> Result<()> {
-        if let Some(person) = self.assignment.keys().find(|p| !people.contains(p)) {
+        let placed = self.assignment.keys().chain(self.loose.keys());
+        if let Some(person) = placed.clone().find(|p| !people.contains(p)) {
             bail!(fill("{}: person {} is missing", &[&self.name, &person]));
+        }
+        if let Some(person) = self.loose.keys().find(|p| self.assignment.contains_key(p)) {
+            bail!(fill(
+                "{}: person {} is both seated and loose",
+                &[&self.name, &person]
+            ));
         }
         let mut taken = HashSet::new();
         if let Some(seat) = self.assignment.values().find(|s| !taken.insert(*s)) {

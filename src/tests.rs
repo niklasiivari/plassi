@@ -578,12 +578,12 @@ fn spare_seats_come_from_table_bottoms_in_pairs() {
 #[test]
 fn pinned_person_stays_on_seat() {
     let mut project = fixture();
-    project.pin(3, "table-a:right:1");
+    project.pin(3, Pin::Seat("table-a:right:1".into()));
     let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(400))
         .expect("pinned seating");
     assert_eq!(candidate.assignment[&3], "table-a:right:1");
     project.unpin(3);
-    assert!(project.pinned_people().is_empty());
+    assert!(project.seat_pinned_people().is_empty());
 }
 
 #[test]
@@ -684,7 +684,7 @@ fn group_move_leaves_pinned_members_and_is_not_undone() {
         ..template.clone()
     }));
     // 0 is pinned; 3 wishes for 0 and 4 for 3, so all three are one group.
-    project.pin(0, "table-a:left:0");
+    project.pin(0, Pin::Seat("table-a:left:0".into()));
     for (id, from, to) in [(1, 3, 0), (2, 4, 3)] {
         project.rules.push(crate::import::wish_rule(
             id,
@@ -1016,7 +1016,7 @@ fn catalog_merges_spellings_everywhere() {
 
 /// A made-up project: `people` attendees in three organizations, and
 /// `wishes` random seating wishes (some avecs), for solver-level tests.
-fn synthetic_project(people: usize, wishes: usize) -> Project {
+pub(crate) fn synthetic_project(people: usize, wishes: usize) -> Project {
     use rand::{Rng, SeedableRng};
     let mut rng = rand::rngs::StdRng::seed_from_u64(7);
     let mut project = Project::new();
@@ -1140,7 +1140,7 @@ fn avoid_table_end_keeps_people_off_the_ends() {
 }
 
 /// Two tables of four, eight people, no wishes.
-fn two_tables() -> Project {
+pub(crate) fn two_tables() -> Project {
     let mut project = synthetic_project(8, 0);
     project.layout.rows.push(RowSpec {
         id: "row".into(),
@@ -1320,7 +1320,7 @@ fn solver_moves_a_group_next_to_a_pinned_person() {
             })
             .collect(),
     });
-    project.pin(0, "t1:left:0");
+    project.pin(0, Pin::Seat("t1:left:0".into()));
     // About moving groups; keeping people without wishes off the ends
     // would trade against the wishes here.
     project.policy.lone_end_penalty = 0;
@@ -1424,7 +1424,7 @@ fn improve_moves_a_pinned_person_to_their_pin() {
         .find(|(p, _)| **p != 0)
         .map(|(_, s)| s.clone())
         .unwrap();
-    project.pin(0, &other);
+    project.pin(0, Pin::Seat(other.clone()));
     let mut search = crate::seating::improve_search(
         &project,
         &seating.assignment,

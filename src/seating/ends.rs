@@ -163,7 +163,7 @@ impl Ends {
 /// Per person index: whether they neither wish for anyone nor are wished
 /// for, and aren't in a group. Pinned people are left out: they can't move.
 fn lone_people(project: &Project, index: &HashMap<usize, usize>) -> Vec<bool> {
-    let mut connected: HashSet<usize> = project.pinned_people();
+    let mut connected: HashSet<usize> = project.seat_pinned_people();
     for rule in project.rules.iter().filter(|r| r.enabled) {
         if let RuleKind::Proximity {
             requester, target, ..

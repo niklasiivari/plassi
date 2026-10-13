@@ -14,7 +14,7 @@ impl PlassiApp {
     ) {
         self.person_heading(ui, p, scene, id);
         ui.add_space(theme::space::L);
-        self.pin_button(ui, scene, id);
+        self.pin_buttons(ui, p, scene, id);
         self.suggestions_ui(ui, p, id);
         self.group_ui(ui, p, id);
         ui.add_space(theme::space::XL);
@@ -57,11 +57,12 @@ impl PlassiApp {
                 .strong(),
         );
         ui.label(RichText::new(self.project.affiliation(&attendee)).color(p.muted));
-        let Some(seat) = scene.seat_of.get(&id) else {
-            return;
-        };
         ui.horizontal(|ui| {
-            theme::pill(ui, self.project.seat_label(seat), p.text, p.surface_hi);
+            let place = match scene.seat_of.get(&id) {
+                Some(seat) => self.project.seat_label(seat),
+                None => tr("Not seated").into(),
+            };
+            theme::pill(ui, place, p.text, p.surface_hi);
             let status = scene.status(id);
             let text = match status {
                 Some(Outcome::Met) => tr("All wishes met"),
@@ -73,22 +74,40 @@ impl PlassiApp {
         });
     }
 
-    fn pin_button(&mut self, ui: &mut egui::Ui, scene: &Scene, id: usize) {
-        let Some(seat) = scene.seat_of.get(&id).cloned() else {
-            return;
-        };
-        let pinned = scene.pinned.contains(&id);
-        if ui
-            .add(theme::secondary_button(if pinned {
-                tr("Unpin")
-            } else {
-                tr("Pin to this seat")
-            }))
-            .on_hover_text(tr("Keep this seat when solving"))
-            .clicked()
-        {
-            self.set_pin(id, (!pinned).then_some(seat.as_str()));
+    /// Pin or unpin; a seated person can also be kept at their table.
+    fn pin_buttons(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene, id: usize) {
+        if let Some(Pin::Table(table)) = scene.pins.get(&id) {
+            theme::hint(
+                ui,
+                p,
+                fill("Kept at {}", &[&self.project.table_label(table)]),
+            );
         }
+        let seat = scene.seat_of.get(&id).cloned();
+        ui.horizontal(|ui| match (scene.pins.get(&id), seat) {
+            (Some(_), _) => {
+                if ui.add(theme::secondary_button(tr("Unpin"))).clicked() {
+                    self.set_pin(id, None);
+                }
+            }
+            (None, Some(seat)) => {
+                if ui
+                    .add(theme::secondary_button(tr("Pin to this seat")))
+                    .on_hover_text(tr("Keep this seat when solving"))
+                    .clicked()
+                {
+                    self.set_pin(id, Some(Pin::Seat(seat.clone())));
+                }
+                if ui
+                    .add(theme::secondary_button(tr("Keep at this table")))
+                    .on_hover_text(tr("The solver may change their seats at this table"))
+                    .clicked()
+                {
+                    self.keep_at_table(&[id], crate::model::seat_table(&seat));
+                }
+            }
+            (None, None) => {}
+        });
     }
 
     /// People who wished to sit near this person, coloured by how well that wish is met.
@@ -160,7 +179,7 @@ impl PlassiApp {
         p: Palette,
         scene: &Scene,
         person: usize,
-        seat: &str,
+        seat: Option<&str>,
     ) {
         let Some(attendee) = self.project.person(person) else {
             return;
@@ -176,7 +195,11 @@ impl PlassiApp {
                 .color(p.muted)
                 .size(theme::text::SMALL),
         );
-        theme::hint(ui, p, self.project.seat_label(seat));
+        let place = match seat {
+            Some(seat) => self.project.seat_label(seat),
+            None => tr("Not seated").into(),
+        };
+        theme::hint(ui, p, place);
         if let Some(results) = scene.own.get(&person) {
             ui.separator();
             for (_, result) in results {

@@ -90,7 +90,7 @@ Event title, subtitle and print language (Finnish or English) are in `event`.
 
 ## Pins and seating policy
 
-A pin is a hard `Placement` rule with `Area::Seat` (label `Pinned`). Pin or unpin someone from the chart (right-click a card, or the person panel). The solver never moves pinned people; dragging a pinned person moves their pin with them.
+A pin is a hard `Placement` rule made in the app: `Area::Seat` holds someone on one seat (label `Pinned`), `Area::Table` keeps them somewhere at one table (label `Kept at table`). Pin or unpin someone from the chart (right-click a card, or the person panel); "Keep at table" in the selection bar keeps several Ctrl-clicked people at a table you choose. The solver never moves people pinned to a seat and only moves people kept at a table between that table's seats. Dragging a pinned person moves their pin with them; taking them off the seats drops a seat pin but keeps a table pin.
 
 `policy` in the project JSON holds global rules, edited on the Seating policy page:
 
@@ -118,10 +118,13 @@ A solve runs one independent search per CPU core for 30 seconds (Improve: 10 sec
 The Chart page shows the option's score (wish penalties plus seating-policy cost; lower is better) and every broken wish. Hand editing:
 
 - Drag a person onto another seat to swap them. While dragging, a badge shows how the score would change and whether a hard rule would break.
-- Right-click a person to pin them, or choose "Swap with…" and click the second person.
+- Ctrl-click several people and drag one of them to move them all as a block: everyone keeps their place relative to the person dragged. People in the seats the block lands on take the seats it left, so dropping six people on six others swaps the two groups.
+- Drag people off the tables to leave them anywhere on the chart, or onto the "Not seated" list beside it. People without a seat are listed there; drag them back onto seats or the chart. Dropping someone on a taken seat sends that seat's occupant to where the dropped person came from.
+- "Empty option" (under +, or "Seat by hand" before the first solve) adds an option where only people pinned to a seat are seated, next to the existing options. Place the people you know, then "Seat the rest" in the list makes a new option that seats everyone else and keeps the people placed by hand.
+- Right-click a person to pin them, keep them at the table, take them off the seat, or choose "Swap with…" and click the second person.
 - The person panel lists "Better seats": the swaps that improve the score most, each with an Apply button.
 - Ctrl+Z / Ctrl+Shift+Z undo and redo any saved change. Right-click an option chip to duplicate it (edit a copy), compare it with the current one, or delete it.
-- Moves that would leave an empty seat mid-table are refused. Options with such gaps are flagged, and "Close gaps" slides people up each table side (pinned people stay put).
+- Moves by hand may leave an empty seat mid-table while you rearrange. Such gaps are marked, the print check flags them, and "Close gaps" slides people up each table side (pinned people stay put). Options with people not seated show how many on their chip.
 
 Manual edits may violate hard rules; the report shows them rather than silently moving people back.
 

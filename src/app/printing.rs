@@ -158,6 +158,7 @@ impl PlassiApp {
         let problems: Vec<String> = [
             (evaluation.hard_violations, "{} hard rules broken"),
             (evaluation.assignment_errors.len(), "{} seating errors"),
+            (evaluation.unseated.len(), "{} not seated"),
             (gaps, "{} empty seats mid-table"),
         ]
         .into_iter()

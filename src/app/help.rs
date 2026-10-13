@@ -36,6 +36,8 @@ impl HelpPage {
                 "Solve: new chart. Improve: keep manual seats.",
                 "Choose an option. Lower scores are better.",
                 "Drag to move or swap. Ctrl-click to select.",
+                "Drag a selection to move it as a block.",
+                "Drag people off the tables to seat them later.",
                 "Select a person to see wishes.",
             ],
             HelpPage::People => &[

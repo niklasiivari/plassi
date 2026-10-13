@@ -143,7 +143,7 @@ impl Search {
             ));
         }
         let mut fixed = options.fixed.clone();
-        fixed.extend(project.pinned_people());
+        fixed.extend(project.seat_pinned_people());
         let pr = Problem::new(project, &fixed, options.differ_from, options.start);
         if let Some(p) = pr
             .placement

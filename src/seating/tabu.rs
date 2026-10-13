@@ -545,7 +545,12 @@ pub fn move_deltas(
     assignment: &BTreeMap<usize, String>,
     person: usize,
 ) -> Vec<(String, i64)> {
-    let pr = Problem::new(project, &project.pinned_people(), None, Some(assignment));
+    let pr = Problem::new(
+        project,
+        &project.seat_pinned_people(),
+        None,
+        Some(assignment),
+    );
     let (seat_of, occupant) = pr.state_of(assignment);
     let Some(from) = pr
         .people

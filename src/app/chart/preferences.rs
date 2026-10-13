@@ -14,7 +14,7 @@ impl PlassiApp {
         if picked < 2 {
             return;
         }
-        let size = Vec2::new(560.0_f32.min(rect.width() - 2.0 * theme::space::L), 52.0);
+        let size = Vec2::new(720.0_f32.min(rect.width() - 2.0 * theme::space::L), 52.0);
         let area = Rect::from_center_size(
             Pos2::new(
                 rect.center().x,
@@ -23,6 +23,7 @@ impl PlassiApp {
             size,
         );
         let mut chosen: Option<PreferenceKind> = None;
+        let mut keep: Option<String> = None;
         let mut clear = false;
         ui.scope_builder(egui::UiBuilder::new().max_rect(area), |ui| {
             theme::floating(p)
@@ -62,6 +63,7 @@ impl PlassiApp {
                                     ui.close();
                                 }
                             });
+                        keep = self.keep_at_table_menu(ui, &people);
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             clear = theme::icon_button(
                                 ui,
@@ -75,7 +77,10 @@ impl PlassiApp {
                     });
                 });
         });
-        if let Some(kind) = chosen {
+        if let Some(table) = keep {
+            let people: Vec<usize> = std::mem::take(&mut self.chart.multi).into_iter().collect();
+            self.keep_at_table(&people, &table);
+        } else if let Some(kind) = chosen {
             self.project.add_preference(kind, Strength::Important);
             self.chart.multi.clear();
             self.commit(tr("Preference added; solve again to apply"));

@@ -78,7 +78,10 @@ pub struct Evaluation {
     /// People none of whose wishes is near them, and what that costs.
     pub left_out: Vec<usize>,
     pub left_out_penalty: i64,
+    /// Seats that do not exist or are taken twice.
     pub assignment_errors: Vec<String>,
+    /// People without a seat.
+    pub unseated: Vec<usize>,
 }
 
 impl Evaluation {
@@ -126,6 +129,12 @@ pub fn evaluate_with(
         left_out: breakdown.left_out,
         left_out_penalty: breakdown.left_out_penalty,
         assignment_errors: assignment_errors(project, assignment),
+        unseated: project
+            .attendees
+            .iter()
+            .map(|a| a.id)
+            .filter(|id| !assignment.contains_key(id))
+            .collect(),
     }
 }
 
@@ -231,7 +240,7 @@ fn preference_result(preference: &Preference, breakdown: &Breakdown) -> Preferen
     }
 }
 
-/// Unseated people, unknown seats and doubly assigned seats.
+/// Unknown seats and doubly assigned seats.
 fn assignment_errors(project: &Project, assignment: &BTreeMap<usize, String>) -> Vec<String> {
     let seats: HashSet<String> = project.layout.seats().into_iter().map(|s| s.id).collect();
     let mut used = HashMap::new();
@@ -244,8 +253,7 @@ fn assignment_errors(project: &Project, assignment: &BTreeMap<usize, String>) ->
             Some(id) if used.insert(id, p.id).is_some() => {
                 errors.push(format!("seat {id} is assigned twice"))
             }
-            Some(_) => {}
-            None => errors.push(format!("{} has no seat", p.name)),
+            Some(_) | None => {}
         }
     }
     errors

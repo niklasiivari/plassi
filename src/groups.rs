@@ -96,7 +96,7 @@ pub fn suggest_moves(
     group: &[usize],
     score: impl Fn(&BTreeMap<usize, String>) -> (i64, usize),
 ) -> Vec<GroupMove> {
-    let pinned = project.pinned_people();
+    let pinned = project.seat_pinned_people();
     let movers: Vec<usize> = group
         .iter()
         .copied()

@@ -5,12 +5,14 @@
 //! - [`preferences`]: the planner's own "together" / "apart" preferences.
 //! - [`import`] / [`suggest`]: getting attendees and wishes in from spreadsheets.
 //! - [`score`] / [`seating`] / [`groups`]: evaluating and optimising seatings.
+//! - [`arrange`]: moving people by hand, one or a block at a time.
 //! - [`roster`]: late changes (walk-ins, cancellations, replacements).
 //! - [`print`]: A4 PDFs.
 //! - [`app`]: the UI, on the desktop and in the browser; [`cli`]: headless commands.
 //! - [`platform`]: storage, background work and files, per platform.
 
 mod app;
+mod arrange;
 mod catalog;
 #[cfg(not(target_arch = "wasm32"))]
 mod cli;

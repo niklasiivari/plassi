@@ -247,6 +247,17 @@
           },
           "uniqueItems": true
         },
+        "loose": {
+          "description": "People taken off the seats and left on the chart, by where their card is.",
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Point"
+            }
+          }
+        },
         "name": {
           "type": "string"
         },
@@ -500,6 +511,24 @@
         "SameOrganization",
         "Mixed",
         "Indifferent"
+      ]
+    },
+    "Point": {
+      "description": "A position on the chart, in chart units.",
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "format": "float"
+        },
+        "y": {
+          "type": "number",
+          "format": "float"
+        }
+      },
+      "required": [
+        "x",
+        "y"
       ]
     },
     "Preference": {
@@ -939,6 +968,19 @@
             "kind": {
               "type": "string",
               "const": "edited_by_hand"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Made empty, to be seated by hand.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "started_empty"
             }
           },
           "required": [

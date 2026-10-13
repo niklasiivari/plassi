@@ -165,15 +165,18 @@ impl Ui {
 
     /// Where the card of `person` is on screen.
     pub(super) fn card_of(&self, person: usize) -> egui::Rect {
-        let app = self.app();
-        let seat = &app.project.candidates[app.selected_candidate].assignment[&person];
-        app.seat_card_on_screen(seat).expect("seat on screen")
+        self.app().card_on_screen(person).expect("card on screen")
+    }
+
+    /// The chart canvas on screen.
+    pub(super) fn canvas(&self) -> egui::Rect {
+        self.app().canvas_on_screen().expect("chart shown")
     }
 
     /// Two seated people who are not pinned, the first ones in seat order.
     pub(super) fn two_unpinned(&self) -> [usize; 2] {
         let app = self.app();
-        let pinned = app.project.pinned_people();
+        let pinned = app.project.seat_pinned_people();
         let seated = &app.project.candidates[app.selected_candidate].assignment;
         let mut people = app.project.layout.seats().into_iter().filter_map(|seat| {
             seated
@@ -194,6 +197,12 @@ impl Ui {
         app.project.candidates[app.selected_candidate].assignment[&person].clone()
     }
 
+    /// The shown option.
+    pub(super) fn option(&self) -> &crate::model::Candidate {
+        let app = self.app();
+        &app.project.candidates[app.selected_candidate]
+    }
+
     /// Presses and releases a mouse button at `pos`.
     pub(super) fn click_at(
         &mut self,
@@ -203,13 +212,15 @@ impl Ui {
     ) {
         self.h.hover_at(pos);
         self.h.step();
+        // The modifiers are held for the click, as with a real Ctrl-click.
         for pressed in [true, false] {
-            self.h.event(egui::Event::PointerButton {
+            let event = egui::Event::PointerButton {
                 pos,
                 button,
                 pressed,
                 modifiers,
-            });
+            };
+            self.h.event_modifiers(event, modifiers);
             self.h.step();
         }
         self.settle();

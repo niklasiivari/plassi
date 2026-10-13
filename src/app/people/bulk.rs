@@ -80,7 +80,7 @@ impl PlassiApp {
             .unwrap_or_default();
         for &id in picked {
             match (pin, seats.get(&id)) {
-                (true, Some(seat)) => self.project.pin(id, seat),
+                (true, Some(seat)) => self.project.pin(id, crate::model::Pin::Seat(seat.clone())),
                 (true, None) => {}
                 (false, _) => self.project.unpin(id),
             }

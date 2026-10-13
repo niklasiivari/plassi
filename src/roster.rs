@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use anyhow::{Result, bail};
 
 use crate::i18n::{fill, tr};
-use crate::model::{Attendee, Project, RuleKind, Target};
+use crate::model::{Attendee, Project, RuleKind, Spot, Target};
 
 /// Details for a new attendee.
 #[derive(Clone, Default)]
@@ -100,12 +100,11 @@ pub fn remove(project: &mut Project, id: usize) {
         RuleKind::Proximity { .. } => true,
     });
     for candidate in &mut project.candidates {
-        candidate.assignment.remove(&id);
-        candidate.hand_placed.remove(&id);
+        candidate.forget(id);
     }
 }
 
-/// Replaces `old` with a new attendee who takes their seat in every option.
+/// Replaces `old` with a new attendee who takes their place in every option.
 /// Wishes by or about the departing person are removed.
 pub fn replace(project: &mut Project, old: usize, person: NewAttendee) -> Result<usize> {
     let name = person.name.trim();
@@ -125,18 +124,14 @@ pub fn replace(project: &mut Project, old: usize, person: NewAttendee) -> Result
         .map(|a| a.id + 1)
         .max()
         .unwrap_or(0);
-    let seats: Vec<Option<String>> = project
-        .candidates
-        .iter()
-        .map(|c| c.assignment.get(&old).cloned())
-        .collect();
+    let spots: Vec<Spot> = project.candidates.iter().map(|c| c.spot_of(old)).collect();
     remove(project, old);
     project.attendees.push(person.into_attendee(id));
-    for (candidate, seat) in project.candidates.iter_mut().zip(seats) {
-        if let Some(seat) = seat {
-            candidate.assignment.insert(id, seat);
+    for (candidate, spot) in project.candidates.iter_mut().zip(spots) {
+        if matches!(spot, Spot::Seat(_)) {
             candidate.hand_placed.insert(id);
         }
+        candidate.place(id, spot);
     }
     Ok(id)
 }

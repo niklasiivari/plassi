@@ -72,7 +72,7 @@ fn chart_search_pin_select_and_drag() {
 
     // P pins the selected person to their seat.
     ui.key(Modifiers::NONE, Key::P);
-    assert!(ui.app().project.pinned_people().contains(&guest));
+    assert!(ui.app().project.seat_pinned_people().contains(&guest));
 
     // F fits the whole room, so every card can be reached.
     ui.key(Modifiers::NONE, Key::F);
@@ -84,7 +84,9 @@ fn chart_search_pin_select_and_drag() {
     ui.click("Add to selection");
     assert!(ui.app().chart.multi.contains(&other));
 
-    // Dragging a card onto another swaps them; Undo restores.
+    // With the selection cleared, dragging a card onto another swaps the
+    // two; Undo restores.
+    ui.key(Modifiers::NONE, Key::Escape);
     let (a, b) = (other, third);
     let (seat_a, seat_b) = (ui.seat_of(a), ui.seat_of(b));
     let (from, to) = (ui.card_of(a).center(), ui.card_of(b).center());

@@ -10,7 +10,11 @@ pub(super) struct Scene {
     pub(super) evaluation: Option<std::rc::Rc<Evaluation>>,
     /// Rule results owned by each requester (or placed person).
     pub(super) own: HashMap<usize, Vec<(u64, RuleResult)>>,
-    pub(super) pinned: HashSet<usize>,
+    pub(super) pins: HashMap<usize, Pin>,
+    /// People off the seats but on the chart: their card's centre.
+    pub(super) loose: BTreeMap<usize, Pos2>,
+    /// Everyone without a seat, loose or not, in attendee order.
+    pub(super) unseated: Vec<usize>,
     /// People seated differently in the option being compared against.
     pub(super) moved: HashSet<usize>,
     /// Empty seats with someone seated below them on the same side.
@@ -27,10 +31,17 @@ impl Scene {
         evaluation: Option<std::rc::Rc<Evaluation>>,
     ) -> Self {
         let seats = project.layout.seats();
-        let assignment = candidate
-            .and_then(|i| project.candidates.get(i))
-            .map(|c| c.assignment.clone())
+        let option = candidate.and_then(|i| project.candidates.get(i));
+        let assignment = option.map(|c| c.assignment.clone()).unwrap_or_default();
+        let loose = option
+            .map(|c| {
+                c.loose
+                    .iter()
+                    .map(|(p, at)| (*p, Pos2::new(at.x, at.y)))
+                    .collect()
+            })
             .unwrap_or_default();
+        let unseated = option.map(|c| c.unseated(project)).unwrap_or_default();
         let occupant = assignment.iter().map(|(p, s)| (s.clone(), *p)).collect();
         let mut own: HashMap<usize, Vec<(u64, RuleResult)>> = HashMap::new();
         if let Some(evaluation) = &evaluation {
@@ -66,11 +77,47 @@ impl Scene {
             seat_of: assignment.into_iter().collect(),
             evaluation,
             own,
-            pinned: project.pinned_people(),
+            pins: project.pins(),
+            loose,
+            unseated,
             moved,
             score,
             gaps,
         }
+    }
+
+    /// World centre of a person's card: on their seat, or where they were left.
+    pub(super) fn card_centre(&self, person: usize) -> Option<Pos2> {
+        match self.seat_of.get(&person) {
+            Some(id) => self.seat(id).map(|s| card_rect(s).center()),
+            None => self.loose.get(&person).copied(),
+        }
+    }
+
+    /// Where a person is: on a seat, loose at their card's centre, or neither.
+    pub(super) fn spot_of(&self, person: usize) -> Spot {
+        match (self.seat_of.get(&person), self.loose.get(&person)) {
+            (Some(seat), _) => Spot::Seat(seat.clone()),
+            (None, Some(at)) => Spot::Loose(crate::model::Point { x: at.x, y: at.y }),
+            (None, None) => Spot::Unseated,
+        }
+    }
+
+    pub(super) fn seat(&self, id: &str) -> Option<&Seat> {
+        self.seats.iter().find(|s| s.id == id)
+    }
+
+    /// The seat whose card covers a world point.
+    pub(super) fn seat_at(&self, world: Pos2) -> Option<&Seat> {
+        self.seats.iter().find(|s| card_rect(s).contains(world))
+    }
+
+    /// The pin mark shown on a person's card.
+    pub(super) fn pin_mark(&self, person: usize) -> Option<PinMark> {
+        self.pins.get(&person).map(|pin| match pin {
+            Pin::Seat(_) => PinMark::Seat,
+            Pin::Table(_) => PinMark::Table,
+        })
     }
 
     pub(super) fn policy(&self) -> Option<&PolicyReport> {

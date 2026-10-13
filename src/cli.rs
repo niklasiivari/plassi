@@ -64,11 +64,12 @@ fn validate(path: &str) -> Result<()> {
     for candidate in &project.candidates {
         let evaluation = score::evaluate(&project, &candidate.assignment);
         println!(
-            "{}: wish penalty {}, {} hard violations, {} assignment errors ({})",
+            "{}: wish penalty {}, {} hard violations, {} assignment errors, {} not seated ({})",
             candidate.name,
             evaluation.wish_penalty,
             evaluation.hard_violations,
             evaluation.assignment_errors.len(),
+            evaluation.unseated.len(),
             candidate.solver_status.describe()
         );
     }

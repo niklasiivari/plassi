@@ -15,16 +15,25 @@ pub(super) fn initials(name: &str) -> String {
     theme::initials(name)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub(super) struct CardLook {
     /// How well this person's wishes are met; `None` for an empty seat.
     pub(super) status: Option<Outcome>,
     pub(super) selected: bool,
     pub(super) hovered: bool,
     pub(super) dimmed: bool,
-    pub(super) pinned: bool,
+    pub(super) pin: Option<PinMark>,
     pub(super) moved: bool,
     pub(super) gap: bool,
+    /// Off the seats, left on the chart.
+    pub(super) loose: bool,
+}
+
+/// How a person is pinned: a filled lock for a seat, an outlined one for a table.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum PinMark {
+    Seat,
+    Table,
 }
 
 /// What a seat card shows about its person.
@@ -142,7 +151,7 @@ pub(super) fn paint_person_card(
     );
     let text_x = paint_avatar(painter, p, rect, person, alpha);
     if rect.height() > 14.0 {
-        let marker_width = match (look.pinned, look.moved) {
+        let marker_width = match (look.pin.is_some(), look.moved) {
             (true, true) => 30.0 * zoom,
             (true, false) | (false, true) => 18.0 * zoom,
             (false, false) => 0.0,
@@ -154,11 +163,25 @@ pub(super) fn paint_person_card(
         paint_card_text(painter, p, rect, text_rect, person, alpha);
     }
     let corner = Pos2::new(rect.max.x - 11.0 * zoom, rect.min.y + 11.0 * zoom);
-    if look.pinned {
-        paint_lock(painter, corner, 9.0 * zoom, p.accent.gamma_multiply(alpha));
+    if let Some(pin) = look.pin {
+        paint_lock(
+            painter,
+            corner,
+            9.0 * zoom,
+            p.accent.gamma_multiply(alpha),
+            pin,
+        );
+    }
+    if look.loose {
+        dashed_outline(
+            painter,
+            rect.expand(2.0 * zoom),
+            zoom,
+            p.muted.gamma_multiply(alpha),
+        );
     }
     if look.moved {
-        let at = if look.pinned {
+        let at = if look.pin.is_some() {
             corner - Vec2::new(14.0 * zoom, 0.0)
         } else {
             corner
@@ -244,7 +267,13 @@ fn paint_card_text(
 }
 
 /// A small padlock drawn with shapes (no font glyph needed).
-pub(super) fn paint_lock(painter: &egui::Painter, centre: Pos2, size: f32, color: Color32) {
+pub(super) fn paint_lock(
+    painter: &egui::Painter,
+    centre: Pos2,
+    size: f32,
+    color: Color32,
+    mark: PinMark,
+) {
     let body = Rect::from_center_size(
         centre + Vec2::new(0.0, size * 0.25),
         Vec2::new(size, size * 0.7),
@@ -254,7 +283,15 @@ pub(super) fn paint_lock(painter: &egui::Painter, centre: Pos2, size: f32, color
         size * 0.32,
         Stroke::new(size * 0.14, color),
     );
-    painter.rect_filled(body, size * 0.15, color);
+    match mark {
+        PinMark::Seat => painter.rect_filled(body, size * 0.15, color),
+        PinMark::Table => painter.rect_stroke(
+            body,
+            size * 0.15,
+            Stroke::new(size * 0.14, color),
+            StrokeKind::Inside,
+        ),
+    };
 }
 
 /// A pill-shaped floating label centred on `at`.
@@ -327,12 +364,9 @@ mod tests {
                         },
                         CardLook {
                             status: Some(Outcome::Met),
-                            selected: false,
-                            hovered: false,
-                            dimmed: false,
-                            pinned,
+                            pin: pinned.then_some(PinMark::Seat),
                             moved,
-                            gap: false,
+                            ..Default::default()
                         },
                     );
                 });

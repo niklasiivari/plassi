@@ -23,9 +23,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("{} is pinned here", "Paikka on lukittu henkilölle {}"),
     (
-        "Would leave a gap; swap seats instead",
-        "Siirto jättäisi tyhjän paikan keskelle pöytää. Vaihda paikkoja.",
+        "Two people would land on one seat",
+        "Kaksi henkilöä osuisi samalle paikalle",
     ),
+    ("{} is kept at {}", "{} on lukittu pöytään {}"),
     ("no change", "ei muutosta"),
     ("+{} worse", "+{} (huonompi)"),
     ("{} better", "{} (parempi)"),
@@ -245,6 +246,14 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Siirrä tai vaihda paikkoja vetämällä. Valitse pitämällä Ctrl pohjassa ja napsauttamalla.",
     ),
     (
+        "Drag a selection to move it as a block.",
+        "Vedä valintaa, niin valitut siirtyvät yhtenä ryhmänä.",
+    ),
+    (
+        "Drag people off the tables to seat them later.",
+        "Vedä henkilöitä pois pöydistä, jos haluat sijoittaa heidät myöhemmin.",
+    ),
+    (
         "Select a person to see wishes.",
         "Valitse henkilö, niin näet hänen toiveensa.",
     ),
@@ -269,4 +278,45 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Select a person for wishes and suggested swaps.",
         "Valitse henkilö, niin näet hänen toiveensa ja ehdotukset paikanvaihdoista.",
     ),
+    // Arranging by hand: table pins, people without a seat, empty options
+    ("Kept {} at {}", "{} lukittu pöytään {}"),
+    ("Kept {} people at {}", "{} henkilöä lukittu pöytään {}"),
+    ("Keep at table", "Lukitse pöytään"),
+    ("{} (where they sit)", "{} (nykyinen pöytä)"),
+    ("Keep at this table", "Lukitse tähän pöytään"),
+    (
+        "Keep {} people at this table",
+        "Lukitse {} henkilöä tähän pöytään",
+    ),
+    (
+        "The solver may change their seats at this table",
+        "Paikka voi vaihtua tämän pöydän sisällä",
+    ),
+    ("Kept at {}", "Lukittu pöytään {}"),
+    ("Move to Not seated", "Siirrä Ei paikkaa -listaan"),
+    (
+        "Move {} people to Not seated",
+        "Siirrä {} henkilöä Ei paikkaa -listaan",
+    ),
+    ("Moved {} people", "{} henkilöä siirretty"),
+    ("Not seated · {}", "Ei paikkaa · {}"),
+    (
+        "Drag people onto seats or anywhere on the chart.",
+        "Vedä henkilöitä paikoille tai minne tahansa istumajärjestykseen.",
+    ),
+    ("Seat the rest", "Sijoita loput"),
+    (
+        "Seat everyone without a seat in a new option; people placed by hand stay",
+        "Sijoittaa kaikki paikattomat uuteen vaihtoehtoon; käsin sijoitetut pysyvät paikoillaan",
+    ),
+    ("Empty option", "Tyhjä vaihtoehto"),
+    (
+        "Start with nobody seated except pinned people",
+        "Aloita tyhjästä; vain lukitut henkilöt ovat paikoillaan",
+    ),
+    ("Added an empty option", "Tyhjä vaihtoehto lisätty"),
+    ("Seat by hand", "Sijoita käsin"),
+    ("  {} not seated", "  {} ilman paikkaa"),
+    ("{} not seated", "{} ilman paikkaa"),
+    (" · {} not seated", " · {} ilman paikkaa"),
 ];

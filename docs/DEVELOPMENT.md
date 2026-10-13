@@ -36,17 +36,18 @@ The platform differences live in `src/platform/` (`native.rs`, `web.rs`); the re
 
 ## Code layout
 
-- `src/model/` — the project file format (`mod.rs`), seat geometry (`layout.rs`) and validation (`validate.rs`).
+- `src/model/` — the project file format (`mod.rs`), seat geometry (`layout.rs`), pins (`pins.rs`), where people are in an option (`spots.rs`) and validation (`validate.rs`).
 - `src/catalog/` — categories for organizations, tickets, food and drinks; membership and merge suggestions.
 - `src/import.rs`, `src/suggest.rs` — spreadsheet import and suggested wishes from sign-up text.
 - `src/score.rs` — per-rule results shown in the app.
 - `src/seating/` — `problem.rs` (the project compiled to indices, and the score), `spare_seats.rs` (which seats stay empty), `tabu.rs` (the search), `mod.rs` (`solve` / `improve`).
 - `src/groups.rs` — wish groups and group-move suggestions.
+- `src/arrange/` — moving people by hand, one or a block at a time, with who makes room and how pins follow.
 - `src/roster.rs` — adding, removing and replacing attendees.
 - `src/print.rs` — the data behind the A4 prints; `typeset/` (crate `plassi-typeset`) turns it into PDFs with Typst and the bundled fonts.
 - `src/platform/` — storage, background work and files, for the desktop and the browser.
 - `src/cli.rs` — headless commands.
-- `src/app/` — the user interface (desktop and browser): `mod.rs` (state and frame loop), `project_file.rs` (live file, saves, undo), `solving.rs`, `shell.rs` (sidebar, toast), `camera.rs` (pan, zoom, viewport), `memo.rs`, `search.rs`, `theme/`, and one module per page: `chart/` (scene, canvas, card, toolbar, inspector, person, moves, preferences, edits), `graph/` (data, force layout, view, panel), `categories/` (spellings, merges, entries), `people/` (list, overview, editor, rule card, roster), `policy.rs`, `room.rs`, `printing.rs`.
+- `src/app/` — the user interface (desktop and browser): `mod.rs` (state and frame loop), `project_file.rs` (live file, saves, undo), `solving.rs`, `shell.rs` (sidebar, toast), `camera.rs` (pan, zoom, viewport), `memo.rs`, `search.rs`, `theme/`, and one module per page: `chart/` (scene, canvas, card, interact, drag, tray, toolbar, inspector, person, moves, pins, preferences, edits, options, shortcuts), `graph/` (data, force layout, view, panel), `categories/` (spellings, merges, entries), `people/` (list, overview, editor, rule card, roster), `policy.rs`, `room.rs`, `printing.rs`.
 
 ## Local agent workflow
 

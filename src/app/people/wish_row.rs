@@ -21,6 +21,12 @@ pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<Stri
             ..
         } => fill("Pinned to {}", &[&project.seat_label(seat)]),
         RuleKind::Placement {
+            area: Area::Table(table),
+            must_be: true,
+            hard: true,
+            ..
+        } => fill("Kept at {}", &[&project.table_label(table)]),
+        RuleKind::Placement {
             area,
             must_be,
             hard,
@@ -28,7 +34,8 @@ pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<Stri
         } => {
             let place = match area {
                 Area::Seat(id) => project.seat_label(id),
-                Area::Table(id) | Area::Row(id) | Area::RowCenter(id) => id.clone(),
+                Area::Table(id) => project.table_label(id).to_string(),
+                Area::Row(id) | Area::RowCenter(id) => id.clone(),
                 Area::Tag(tag) => fill("seats tagged “{}”", &[tag]),
             };
             if !hard {

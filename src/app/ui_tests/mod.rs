@@ -4,4 +4,5 @@
 
 mod harness;
 
+mod arranging;
 mod flows;

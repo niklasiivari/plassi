@@ -18,6 +18,23 @@ pub(in crate::app) struct OptionSummary {
     /// Wishes fully met, of all wishes.
     met: usize,
     wishes: usize,
+    /// People without a seat; an option with any is not finished.
+    unseated: usize,
+}
+
+impl OptionSummary {
+    /// Orders options: finished first, then fewest broken hard rules, then score.
+    fn rank(&self) -> (bool, usize, i64) {
+        (self.unseated > 0, self.hard, self.score)
+    }
+
+    /// The short result after the option's name.
+    fn chip_text(&self) -> String {
+        match self.unseated {
+            0 => fill("  {}/{} met", &[&self.met, &self.wishes]),
+            n => fill("  {} not seated", &[&n]),
+        }
+    }
 }
 
 impl PlassiApp {
@@ -65,20 +82,29 @@ impl PlassiApp {
         {
             self.start_improve();
         }
-        // Less frequent searches, grouped under the add-option action.
+        // Less frequent searches and the empty option, under the add-option action.
         let button = theme::icon_button_enabled(
             ui,
             p,
             theme::Icon::Plus,
             tr("Create another seating option"),
             false,
-            can_solve && has_option,
+            !self.file.external_invalid && people > 0,
         );
         egui::Popup::menu(&button)
             .style(theme::menu_style)
             .show(|ui| {
                 if ui
-                    .button(tr("Different option"))
+                    .button(tr("Empty option"))
+                    .on_hover_text(tr("Start with nobody seated except pinned people"))
+                    .clicked()
+                {
+                    self.add_empty_option();
+                    ui.close();
+                }
+                let can_search = can_solve && has_option;
+                if ui
+                    .add_enabled(can_search, egui::Button::new(tr("Different option")))
                     .on_hover_text(tr("Find a different seating arrangement"))
                     .clicked()
                 {
@@ -86,7 +112,7 @@ impl PlassiApp {
                     ui.close();
                 }
                 if ui
-                    .button(tr("Continue search"))
+                    .add_enabled(can_search, egui::Button::new(tr("Continue search")))
                     .on_hover_text(tr("Keep pins; save only a better result"))
                     .clicked()
                 {
@@ -124,6 +150,7 @@ impl PlassiApp {
                                 .filter(|r| r.outcome() == Outcome::Met)
                                 .count(),
                             wishes: wishes.len(),
+                            unseated: c.unseated(project).len(),
                         }
                     })
                     .collect()
@@ -134,7 +161,7 @@ impl PlassiApp {
     /// One chip per option with its score; the best is green, broken hard rules red.
     fn option_chips(&mut self, ui: &mut egui::Ui, p: Palette) {
         let scores = self.option_scores();
-        let best = scores.iter().map(|s| (s.hard, s.score)).min();
+        let best = scores.iter().map(OptionSummary::rank).min();
         let mut selected = self.selected_candidate;
         let mut action = None;
         let chips = egui::ScrollArea::horizontal()
@@ -145,9 +172,10 @@ impl PlassiApp {
                     let active = index == self.selected_candidate;
                     let summary = scores.get(index).copied().unwrap_or_default();
                     let (score, hard) = (summary.score, summary.hard);
-                    let is_best = best == Some((hard, score));
+                    let is_best = best == Some(summary.rank());
                     let score_color = match () {
                         _ if hard > 0 => p.bad,
+                        _ if summary.unseated > 0 => p.warn,
                         _ if is_best => p.good,
                         _ => p.muted,
                     };
@@ -161,7 +189,7 @@ impl PlassiApp {
                         ),
                     );
                     label.append(
-                        &fill("  {}/{} met", &[&summary.met, &summary.wishes]),
+                        &summary.chip_text(),
                         0.0,
                         egui::TextFormat::simple(
                             FontId::proportional(theme::text::SMALL),
@@ -178,6 +206,9 @@ impl PlassiApp {
                     );
                     if hard > 0 {
                         hover.push_str(&fill(" · {} hard rules broken", &[&hard]));
+                    }
+                    if summary.unseated > 0 {
+                        hover.push_str(&fill(" · {} not seated", &[&summary.unseated]));
                     }
                     if is_best {
                         hover.push_str(tr(" · best"));

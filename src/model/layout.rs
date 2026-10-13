@@ -156,6 +156,11 @@ pub fn end_level(seat: usize, beside: &[Vec<usize>], occupied: &dyn Fn(usize) ->
 
 /// Empty seats with someone seated further down the same side. Spare seats
 /// belong at table bottoms, so each of these is a gap.
+/// The table a seat belongs to; seat IDs are "table:side:index".
+pub fn seat_table(seat_id: &str) -> &str {
+    seat_id.split(':').next().unwrap_or(seat_id)
+}
+
 pub fn gaps<'a>(seats: &'a [Seat], assignment: &BTreeMap<usize, String>) -> Vec<&'a Seat> {
     let taken: HashSet<&str> = assignment.values().map(String::as_str).collect();
     let mut deepest: HashMap<(&str, Side), usize> = HashMap::new();

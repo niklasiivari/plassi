@@ -95,6 +95,7 @@ pub fn candidate(project: &Project, outcome: Outcome, budget: Duration) -> Candi
         solver_status: outcome.status(budget.as_secs_f64()),
         assignment: outcome.assignment,
         hand_placed: Default::default(),
+        loose: Default::default(),
     }
 }
 

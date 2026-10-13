@@ -41,7 +41,7 @@ impl PlassiApp {
             });
         }
         if let Some(seat) = apply {
-            self.move_or_swap(person, &seat);
+            self.move_to(person, Spot::Seat(seat));
         }
     }
 

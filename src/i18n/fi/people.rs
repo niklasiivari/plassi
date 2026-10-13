@@ -16,7 +16,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Wishes", "Toiveet"),
     ("No wishes", "Ei toiveita"),
     ("Unmet wishes", "Toteutumattomat toiveet"),
-    ("No seat", "Ei paikkaa"),
+    ("Not seated", "Ei paikkaa"),
     ("Pinned", "Lukitut paikat"),
     ("1 wish", "1 toive"),
     ("{} wishes", "{} toivetta"),

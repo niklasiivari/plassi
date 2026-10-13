@@ -48,7 +48,7 @@ impl PlassiApp {
         ui.add_space(theme::space::XS);
         ui.separator();
         let active = self.project.active_people();
-        let pinned = self.project.pinned_people();
+        let pinned: HashSet<usize> = self.project.pins().into_keys().collect();
         let unmet = self.unmet_people();
         let seated: Option<HashSet<usize>> = self
             .project
@@ -146,7 +146,7 @@ impl PlassiApp {
             (PeopleFilter::WithWishes, tr("Wishes").to_string()),
             (PeopleFilter::Unconstrained, tr("No wishes").to_string()),
             (PeopleFilter::Unmet, tr("Unmet wishes").to_string()),
-            (PeopleFilter::NotSeated, tr("No seat").to_string()),
+            (PeopleFilter::NotSeated, tr("Not seated").to_string()),
             (PeopleFilter::Pinned, tr("Pinned").to_string()),
         ];
         ui.horizontal_wrapped(|ui| {

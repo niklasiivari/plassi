@@ -5,9 +5,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 mod layout;
+mod pins;
+mod spots;
 mod validate;
 
 pub use layout::*;
+pub use pins::Pin;
+pub use spots::{Point, Spot};
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Attendee {
@@ -453,6 +457,9 @@ pub struct Candidate {
     /// People placed by hand in this option; "Improve around my edits" keeps them.
     #[serde(default)]
     pub hand_placed: std::collections::BTreeSet<usize>,
+    /// People taken off the seats and left on the chart, by where their card is.
+    #[serde(default)]
+    pub loose: BTreeMap<usize, Point>,
 }
 
 /// How an option came about, stored as data and put into words in the
@@ -479,6 +486,8 @@ pub enum SolverStatus {
         seconds: u64,
     },
     EditedByHand,
+    /// Made empty, to be seated by hand.
+    StartedEmpty,
 }
 
 impl SolverStatus {
@@ -505,6 +514,7 @@ impl SolverStatus {
             }
             Self::Continued { from, seconds } => fill("Searched {} s more · {}", &[seconds, from]),
             Self::EditedByHand => tr("Edited by hand").into(),
+            Self::StartedEmpty => tr("Started empty").into(),
         }
     }
 }
@@ -540,14 +550,7 @@ impl Project {
             "right" => Side::Right,
             _ => return None,
         };
-        let label = self
-            .layout
-            .rows
-            .iter()
-            .flat_map(|r| &r.tables)
-            .find(|t| t.id == table)
-            .map_or(table, |t| t.label.as_str());
-        Some((label, side, index + 1))
+        Some((self.table_label(table), side, index + 1))
     }
 
     /// Human-readable seat name, e.g. "Table 2 · left 3".
@@ -559,55 +562,14 @@ impl Project {
         }
     }
 
-    /// People held on one seat by an enabled hard seat rule.
-    pub fn pinned_people(&self) -> HashSet<usize> {
-        self.rules
+    /// A table's label, or its ID if it is not in the room.
+    pub fn table_label<'a>(&'a self, table_id: &'a str) -> &'a str {
+        self.layout
+            .rows
             .iter()
-            .filter_map(|r| self.pin_seat(r).map(|(person, _)| person))
-            .collect()
-    }
-
-    /// The (person, seat) of a pin: an enabled, hard "must sit on this seat" rule.
-    pub fn pin_seat<'a>(&self, rule: &'a Rule) -> Option<(usize, &'a str)> {
-        match &rule.kind {
-            RuleKind::Placement {
-                person,
-                area: Area::Seat(seat),
-                must_be: true,
-                hard: true,
-                ..
-            } if rule.enabled => Some((*person, seat.as_str())),
-            _ => None,
-        }
-    }
-
-    /// Pins a person to a seat, replacing any previous pin for them.
-    pub fn pin(&mut self, person: usize, seat: &str) {
-        self.unpin(person);
-        let id = self.next_rule_id();
-        self.rules.push(Rule {
-            id,
-            label: "Pinned".into(),
-            source: "Pinned in the app".into(),
-            enabled: true,
-            kind: RuleKind::Placement {
-                person,
-                area: Area::Seat(seat.into()),
-                must_be: true,
-                hard: true,
-                penalty: 0,
-            },
-        });
-    }
-
-    pub fn unpin(&mut self, person: usize) {
-        let pinned: Vec<u64> = self
-            .rules
-            .iter()
-            .filter(|r| self.pin_seat(r).is_some_and(|(p, _)| p == person))
-            .map(|r| r.id)
-            .collect();
-        self.rules.retain(|r| !pinned.contains(&r.id));
+            .flat_map(|r| &r.tables)
+            .find(|t| t.id == table_id)
+            .map_or(table_id, |t| t.label.as_str())
     }
 
     pub fn next_rule_id(&self) -> u64 {

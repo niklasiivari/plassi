@@ -98,6 +98,13 @@ impl PlassiApp {
                     {
                         self.start_solve(false);
                     }
+                    if ui
+                        .add_enabled(ready, theme::secondary_button(tr("Seat by hand")))
+                        .on_hover_text(tr("Start with nobody seated except pinned people"))
+                        .clicked()
+                    {
+                        self.add_empty_option();
+                    }
                     if self.project.attendees.is_empty() && ui.button(tr("Try example")).clicked() {
                         self.load_example();
                     }

@@ -11,24 +11,12 @@ pub(super) const CARD_H: f32 = 44.0;
 /// so the card lies just outside the table edge.
 pub(super) const CARD_OFFSET: f32 = CARD_W / 2.0 + 6.0;
 
-/// What the user did with seat cards this frame.
-#[derive(Default)]
-pub(super) struct SeatActions {
-    /// `Some(None)` clicks an empty seat, which clears the selection.
-    clicked: Option<Option<usize>>,
-    drag_start: Option<usize>,
-    drop_target: Option<String>,
-    hovered_card: bool,
-    hovered_person: Option<usize>,
-    /// Ctrl/Shift-click: add to or remove from the multi-selection.
-    pick: Option<usize>,
-    /// Pin a person to a seat, or unpin them (`None`).
-    pin: Option<(usize, Option<String>)>,
-    start_swap: Option<usize>,
-    swap_with: Option<String>,
-    /// Open a roster change for a person on the People page.
-    roster: Option<(usize, crate::app::people::RosterEdit)>,
-    remove: Option<usize>,
+/// What every card on one frame of the canvas is painted with.
+pub(super) struct Paint<'a> {
+    pub(super) painter: &'a egui::Painter,
+    pub(super) view: &'a Viewport,
+    pub(super) p: Palette,
+    pub(super) scene: &'a Scene,
 }
 
 /// Dotted backdrop that pans and zooms with the chart.
@@ -64,9 +52,17 @@ impl PlassiApp {
         self.paint_tables(&painter, &view, p, scene);
         self.paint_wish_lines(&painter, &view, p, scene);
         self.paint_group_highlights(&painter, &view, p, scene);
-        let actions = self.seat_cards(ui, &painter, &view, p, scene);
-        self.paint_drag_ghost(ui, &view, p, scene, actions.drop_target.as_deref());
-        self.apply_seat_actions(ui, &background, actions);
+        let targets = self.drop_targets(ui, &view, scene);
+        let paint = Paint {
+            painter: &painter,
+            view: &view,
+            p,
+            scene,
+        };
+        let actions = self.cards(ui, &paint, targets.as_ref());
+        self.paint_drag(ui, &view, p, scene, targets.as_ref());
+        self.apply_card_actions(ui, &background, actions);
+        self.finish_drag(ui, targets);
         self.chart_shortcuts(ui);
         self.paint_status_badge(ui, &painter, rect, p);
         self.preference_bar(ui, p, rect);
@@ -83,12 +79,15 @@ impl PlassiApp {
         background: &egui::Response,
         scene: &Scene,
     ) -> Viewport {
+        let card = Vec2::new(CARD_W, CARD_H);
         let world = scene
-            .seats
-            .iter()
-            .fold(Rect::NOTHING, |r, seat| r.union(card_rect(seat)))
+            .loose
+            .values()
+            .map(|at| Rect::from_center_size(*at, card))
+            .chain(scene.seats.iter().map(card_rect))
+            .fold(Rect::NOTHING, Rect::union)
             .expand2(Vec2::new(30.0, 50.0));
-        let can_pan = self.chart.dragged_person.is_none();
+        let can_pan = self.chart.drag.is_none();
         let view = &mut self.chart.view;
         if view.fit_pending && rect.width() > 50.0 {
             view.camera.fit(rect, world, 1.4);
@@ -148,13 +147,7 @@ impl PlassiApp {
         let Some(selected) = self.chart.hovered_person.or(self.selected_person) else {
             return;
         };
-        let centre_of = |person: usize| {
-            scene
-                .seat_of
-                .get(&person)
-                .and_then(|id| scene.seats.iter().find(|s| &s.id == id))
-                .map(|s| view.point(card_rect(s).center()))
-        };
+        let centre_of = |person: usize| scene.card_centre(person).map(|c| view.point(c));
         let Some(from) = centre_of(selected) else {
             return;
         };
@@ -209,19 +202,26 @@ impl PlassiApp {
             .and_then(|id| self.project.preferences.iter().find(|p| p.id == id))
             .map(|p| p.kind.people().iter().copied().collect())
             .unwrap_or_default();
-        for seat in &scene.seats {
-            let in_group = scene
-                .occupant
-                .get(&seat.id)
-                .is_some_and(|p| group.contains(p));
-            let occupant = scene.occupant.get(&seat.id);
-            let previewed = self
-                .chart
-                .group_preview
-                .as_ref()
-                .is_some_and(|s| s.contains(&seat.id))
-                || occupant.is_some_and(|p| preview.contains(p));
-            let picked = occupant.is_some_and(|p| self.chart.multi.contains(p));
+        let seats = scene.seats.iter().map(|s| {
+            (
+                card_rect(s),
+                Some(s.id.as_str()),
+                scene.occupant.get(&s.id).copied(),
+            )
+        });
+        let loose = scene.loose.iter().map(|(person, at)| {
+            let rect = Rect::from_center_size(*at, Vec2::new(CARD_W, CARD_H));
+            (rect, None, Some(*person))
+        });
+        for (rect, seat, occupant) in seats.chain(loose) {
+            let in_group = occupant.is_some_and(|p| group.contains(&p));
+            let previewed = seat.is_some_and(|id| {
+                self.chart
+                    .group_preview
+                    .as_ref()
+                    .is_some_and(|s| s.iter().any(|s| s == id))
+            }) || occupant.is_some_and(|p| preview.contains(&p));
+            let picked = occupant.is_some_and(|p| self.chart.multi.contains(&p));
             if !in_group && !previewed && !picked {
                 continue;
             }
@@ -233,263 +233,12 @@ impl PlassiApp {
                 p.accent.gamma_multiply(0.6)
             };
             painter.rect(
-                view.rect(card_rect(seat)).expand(4.0 * view.zoom.max(0.5)),
+                view.rect(rect).expand(4.0 * view.zoom.max(0.5)),
                 CornerRadius::same((12.0 * view.zoom).clamp(3.0, 14.0) as u8),
                 color.gamma_multiply(0.18),
                 Stroke::new(1.5, color.gamma_multiply(0.8)),
                 StrokeKind::Outside,
             );
-        }
-    }
-
-    /// Paints every seat card and collects what the user did with them.
-    fn seat_cards(
-        &self,
-        ui: &mut egui::Ui,
-        painter: &egui::Painter,
-        view: &Viewport,
-        p: Palette,
-        scene: &Scene,
-    ) -> SeatActions {
-        let pointer = ui.input(|i| i.pointer.interact_pos());
-        let needle = crate::app::search::Needle::new(&self.chart.search);
-        let mut actions = SeatActions::default();
-        for seat in &scene.seats {
-            let screen = view.rect(card_rect(seat));
-            if !screen.intersects(view.clip) {
-                continue;
-            }
-            let response = ui
-                .interact(
-                    screen,
-                    ui.id().with(("seat", &seat.id)),
-                    Sense::click_and_drag(),
-                )
-                .on_hover_cursor(egui::CursorIcon::Grab);
-            actions.hovered_card |= response.hovered();
-            if response.hovered() {
-                actions.hovered_person = scene.occupant.get(&seat.id).copied();
-            }
-            let person = scene.occupant.get(&seat.id).copied();
-            if let Some(attendee) = person.and_then(|id| self.project.person(id)) {
-                response.widget_info(|| {
-                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &attendee.name)
-                });
-            }
-            let is_drop = self.chart.dragged_person.is_some()
-                && pointer.is_some_and(|pos| screen.contains(pos));
-            if is_drop {
-                actions.drop_target = Some(seat.id.clone());
-            }
-            let search_miss = !needle.is_empty()
-                && !person
-                    .and_then(|id| self.project.person(id))
-                    .is_some_and(|a| needle.matches(&a.name));
-            self.paint_card(
-                painter,
-                p,
-                screen,
-                person,
-                CardLook {
-                    status: person.and_then(|id| scene.status(id)),
-                    selected: person.is_some() && person == self.selected_person,
-                    hovered: response.hovered() || is_drop,
-                    dimmed: search_miss
-                        || (person.is_some() && person == self.chart.dragged_person),
-                    pinned: person.is_some_and(|id| scene.pinned.contains(&id)),
-                    moved: person.is_some_and(|id| scene.moved.contains(&id)),
-                    gap: scene.gaps.contains(&seat.id),
-                },
-            );
-            let adding = ui.input(|i| i.modifiers.command || i.modifiers.shift);
-            if response.clicked() && adding {
-                actions.pick = person;
-            } else if response.clicked() {
-                if self.chart.swap_from.is_some() {
-                    actions.swap_with = Some(seat.id.clone());
-                } else {
-                    actions.clicked = Some(person);
-                }
-            }
-            if response.drag_started() && person.is_some() {
-                actions.drag_start = person;
-            }
-            let Some(id) = person else { continue };
-            let pinned = scene.pinned.contains(&id);
-            egui::Popup::context_menu(&response)
-                .style(theme::menu_style)
-                .show(|ui| {
-                    if ui
-                        .button(if pinned {
-                            tr("Unpin (P)")
-                        } else {
-                            tr("Pin to this seat (P)")
-                        })
-                        .clicked()
-                    {
-                        actions.pin = Some((id, (!pinned).then(|| seat.id.clone())));
-                    }
-                    if ui.button(tr("Swap with…")).clicked() {
-                        actions.start_swap = Some(id);
-                    }
-                    let picked = self.chart.multi.contains(&id);
-                    let pick = if picked {
-                        tr("Remove from selection")
-                    } else {
-                        tr("Add to selection")
-                    };
-                    if ui
-                        .button(pick)
-                        .on_hover_text(tr("Ctrl-click to select multiple people."))
-                        .clicked()
-                    {
-                        actions.pick = Some(id);
-                    }
-                    if ui.button(tr("Show details")).clicked() {
-                        actions.clicked = Some(Some(id));
-                    }
-                    ui.separator();
-                    use crate::app::people::RosterEdit;
-                    if ui.button(tr("Replace with someone else…")).clicked() {
-                        actions.roster = Some((id, RosterEdit::Replace(id, Default::default())));
-                    }
-                    if ui.button(tr("Remove from event")).clicked() {
-                        actions.remove = Some(id);
-                    }
-                });
-            if self.chart.dragged_person.is_none() {
-                response.on_hover_ui(|ui| self.hover_card(ui, p, scene, id, &seat.id));
-            }
-        }
-        actions
-    }
-
-    /// The card following the pointer while dragging, with the score change
-    /// the drop would cause.
-    fn paint_drag_ghost(
-        &mut self,
-        ui: &egui::Ui,
-        view: &Viewport,
-        p: Palette,
-        scene: &Scene,
-        target: Option<&str>,
-    ) {
-        let (Some(person), Some(pos)) = (
-            self.chart.dragged_person,
-            ui.input(|i| i.pointer.interact_pos()),
-        ) else {
-            return;
-        };
-        let zoom = view.zoom.max(0.7);
-        let top = ui.ctx().layer_painter(egui::LayerId::new(
-            egui::Order::Tooltip,
-            ui.id().with("ghost"),
-        ));
-        let look = CardLook {
-            status: scene.status(person),
-            selected: true,
-            hovered: false,
-            dimmed: false,
-            pinned: false,
-            moved: false,
-            gap: false,
-        };
-        let ghost = Rect::from_center_size(pos, Vec2::new(CARD_W, CARD_H) * zoom);
-        self.paint_card(&top, p, ghost, Some(person), look);
-        ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
-        let Some(target) = target else { return };
-        let key = (
-            self.file.revision,
-            self.selected_candidate,
-            person,
-            target.to_string(),
-        );
-        let (project, candidate) = (&self.project, self.selected_candidate);
-        if let Some(preview) = self
-            .chart
-            .drop_preview
-            .get(key, || preview_move(project, candidate, person, target))
-        {
-            let (text, color) = preview_text(preview, p);
-            badge(
-                &top,
-                pos - Vec2::new(0.0, CARD_H * zoom / 2.0 + 16.0),
-                &text,
-                color,
-                p,
-            );
-        }
-    }
-
-    fn apply_seat_actions(
-        &mut self,
-        ui: &egui::Ui,
-        background: &egui::Response,
-        actions: SeatActions,
-    ) {
-        if let Some(person) = actions.remove {
-            self.remove_people(&[person]);
-        }
-        if let Some((person, edit)) = actions.roster {
-            self.selected_person = Some(person);
-            self.people.roster = Some(edit);
-            self.page = crate::app::Page::People;
-        }
-        if let Some(person) = actions.pick {
-            let seed = self
-                .chart
-                .multi
-                .is_empty()
-                .then_some(self.selected_person)
-                .flatten()
-                .filter(|id| self.project.person(*id).is_some());
-            if let Some(selected) = seed {
-                self.chart.multi.insert(selected);
-            }
-            if Some(person) != seed && !self.chart.multi.remove(&person) {
-                self.chart.multi.insert(person);
-            }
-        }
-        if actions.hovered_person != self.chart.hovered_person {
-            self.chart.hovered_person = actions.hovered_person;
-            ui.ctx().request_repaint();
-        }
-        if let Some(person) = actions.start_swap {
-            self.chart.swap_from = Some(person);
-            self.selected_person = Some(person);
-        }
-        if let Some(target) = actions.swap_with
-            && let Some(from) = self.chart.swap_from.take()
-        {
-            self.move_or_swap(from, &target);
-        }
-        let typing = ui.ctx().memory(|m| m.focused().is_some());
-        if !typing
-            && ui.input(|i| i.key_pressed(egui::Key::Escape))
-            && self.chart.swap_from.take().is_none()
-            && std::mem::take(&mut self.chart.multi).is_empty()
-            && self.chart.dragged_person.take().is_none()
-        {
-            self.selected_person = None;
-        }
-        if let Some((person, seat)) = actions.pin {
-            self.set_pin(person, seat.as_deref());
-        }
-        if let Some(person) = actions.drag_start {
-            self.chart.dragged_person = Some(person);
-            self.selected_person = Some(person);
-        }
-        if let Some(person) = actions.clicked {
-            self.selected_person = person;
-        } else if background.clicked() && !actions.hovered_card {
-            self.selected_person = None;
-        }
-        if self.chart.dragged_person.is_some() && ui.input(|i| !i.pointer.primary_down()) {
-            let person = self.chart.dragged_person.take().unwrap();
-            if let Some(seat) = actions.drop_target {
-                self.move_or_swap(person, &seat);
-            }
-            self.chart.drop_preview.clear();
         }
     }
 

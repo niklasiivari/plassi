@@ -2,14 +2,20 @@
 
 mod canvas;
 mod card;
+mod drag;
 mod edits;
 mod inspector;
+mod interact;
 mod moves;
+mod options;
 mod person;
+mod pins;
 mod preferences;
 mod scene;
 mod setup;
+mod shortcuts;
 pub(in crate::app) mod toolbar;
+mod tray;
 
 use canvas::*;
 use card::*;
@@ -25,7 +31,7 @@ use eframe::egui::{
 
 use crate::catalog::Kind;
 use crate::i18n::{fill, tr};
-use crate::model::{Project, RuleKind, Seat, Side, TABLE_SPAN};
+use crate::model::{Pin, Project, RuleKind, Seat, Side, Spot, TABLE_SPAN};
 use crate::score::{self, Evaluation, Outcome, RuleResult};
 use crate::seating::PolicyReport;
 
@@ -64,13 +70,17 @@ pub(in crate::app) struct ChartState {
     pub(in crate::app) hide_inspector: bool,
     /// Option whose differences are marked on the chart.
     pub(in crate::app) compare_with: Option<usize>,
-    pub(in crate::app) dragged_person: Option<usize>,
+    pub(in crate::app) drag: Option<drag::Drag>,
+    /// Where the "Not seated" list was drawn last frame; dropping there unseats.
+    pub(in crate::app) tray_rect: Option<Rect>,
+    /// Search in the "Not seated" list.
+    pub(in crate::app) tray_search: String,
     /// Person under the pointer last frame; their wish lines are drawn.
     pub(in crate::app) hovered_person: Option<usize>,
     /// Person chosen with "Swap with…", waiting for a second click.
     pub(in crate::app) swap_from: Option<usize>,
-    /// Cached score preview for the current drag target.
-    pub(in crate::app) drop_preview: Memo<(u64, usize, usize, String), Option<DropPreview>>,
+    /// Cached score preview for the current drop, keyed by (revision, option, moves).
+    pub(in crate::app) drop_preview: Memo<(u64, usize, drag::Targets), Option<DropPreview>>,
     /// Score change from the last hand edit, shown briefly on the chart.
     pub(in crate::app) last_change: Option<(i64, web_time::Instant)>,
     /// Per-option (score, hard violations), keyed by project revision.
@@ -101,8 +111,12 @@ impl ChartState {
         if !self.swap_from.as_ref().is_none_or(exists) {
             self.swap_from = None;
         }
-        if !self.dragged_person.as_ref().is_none_or(exists) {
-            self.dragged_person = None;
+        if self
+            .drag
+            .as_ref()
+            .is_some_and(|d| !d.people.iter().all(exists))
+        {
+            self.drag = None;
         }
         self.hovered_person = None;
         self.drop_preview.clear();
@@ -157,6 +171,7 @@ impl PlassiApp {
             });
         self.tour.anchors.panel = inspector.map(|r| r.response.rect);
         self.chart.hide_inspector = !open;
+        self.tray(ui, p, &scene);
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.canvas))
             .show(ui, |ui| {
@@ -168,35 +183,43 @@ impl PlassiApp {
         self.chart_tour(ui.ctx(), p);
     }
 
-    /// Pans the canvas so the person's seat is centred on the next frame.
+    /// Pans the canvas so the person's card is centred on the next frame.
     fn focus_person(&mut self, person: usize, scene: &Scene) {
-        if let Some(seat) = scene
-            .seat_of
-            .get(&person)
-            .and_then(|id| scene.seats.iter().find(|s| &s.id == id))
-        {
-            self.chart.view.camera.focus(card_rect(seat).center());
+        if let Some(centre) = scene.card_centre(person) {
+            self.chart.view.camera.focus(centre);
         }
     }
 }
 
 #[cfg(test)]
 impl PlassiApp {
-    /// Where a seat's card was on screen in the last frame, for UI tests.
+    /// Where a person's card (on a seat or loose) was on screen in the last
+    /// frame, for UI tests.
+    pub(in crate::app) fn card_on_screen(&self, person: usize) -> Option<Rect> {
+        let option = self.project.candidates.get(self.selected_candidate)?;
+        match option.spot_of(person) {
+            Spot::Seat(id) => self.seat_card_on_screen(&id),
+            Spot::Loose(at) => {
+                let card = Rect::from_center_size(Pos2::new(at.x, at.y), Vec2::new(CARD_W, CARD_H));
+                self.world_on_screen(card)
+            }
+            Spot::Unseated => None,
+        }
+    }
+
+    /// Where a seat's card was on screen in the last frame.
     pub(in crate::app) fn seat_card_on_screen(&self, seat_id: &str) -> Option<Rect> {
+        let seats = self.project.layout.seats();
+        self.world_on_screen(card_rect(seats.iter().find(|s| s.id == seat_id)?))
+    }
+
+    fn world_on_screen(&self, world: Rect) -> Option<Rect> {
         let canvas = self.tour.anchors.canvas?;
-        let seat = self
-            .project
-            .layout
-            .seats()
-            .into_iter()
-            .find(|s| s.id == seat_id)?;
-        Some(
-            self.chart
-                .view
-                .camera
-                .viewport(canvas)
-                .rect(card_rect(&seat)),
-        )
+        Some(self.chart.view.camera.viewport(canvas).rect(world))
+    }
+
+    /// The chart canvas on screen in the last frame.
+    pub(in crate::app) fn canvas_on_screen(&self) -> Option<Rect> {
+        self.tour.anchors.canvas
     }
 }

@@ -60,7 +60,7 @@ impl PlassiApp {
         let Some(current) = self.project.candidates.get(self.selected_candidate) else {
             return;
         };
-        let mut fixed = self.project.pinned_people();
+        let mut fixed = self.project.seat_pinned_people();
         fixed.extend(current.hand_placed.iter().copied());
         let kind = JobKind::Improve {
             from: current.name.clone(),
