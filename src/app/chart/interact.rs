@@ -19,6 +19,8 @@ pub(super) struct CardActions {
     pick: Option<usize>,
     /// Pin a person, or unpin them (`None`).
     pin: Option<(usize, Option<Pin>)>,
+    /// Pin the selected people to their seats, or unpin them all.
+    pin_all: Option<Vec<usize>>,
     /// Keep these people at this table.
     keep: Option<(Vec<usize>, String)>,
     start_swap: Option<usize>,
@@ -204,6 +206,16 @@ impl PlassiApp {
         let pin = scene.pins.get(&id);
         let people = self.acting_on(id);
         match (place, pin) {
+            _ if people.len() > 1 => {
+                let label = if people.iter().all(|p| scene.pins.contains_key(p)) {
+                    fill("Unpin {} people (P)", &[&people.len()])
+                } else {
+                    fill("Pin {} people to their seats (P)", &[&people.len()])
+                };
+                if ui.button(label).clicked() {
+                    actions.pin_all = Some(people.clone());
+                }
+            }
             (_, Some(_)) => {
                 if ui.button(tr("Unpin (P)")).clicked() {
                     actions.pin = Some((id, None));
@@ -313,6 +325,9 @@ impl PlassiApp {
         self.escape_pressed(ui);
         if let Some((person, pin)) = actions.pin {
             self.set_pin(person, pin);
+        }
+        if let Some(people) = actions.pin_all {
+            self.toggle_seat_pins(&people);
         }
         if let Some((people, table)) = actions.keep {
             self.keep_at_table(&people, &table);

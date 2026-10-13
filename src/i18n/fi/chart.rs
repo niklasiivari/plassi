@@ -53,6 +53,14 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Pinned {}", "Paikka lukittu: {}"),
     ("Unpinned {}", "Paikan lukitus poistettu: {}"),
+    (
+        "Unpin {} people (P)",
+        "Poista {} henkilön paikan lukitus (P)",
+    ),
+    (
+        "Pin {} people to their seats (P)",
+        "Lukitse {} henkilön paikat (P)",
+    ),
     ("{} (copy)", "{} (kopio)"),
     ("Duplicated option", "Vaihtoehto kopioitiin"),
     ("Deleted {}", "Poistettu: {}"),
@@ -265,7 +273,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Find person", "Etsi henkilö"),
     ("Fit to window", "Sovita ikkunaan"),
-    ("Pin person", "Lukitse henkilön paikka"),
+    (
+        "Pin person or selection",
+        "Lukitse henkilön tai valittujen paikat",
+    ),
     ("Group selection", "Ryhmitä valitut"),
     ("Cancel / clear selection", "Peruuta / tyhjennä valinta"),
     (

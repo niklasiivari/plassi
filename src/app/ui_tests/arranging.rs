@@ -199,3 +199,19 @@ fn someone_without_a_seat_is_offered_the_best_free_seats() {
     // Seated, they get swaps instead.
     assert!(!ui.has_text("Seat here"));
 }
+
+#[test]
+fn p_pins_every_picked_person_and_then_unpins_them() {
+    let mut ui = solved();
+    let [a, b] = ui.two_unpinned();
+    let primary = PointerButton::Primary;
+    ui.click_at(ui.card_of(a).center(), primary, Modifiers::COMMAND);
+    ui.click_at(ui.card_of(b).center(), primary, Modifiers::COMMAND);
+    ui.key(Modifiers::NONE, Key::P);
+    let pins = ui.app().project.pins();
+    assert_eq!(pins[&a], Pin::Seat(ui.seat_of(a)));
+    assert_eq!(pins[&b], Pin::Seat(ui.seat_of(b)));
+    ui.key(Modifiers::NONE, Key::P);
+    let pins = ui.app().project.pins();
+    assert!(!pins.contains_key(&a) && !pins.contains_key(&b));
+}

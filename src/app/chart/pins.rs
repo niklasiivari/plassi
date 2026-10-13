@@ -33,6 +33,35 @@ impl PlassiApp {
         }
     }
 
+    /// Pins each seated person to their seat, or unpins them all when every
+    /// one of them is pinned already. Existing pins are kept as they are.
+    pub(super) fn toggle_seat_pins(&mut self, people: &[usize]) {
+        if self.file.external_invalid || people.is_empty() {
+            return;
+        }
+        let pins = self.project.pins();
+        if people.iter().all(|p| pins.contains_key(p)) {
+            for &person in people {
+                self.project.unpin(person);
+            }
+            self.commit(&fill("Unpinned {} people", &[&people.len()]));
+            return;
+        }
+        let seats: Vec<(usize, String)> = people
+            .iter()
+            .filter(|p| !pins.contains_key(p))
+            .filter_map(|&p| Some((p, self.seat_in_option(p)?)))
+            .collect();
+        if seats.is_empty() {
+            return;
+        }
+        let count = seats.len();
+        for (person, seat) in seats {
+            self.project.pin(person, Pin::Seat(seat));
+        }
+        self.commit(&fill("Pinned {} people", &[&count]));
+    }
+
     /// Keeps people at a table: the solver may change their seats there.
     pub(super) fn keep_at_table(&mut self, people: &[usize], table: &str) {
         if self.file.external_invalid || people.is_empty() {

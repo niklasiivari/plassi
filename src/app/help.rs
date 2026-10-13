@@ -80,7 +80,7 @@ impl HelpPage {
             HelpPage::Chart => &[
                 ("Ctrl+F", "Find person"),
                 ("F", "Fit to window"),
-                ("P", "Pin person"),
+                ("P", "Pin person or selection"),
                 ("G", "Group selection"),
                 ("Esc", "Cancel / clear selection"),
                 ("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"),
