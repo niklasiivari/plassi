@@ -77,7 +77,10 @@ impl PlassiApp {
                 can_solve && has_option,
                 theme::secondary_button(tr("Improve")),
             )
-            .on_hover_text(tr("Keep manual seats and improve the rest"))
+            .on_hover_text(fill(
+                "Keep manual seats and improve the rest ({} people stay)",
+                &[&self.kept_by_improve()],
+            ))
             .clicked()
         {
             self.start_improve();

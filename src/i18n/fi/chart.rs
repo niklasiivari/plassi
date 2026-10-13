@@ -168,8 +168,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Solve", "Laske"),
     ("Find a seating arrangement", "Etsi istumajärjestys"),
     (
-        "Keep manual seats and improve the rest",
-        "Säilytä käsin asetetut paikat ja paranna muiden sijoittelua",
+        "Keep manual seats and improve the rest ({} people stay)",
+        "Säilytä käsin asetetut paikat ja paranna muiden sijoittelua ({} henkilöä pysyy paikallaan)",
     ),
     (
         "Add people and enough seats first",
@@ -345,8 +345,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Siirrä {} henkilöä Ei paikkaa -listaan",
     ),
     (
-        "Seat everyone without a seat in a new option; people placed by hand stay",
-        "Sijoittaa kaikki paikattomat uuteen vaihtoehtoon; käsin sijoitetut pysyvät paikoillaan",
+        "Seat everyone without a seat in a new option; {} people placed by hand or pinned stay",
+        "Sijoittaa kaikki paikattomat uuteen vaihtoehtoon; {} käsin sijoitettua tai lukittua henkilöä pysyy paikallaan",
     ),
     ("Empty option", "Tyhjä vaihtoehto"),
     (

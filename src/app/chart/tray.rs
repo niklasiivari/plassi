@@ -48,8 +48,9 @@ impl PlassiApp {
                 self.solving.is_none() && enough && !self.file.external_invalid,
                 theme::primary_button(tr("Seat the rest"), p),
             )
-            .on_hover_text(tr(
-                "Seat everyone without a seat in a new option; people placed by hand stay",
+            .on_hover_text(fill(
+                "Seat everyone without a seat in a new option; {} people placed by hand or pinned stay",
+                &[&self.kept_by_improve()],
             ))
             .on_disabled_hover_text(if enough {
                 tr("Wait for the search to finish")
