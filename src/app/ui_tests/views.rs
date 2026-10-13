@@ -79,8 +79,14 @@ fn cards_can_be_coloured_by_food() {
     assert_eq!(ui.app().chart.color_hover, Some(key));
 
     // The choice is remembered.
-    let ui = ui.reopen();
+    let mut ui = ui.reopen();
     assert_eq!(ui.app().chart.color_by, Some(Kind::Food));
+
+    // C steps through the choices and back to none.
+    ui.key(Modifiers::NONE, Key::C);
+    assert_eq!(ui.app().chart.color_by, Some(Kind::Drink));
+    ui.key(Modifiers::NONE, Key::C);
+    assert_eq!(ui.app().chart.color_by, None);
 }
 
 #[test]

@@ -294,10 +294,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Drag people off the tables to seat them later.",
         "Vedä henkilöitä pois pöydistä, jos haluat sijoittaa heidät myöhemmin.",
     ),
-    (
-        "Select a person to see wishes.",
-        "Valitse henkilö, niin näet hänen toiveensa.",
-    ),
     ("Find person", "Etsi henkilö"),
     ("Fit to window", "Sovita ikkunaan"),
     (
@@ -440,4 +436,9 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Wishes to other tables", "Toiveet muihin pöytiin"),
     ("{} → {} at {}", "{} → {}, {}"),
     ("Show who they wished for", "Näytä toivottu henkilö"),
+    (
+        "Click a table for its summary.",
+        "Napsauta pöytää nähdäksesi sen yhteenvedon.",
+    ),
+    ("Change card colours", "Vaihda korttien värit"),
 ];

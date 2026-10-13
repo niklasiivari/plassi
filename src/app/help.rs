@@ -38,7 +38,7 @@ impl HelpPage {
                 "Drag to move or swap. Ctrl-click or Shift-drag to select.",
                 "Drag a selection to move it as a block.",
                 "Drag people off the tables to seat them later.",
-                "Select a person to see wishes.",
+                "Select a person to see wishes, or a table for its summary.",
             ],
             HelpPage::People => &[
                 "Paste rows or drop a CSV/TSV file.",
@@ -84,6 +84,7 @@ impl HelpPage {
                 ("Delete", "Take person or selection off the seats"),
                 ("↑ ↓ ← →", "Move person or selection one seat"),
                 ("G", "Group selection"),
+                ("C", "Change card colours"),
                 ("Esc", "Cancel / clear selection"),
                 ("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"),
             ],

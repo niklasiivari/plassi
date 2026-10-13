@@ -80,15 +80,12 @@ impl PlassiApp {
         theme::combo("color-by", name(chosen))
             .width(ui.available_width())
             .show_ui(ui, |ui| {
-                let kinds = std::iter::once(None).chain(Kind::ALL.map(Some));
-                for kind in kinds {
+                for kind in std::iter::once(None).chain(Kind::ALL.map(Some)) {
                     ui.selectable_value(&mut chosen, kind, name(kind));
                 }
             });
         if chosen != self.chart.color_by {
-            self.chart.color_by = chosen;
-            let key = chosen.map_or("", Kind::key);
-            self.file.library.set_setting(COLOR_SETTING, key);
+            self.set_color_by(chosen);
         }
         let Some(kind) = chosen else { return };
         let project = &self.project;
@@ -98,6 +95,23 @@ impl PlassiApp {
             .get((self.file.revision, kind), || Coloring::new(project, kind));
         ui.add_space(theme::space::S);
         self.chart.color_hover = color_legend(ui, p, coloring);
+    }
+
+    /// Colours cards by `kind` (or by nothing) and remembers the choice.
+    pub(super) fn set_color_by(&mut self, kind: Option<Kind>) {
+        self.chart.color_by = kind;
+        let key = kind.map_or("", Kind::key);
+        self.file.library.set_setting(COLOR_SETTING, key);
+    }
+
+    /// The next colouring in the dropdown's order, for the C key.
+    pub(super) fn next_color_by(&mut self) {
+        let order: Vec<Option<Kind>> = std::iter::once(None).chain(Kind::ALL.map(Some)).collect();
+        let at = order
+            .iter()
+            .position(|k| *k == self.chart.color_by)
+            .unwrap_or(0);
+        self.set_color_by(order[(at + 1) % order.len()]);
     }
 
     /// Whether a person's card dims because another category is under the

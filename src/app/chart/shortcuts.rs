@@ -5,7 +5,8 @@ use super::*;
 impl PlassiApp {
     /// Single-key shortcuts on the chart: F fits the room, P pins or unpins
     /// the picked people (or the selected person), Delete takes them off
-    /// their seats, G groups the picked people.
+    /// their seats, G groups the picked people, C changes what the cards are
+    /// coloured by.
     pub(super) fn chart_shortcuts(&mut self, ui: &egui::Ui) {
         if ui.ctx().memory(|m| m.focused().is_some()) {
             return;
@@ -33,6 +34,9 @@ impl PlassiApp {
             if !wanted.is_empty() {
                 self.rearrange(&wanted);
             }
+        }
+        if key(egui::Key::C) {
+            self.next_color_by();
         }
         if key(egui::Key::G) && self.chart.multi.len() >= 2 {
             let people = std::mem::take(&mut self.chart.multi).into_iter().collect();
