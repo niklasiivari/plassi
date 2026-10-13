@@ -160,7 +160,7 @@ impl PlassiApp {
             status: person.and_then(|id| scene.status(id)),
             selected: person.is_some() && person == self.selected_person,
             hovered,
-            dimmed: search_miss || dragged,
+            dimmed: search_miss || dragged || person.is_some_and(|id| self.color_dims(id)),
             pin: person.and_then(|id| scene.pin_mark(id)),
             moved: person.is_some_and(|id| scene.moved.contains(&id)),
             gap: matches!(place, Place::Seat(seat) if scene.gaps.contains(&seat.id)),

@@ -35,6 +35,20 @@ impl Kind {
         }
     }
 
+    /// A stable name for settings, e.g. "food".
+    pub fn key(self) -> &'static str {
+        match self {
+            Kind::Organization => "organization",
+            Kind::Ticket => "ticket",
+            Kind::Food => "food",
+            Kind::Drink => "drink",
+        }
+    }
+
+    pub fn from_key(key: &str) -> Option<Kind> {
+        Kind::ALL.into_iter().find(|kind| kind.key() == key)
+    }
+
     /// What the attendee wrote for this kind.
     pub fn raw(self, attendee: &Attendee) -> &str {
         match self {

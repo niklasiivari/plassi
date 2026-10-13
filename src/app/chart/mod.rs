@@ -25,6 +25,7 @@ mod tray_menu;
 
 use canvas::*;
 use card::*;
+pub(in crate::app) use colors::COLOR_SETTING;
 use colors::*;
 use edits::*;
 use scene::*;
@@ -124,6 +125,8 @@ pub(in crate::app) struct ChartState {
     pub(in crate::app) color_by: Option<Kind>,
     /// Categories of `color_by`, keyed by (revision, kind).
     coloring: Memo<(u64, Kind), Coloring>,
+    /// The category key under the pointer in the colour legend; other cards dim.
+    pub(in crate::app) color_hover: Option<String>,
 }
 
 use super::memo::Memo;
@@ -167,6 +170,7 @@ impl PlassiApp {
                 evaluation,
             ))
         }));
+        self.chart.color_hover = None;
         if let Some(kind) = self.chart.color_by {
             let project = &self.project;
             self.chart

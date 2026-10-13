@@ -317,6 +317,11 @@ impl PlassiApp {
             .and_then(|l| crate::i18n::Lang::from_locale(&l));
         crate::i18n::set(lang.unwrap_or(crate::i18n::Lang::En));
         let option = project_file::saved_option(&project);
+        let mut chart = chart::ChartState::default();
+        chart.color_by = file
+            .library
+            .setting(chart::COLOR_SETTING)
+            .and_then(|key| crate::catalog::Kind::from_key(&key));
         Self {
             project,
             file,
@@ -330,7 +335,7 @@ impl PlassiApp {
             solve_time: seating::SOLVE_TIME,
             improve_time: seating::IMPROVE_TIME,
             policy_dirty: false,
-            chart: Default::default(),
+            chart,
             graph: Default::default(),
             categories: Default::default(),
             people: Default::default(),

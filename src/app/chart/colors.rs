@@ -2,6 +2,9 @@
 
 use super::*;
 
+/// The app setting that remembers the colouring.
+pub(in crate::app) const COLOR_SETTING: &str = "chart-colour";
+
 /// One category in view: its key, name and how many people belong to it.
 pub(super) struct ColorEntry {
     pub(super) key: String,
@@ -82,36 +85,62 @@ impl PlassiApp {
                     ui.selectable_value(&mut chosen, kind, name(kind));
                 }
             });
-        self.chart.color_by = chosen;
-        if let Some(coloring) = self.coloring() {
-            ui.add_space(theme::space::S);
-            self.color_legend(ui, p, coloring);
+        if chosen != self.chart.color_by {
+            self.chart.color_by = chosen;
+            let key = chosen.map_or("", Kind::key);
+            self.file.library.set_setting(COLOR_SETTING, key);
         }
+        let Some(kind) = chosen else { return };
+        let project = &self.project;
+        let coloring = self
+            .chart
+            .coloring
+            .get((self.file.revision, kind), || Coloring::new(project, kind));
+        ui.add_space(theme::space::S);
+        self.chart.color_hover = color_legend(ui, p, coloring);
     }
 
-    /// The legend for the chosen colouring, with counts.
-    fn color_legend(&self, ui: &mut egui::Ui, p: Palette, coloring: &Coloring) {
-        let (own, other) = coloring.legend(p);
-        theme::text_rows(ui, |ui| {
-            for (entry, color) in own {
-                legend_row(ui, p, color, &entry.name, entry.count);
-            }
-            if other > 0 {
-                legend_row(ui, p, p.muted, tr("Other"), other);
-            }
-            if coloring.blank > 0 {
-                legend_row(ui, p, p.border, tr("Not given"), coloring.blank);
-            }
-        });
+    /// Whether a person's card dims because another category is under the
+    /// pointer in the legend.
+    pub(super) fn color_dims(&self, person: usize) -> bool {
+        let (Some(hovered), Some(coloring)) = (&self.chart.color_hover, self.coloring()) else {
+            return false;
+        };
+        self.project
+            .person(person)
+            .is_some_and(|a| self.project.category_key(coloring.kind, a) != *hovered)
     }
 }
 
-fn legend_row(ui: &mut egui::Ui, p: Palette, color: Color32, name: &str, count: usize) {
-    ui.horizontal(|ui| {
+/// The legend for a colouring, with counts. Returns the key of the category
+/// under the pointer ("" for "Not given"; nothing for "Other").
+fn color_legend(ui: &mut egui::Ui, p: Palette, coloring: &Coloring) -> Option<String> {
+    let (own, other) = coloring.legend(p);
+    let mut hovered = None;
+    theme::text_rows(ui, |ui| {
+        for (entry, color) in own {
+            if legend_row(ui, p, color, &entry.name, entry.count) {
+                hovered = Some(entry.key.clone());
+            }
+        }
+        if other > 0 {
+            legend_row(ui, p, p.muted, tr("Other"), other);
+        }
+        if coloring.blank > 0 && legend_row(ui, p, p.border, tr("Not given"), coloring.blank) {
+            hovered = Some(String::new());
+        }
+    });
+    hovered
+}
+
+/// One legend line; returns whether the pointer is over it.
+fn legend_row(ui: &mut egui::Ui, p: Palette, color: Color32, name: &str, count: usize) -> bool {
+    let row = ui.horizontal(|ui| {
         theme::status_dot(ui, color);
         ui.label(RichText::new(name).size(theme::text::SMALL));
         theme::hint(ui, p, count.to_string());
     });
+    ui.rect_contains_pointer(row.response.rect)
 }
 
 fn is_dark(p: Palette) -> bool {

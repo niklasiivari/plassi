@@ -131,7 +131,7 @@ The Chart page shows the option's score (wish penalties plus seating-policy cost
 
 Seeing the room at a glance:
 
-- "Colour cards by" in the side panel tints every card by organization, ticket type, food or drink, most common first, with a legend and counts. Categories past the first ten share "Other".
+- "Colour cards by" in the side panel tints every card by organization, ticket type, food or drink, most common first, with a legend and counts. Categories past the first ten share "Other". Point at a category in the legend to dim everyone else. The choice is remembered.
 - Click a table (its body or name) for its summary: seats taken, wishes met and hard rules broken among the people there, who sits there (click a name to select them), the mix of organizations, tickets, food and drinks, and the allergies.
 
 Manual edits may violate hard rules; the report shows them rather than silently moving people back.

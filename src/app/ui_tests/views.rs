@@ -63,6 +63,24 @@ fn cards_can_be_coloured_by_food() {
         .find(|name| !name.is_empty())
         .expect("someone chose a meal");
     assert!(ui.has(&food), "{:?}", ui.dump());
+
+    // Hovering a category in the legend picks it out.
+    ui.node(&food).hover();
+    ui.settle();
+    let key = {
+        let project = &ui.app().project;
+        let a = project
+            .attendees
+            .iter()
+            .find(|a| project.category_name(Kind::Food, a) == food)
+            .unwrap();
+        project.category_key(Kind::Food, a)
+    };
+    assert_eq!(ui.app().chart.color_hover, Some(key));
+
+    // The choice is remembered.
+    let ui = ui.reopen();
+    assert_eq!(ui.app().chart.color_by, Some(Kind::Food));
 }
 
 #[test]
