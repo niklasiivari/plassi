@@ -65,9 +65,21 @@ impl Project {
             .collect()
     }
 
-    /// Pins a person, replacing any previous pin for them.
-    pub fn pin(&mut self, person: usize, pin: Pin) {
+    /// Pins a person, replacing any previous pin for them. A seat holds one
+    /// pin: whoever else was pinned to it is unpinned and returned.
+    pub fn pin(&mut self, person: usize, pin: Pin) -> Option<usize> {
         self.unpin(person);
+        let before = match &pin {
+            Pin::Seat(seat) => self
+                .pins()
+                .into_iter()
+                .find(|(_, other)| *other == Pin::Seat(seat.clone()))
+                .map(|(other, _)| other),
+            Pin::Table(_) => None,
+        };
+        if let Some(other) = before {
+            self.unpin(other);
+        }
         let id = self.next_rule_id();
         self.rules.push(Rule {
             id,
@@ -82,6 +94,7 @@ impl Project {
                 penalty: 0,
             },
         });
+        before
     }
 
     /// Removes every pin of a person.

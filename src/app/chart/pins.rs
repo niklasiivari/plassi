@@ -17,10 +17,20 @@ impl PlassiApp {
             }
             None => fill("Unpinned {}", &[&name]),
         };
-        match pin {
+        let unpinned = match pin {
             Some(pin) => self.project.pin(person, pin),
-            None => self.project.unpin(person),
-        }
+            None => {
+                self.project.unpin(person);
+                None
+            }
+        };
+        let message = match unpinned {
+            Some(other) => fill(
+                "{}; {} is no longer pinned to that seat",
+                &[&message, &self.project.person_name(other)],
+            ),
+            None => message,
+        };
         self.commit(&message);
     }
 

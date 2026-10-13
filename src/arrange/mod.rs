@@ -49,7 +49,9 @@ impl Rearrangement {
         project.candidates[index] = self.result(candidate);
         for (person, pin) in &self.repins {
             match pin {
-                Some(pin) => project.pin(*person, pin.clone()),
+                Some(pin) => {
+                    project.pin(*person, pin.clone());
+                }
                 None => project.unpin(*person),
             }
         }

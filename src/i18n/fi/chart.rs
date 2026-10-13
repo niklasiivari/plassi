@@ -55,6 +55,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Pinned {}", "Paikka lukittu: {}"),
     ("Unpinned {}", "Paikan lukitus poistettu: {}"),
     (
+        "{}; {} is no longer pinned to that seat",
+        "{}; henkilön {} paikan lukitus poistettu",
+    ),
+    (
         "Unpin {} people (P)",
         "Poista {} henkilön paikan lukitus (P)",
     ),

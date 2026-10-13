@@ -90,7 +90,7 @@ Event title, subtitle and print language (Finnish or English) are in `event`.
 
 ## Pins and seating policy
 
-A pin is a hard `Placement` rule made in the app: `Area::Seat` holds someone on one seat (label `Pinned`), `Area::Table` keeps them somewhere at one table (label `Kept at table`). Pin or unpin someone from the chart (right-click a card, or the person panel); "Keep at table" in the selection bar keeps several Ctrl-clicked people at a table you choose. Someone without a seat can be kept at a table from the person panel; "Seat the rest" then seats them there. The solver never moves people pinned to a seat and only moves people kept at a table between that table's seats. Dragging a pinned person moves their pin with them; taking them off the seats drops a seat pin but keeps a table pin.
+A pin is a hard `Placement` rule made in the app: `Area::Seat` holds someone on one seat (label `Pinned`), `Area::Table` keeps them somewhere at one table (label `Kept at table`). Pin or unpin someone from the chart (right-click a card, or the person panel); "Keep at table" in the selection bar keeps several Ctrl-clicked people at a table you choose. Someone without a seat can be kept at a table from the person panel; "Seat the rest" then seats them there. The solver never moves people pinned to a seat and only moves people kept at a table between that table's seats. Dragging a pinned person moves their pin with them; taking them off the seats drops a seat pin but keeps a table pin. Pins belong to the project, not to one option, and a seat holds one pin: pinning someone to a seat another person is pinned to (say, in another option) unpins that person.
 
 `policy` in the project JSON holds global rules, edited on the Seating policy page:
 

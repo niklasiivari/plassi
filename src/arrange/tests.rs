@@ -179,3 +179,29 @@ fn someone_aimed_at_the_seat_of_a_mover_staying_put_is_refused() {
     ];
     assert!(plan(&project, &candidate, &wanted).is_err());
 }
+
+#[test]
+fn a_seat_holds_one_pin_so_an_empty_option_stays_valid() {
+    let (mut project, _) = seated();
+    project.pin(0, Pin::Seat("t1:left:0".into()));
+    // Pinned in another option where someone else sits there.
+    assert_eq!(project.pin(1, Pin::Seat("t1:left:0".into())), Some(0));
+    assert!(!project.pins().contains_key(&0));
+    let empty = project.empty_option("Option 2".into());
+    project.candidates.push(empty);
+    assert!(project.validate().is_ok());
+}
+
+#[test]
+fn two_pinned_people_swapping_keep_both_pins() {
+    let (mut project, candidate) = seated();
+    project.pin(0, Pin::Seat("t1:left:0".into()));
+    project.pin(4, Pin::Seat("t2:left:0".into()));
+    let wanted = [(0, seat("t2:left:0")), (4, seat("t1:left:0"))];
+    plan(&project, &candidate, &wanted)
+        .unwrap()
+        .apply(&mut project, 0);
+    let pins = project.pins();
+    assert_eq!(pins[&0], Pin::Seat("t2:left:0".into()));
+    assert_eq!(pins[&4], Pin::Seat("t1:left:0".into()));
+}
