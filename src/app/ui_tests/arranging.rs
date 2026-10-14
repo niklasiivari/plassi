@@ -394,3 +394,83 @@ fn seating_someone_on_a_seat_pinned_to_another_person_warns() {
     let said = format!("the seat is pinned to {name}");
     assert!(ui.has_text(&said), "{:?}", ui.dump());
 }
+
+#[test]
+fn a_block_of_loose_cards_dropped_on_a_loose_card_keeps_clear() {
+    let mut ui = solved();
+    let people: Vec<usize> = ui.option().assignment.keys().copied().take(3).collect();
+    let [a, b, c] = [people[0], people[1], people[2]];
+    let app = ui.app_mut();
+    let below = app
+        .project
+        .layout
+        .seats()
+        .iter()
+        .map(|s| s.y)
+        .fold(0.0, f32::max)
+        + 200.0;
+    let option = &mut app.project.candidates[0];
+    let at = |x, y| Spot::Loose(crate::model::Point { x, y });
+    option.place(a, at(0.0, below));
+    option.place(b, at(0.0, below + 56.0));
+    option.place(c, at(400.0, below));
+    app.commit("loose");
+    ui.key(Modifiers::NONE, Key::F);
+    let primary = PointerButton::Primary;
+    ui.click_at(ui.card_of(a).center(), primary, Modifiers::COMMAND);
+    ui.click_at(ui.card_of(b).center(), primary, Modifiers::COMMAND);
+    ui.drag(ui.card_of(a).center(), ui.card_of(c).center());
+    let cards = [ui.card_of(a), ui.card_of(b), ui.card_of(c)];
+    for (i, x) in cards.iter().enumerate() {
+        for y in &cards[i + 1..] {
+            assert!(!x.intersects(*y), "{cards:?}");
+        }
+    }
+}
+
+#[test]
+fn shifting_a_pinned_block_reports_no_lost_pin() {
+    let mut ui = solved();
+    let seats = ui.app().project.layout.seats();
+    let (top, next) = (seats[0].id.clone(), seats[1].id.clone());
+    let on = |ui: &Ui, seat: &str| {
+        let option = ui.option();
+        option
+            .assignment
+            .iter()
+            .find(|(_, s)| *s == seat)
+            .map(|(p, _)| *p)
+    };
+    let (x, y) = (on(&ui, &top).expect("x"), on(&ui, &next).expect("y"));
+    let app = ui.app_mut();
+    app.project.pin(x, Pin::Seat(top));
+    app.project.pin(y, Pin::Seat(next));
+    app.commit("pins");
+    let primary = PointerButton::Primary;
+    ui.click_at(ui.card_of(x).center(), primary, Modifiers::COMMAND);
+    ui.click_at(ui.card_of(y).center(), primary, Modifiers::COMMAND);
+    ui.key(Modifiers::NONE, Key::ArrowDown);
+    assert!(!ui.has_text("no longer pinned"), "{:?}", ui.dump());
+    let pins = ui.app().project.pins();
+    assert_eq!(pins[&x], Pin::Seat(ui.seat_of(x)));
+    assert_eq!(pins[&y], Pin::Seat(ui.seat_of(y)));
+}
+
+#[test]
+fn the_pin_item_for_a_selection_counts_only_who_it_pins() {
+    let mut ui = solved();
+    let [a, b] = ui.two_unpinned();
+    let primary = PointerButton::Primary;
+    ui.click_at(ui.card_of(a).center(), primary, Modifiers::NONE);
+    ui.key(Modifiers::NONE, Key::P);
+    ui.click_at(ui.card_of(a).center(), primary, Modifiers::COMMAND);
+    ui.click_at(ui.card_of(b).center(), primary, Modifiers::COMMAND);
+    ui.click_at(
+        ui.card_of(a).center(),
+        PointerButton::Secondary,
+        Modifiers::NONE,
+    );
+    let name = ui.app().project.person_name(b).to_string();
+    ui.click(&format!("Pin {name} to their seat (P)"));
+    assert_eq!(ui.app().project.pins()[&b], Pin::Seat(ui.seat_of(b)));
+}

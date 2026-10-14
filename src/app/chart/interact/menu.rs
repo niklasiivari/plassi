@@ -15,19 +15,32 @@ impl PlassiApp {
     ) {
         let pin = scene.pins.get(&id);
         let people = self.acting_on(id);
-        // Only the people P acts on: pinned or seated.
-        let counted = people
+        // Only the people P acts on: the pinned when it unpins, else the
+        // seated who aren't pinned yet.
+        let unpinning = self.would_unpin(&people);
+        let affected: Vec<usize> = people
             .iter()
-            .filter(|p| scene.pins.contains_key(p) || scene.seat_of.contains_key(p))
-            .count();
+            .copied()
+            .filter(|p| match unpinning {
+                true => scene.pins.contains_key(p),
+                false => !scene.pins.contains_key(p) && scene.seat_of.contains_key(p),
+            })
+            .collect();
         match (place, pin) {
-            _ if counted > 1 => {
-                let label = if self.would_unpin(&people) {
-                    fill("Unpin {} people (P)", &[&counted])
-                } else {
-                    fill("Pin {} people to their seats (P)", &[&counted])
+            _ if people.len() > 1 => {
+                let name = |id: usize| self.project.person_name(id);
+                let label = match (unpinning, affected.as_slice()) {
+                    (_, []) => None,
+                    (true, [one]) => Some(fill("Unpin {} (P)", &[&name(*one)])),
+                    (true, _) => Some(fill("Unpin {} people (P)", &[&affected.len()])),
+                    (false, [one]) => Some(fill("Pin {} to their seat (P)", &[&name(*one)])),
+                    (false, _) => {
+                        Some(fill("Pin {} people to their seats (P)", &[&affected.len()]))
+                    }
                 };
-                if ui.button(label).clicked() {
+                if let Some(label) = label
+                    && ui.button(label).clicked()
+                {
                     actions.pin_all = Some(people.clone());
                 }
             }

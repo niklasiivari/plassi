@@ -188,8 +188,8 @@ fn landing(scene: &Scene, people: &[usize], anchor: Pos2) -> Targets {
         .collect()
 }
 
-/// Moves cards dropped on the floor down until they don't cover a loose card
-/// that stays where it is.
+/// Moves the cards dropped on the floor down together, keeping their shape,
+/// until none covers a loose card that stays where it is.
 fn clear_of_loose(scene: &Scene, targets: &mut Targets) {
     let size = Vec2::new(CARD_W, CARD_H);
     let staying: Vec<Rect> = scene
@@ -198,16 +198,26 @@ fn clear_of_loose(scene: &Scene, targets: &mut Targets) {
         .filter(|(p, _)| !targets.iter().any(|(t, _)| t == *p))
         .map(|(_, at)| Rect::from_center_size(*at, size))
         .collect();
+    let dropped: Vec<Pos2> = targets
+        .iter()
+        .filter_map(|(_, spot)| match spot {
+            Spot::Loose(point) => Some(Pos2::new(point.x, point.y)),
+            _ => None,
+        })
+        .collect();
+    let mut dy = 0.0;
+    // Each step clears one covered card, so this ends.
+    while let Some(push) = dropped.iter().find_map(|at| {
+        let card = Rect::from_center_size(*at + Vec2::new(0.0, dy), size);
+        let under = staying.iter().find(|r| r.intersects(card))?;
+        Some(under.bottom() + 4.0 - card.top())
+    }) {
+        dy += push;
+    }
     for (_, spot) in targets.iter_mut() {
-        let Spot::Loose(point) = spot else { continue };
-        let mut at = Pos2::new(point.x, point.y);
-        while let Some(under) = staying
-            .iter()
-            .find(|r| r.intersects(Rect::from_center_size(at, size)))
-        {
-            at.y = under.bottom() + CARD_H / 2.0 + 4.0;
+        if let Spot::Loose(point) = spot {
+            point.y += dy;
         }
-        *point = Point { x: at.x, y: at.y };
     }
 }
 

@@ -73,19 +73,20 @@ pub(super) fn preview(
         hard_delta: after.hard_violations as i64 - before.hard_violations as i64,
         met_delta: wishes_met(project, &after) - wishes_met(project, &before),
         blocked: None,
-        pinned_to: pinned_elsewhere(project, wanted),
+        pinned_to: pinned_elsewhere(project, &edit.moves),
     })
 }
 
-/// Someone not moving who is pinned to a seat these people land on: the
-/// solver would put them back there (pins hold in every option).
-pub(super) fn pinned_elsewhere(project: &Project, wanted: &[(usize, Spot)]) -> Option<usize> {
+/// Someone not moving who is pinned to a seat the moved people land on,
+/// pushed-aside people included: the solver would put them back there (pins
+/// hold in every option).
+pub(super) fn pinned_elsewhere(project: &Project, moves: &[(usize, Spot)]) -> Option<usize> {
     let pins = project.pins();
-    wanted.iter().find_map(|(_, spot)| {
+    moves.iter().find_map(|(_, spot)| {
         let Spot::Seat(seat) = spot else { return None };
         pins.iter()
             .find(|(p, pin)| {
-                **pin == Pin::Seat(seat.clone()) && !wanted.iter().any(|(w, _)| w == *p)
+                **pin == Pin::Seat(seat.clone()) && !moves.iter().any(|(m, _)| m == *p)
             })
             .map(|(p, _)| *p)
     })
@@ -190,7 +191,7 @@ impl PlassiApp {
             ),
         };
         let mut message = self.with_unpinned(message, &unpinned);
-        if let Some(other) = pinned_elsewhere(&self.project, wanted) {
+        if let Some(other) = pinned_elsewhere(&self.project, &edit.moves) {
             let name = self.project.person_name(other);
             message = fill("{}; the seat is pinned to {}", &[&message, &name]);
         }

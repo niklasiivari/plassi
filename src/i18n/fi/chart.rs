@@ -155,6 +155,13 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Toivottua seuraa ei istu lähellä: {}",
     ),
     ("{} people in different seats", "{} henkilöä eri paikoilla"),
+    ("1 person in a different seat", "1 henkilö eri paikalla"),
+    ("Unpin {} (P)", "Poista lukitus: {} (P)"),
+    ("Pin {} to their seat (P)", "Lukitse paikka: {} (P)"),
+    (
+        "1 person with a broken hard rule",
+        "1 henkilön kohdalla rikkoutuu ehdoton sääntö",
+    ),
     (
         "{} people with broken hard rules",
         "{} henkilön kohdalla rikkoutuu ehdoton sääntö",

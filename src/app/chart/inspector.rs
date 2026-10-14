@@ -328,12 +328,13 @@ impl PlassiApp {
             );
         }
         if !scene.moved.is_empty() {
+            let text = match scene.moved.len() {
+                1 => tr("1 person in a different seat").to_string(),
+                n => fill("{} people in different seats", &[&n]),
+            };
             ui.horizontal(|ui| {
                 theme::status_dot(ui, p.warn);
-                ui.label(
-                    RichText::new(fill("{} people in different seats", &[&scene.moved.len()]))
-                        .size(theme::text::SMALL),
-                );
+                ui.label(RichText::new(text).size(theme::text::SMALL));
             });
         }
         let broken = scene
@@ -342,10 +343,13 @@ impl PlassiApp {
             .filter(|id| scene.seat_of.contains_key(id))
             .filter(|id| scene.status(**id) == Some(Outcome::Broken))
             .count();
-        if broken > 0 {
-            ui.label(
-                RichText::new(fill("{} people with broken hard rules", &[&broken])).color(p.bad),
-            );
+        let broken = match broken {
+            0 => None,
+            1 => Some(tr("1 person with a broken hard rule").to_string()),
+            n => Some(fill("{} people with broken hard rules", &[&n])),
+        };
+        if let Some(text) = broken {
+            ui.label(RichText::new(text).color(p.bad));
         }
         for error in &evaluation.assignment_errors {
             ui.label(RichText::new(error).color(p.bad).size(theme::text::SMALL));

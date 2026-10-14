@@ -55,6 +55,9 @@ impl Rearrangement {
                 None => project.unpin(*person),
             }
         }
+        // Someone in the edit may have been re-pinned after losing a pin.
+        let pins = project.pins();
+        unpinned.retain(|p| !pins.contains_key(p));
         unpinned
     }
 }
