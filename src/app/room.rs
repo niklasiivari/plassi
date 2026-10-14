@@ -511,17 +511,15 @@ fn same_pair(a: &str, b: &str, c: &str, d: &str) -> bool {
 /// The status after a room change, saying what it took away.
 fn room_message(fit: &crate::model::RoomFit) -> String {
     let mut parts = vec![tr("Saved room layout").to_string()];
-    if fit.unseated > 0 {
-        parts.push(fill(
-            "{} people lost their seats and are not seated",
-            &[&fit.unseated],
-        ));
+    match fit.unseated {
+        0 => {}
+        1 => parts.push(tr("1 person lost their seat and is not seated").into()),
+        n => parts.push(fill("{} people lost their seats and are not seated", &[&n])),
     }
-    if fit.rules_removed > 0 {
-        parts.push(fill(
-            "{} rules about removed places were deleted",
-            &[&fit.rules_removed],
-        ));
+    match fit.rules_removed {
+        0 => {}
+        1 => parts.push(tr("1 rule about a removed place was deleted").into()),
+        n => parts.push(fill("{} rules about removed places were deleted", &[&n])),
     }
     parts.join("; ")
 }

@@ -149,7 +149,15 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     (
         "{} rules about removed places were deleted",
-        "{} poistettuja paikkoja koskevaa sääntöä poistettiin",
+        "{} sääntöä poistettiin, koska niiden paikat poistettiin",
+    ),
+    (
+        "1 rule about a removed place was deleted",
+        "1 sääntö poistettiin, koska sen paikka poistettiin",
+    ),
+    (
+        "1 person lost their seat and is not seated",
+        "1 henkilö menetti paikkansa ja on nyt ilman paikkaa",
     ),
     ("Saved room layout", "Pöydät ja paikat tallennettu"),
     ("Add tables first.", "Lisää ensin pöytiä."),
