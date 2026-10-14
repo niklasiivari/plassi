@@ -78,6 +78,10 @@ mod tests {
             option.place(person, Spot::Seat(seat.id.clone()));
         }
         project.candidates.push(option.clone());
+        // A second option with only the first table's top seat taken loses nobody.
+        let mut small = project.empty_option("Option 2".into());
+        small.place(0, Spot::Seat("t1:left:0".into()));
+        project.candidates.push(small);
         let on = |seat: &str| {
             *option
                 .assignment
@@ -103,6 +107,10 @@ mod tests {
             }
         );
 
+        assert_eq!(
+            project.candidates[1].spot_of(0),
+            Spot::Seat("t1:left:0".into())
+        );
         let option = &project.candidates[0];
         assert_eq!(option.spot_of(kept), Spot::Seat("t1:left:0".into()));
         assert_eq!(option.spot_of(cut), Spot::Unseated);
