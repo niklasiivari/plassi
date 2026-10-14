@@ -123,7 +123,10 @@ pub(super) fn paint_person_card(
     let base = person
         .tint
         .map_or(base, |tint| theme::blend(base, tint, 0.22));
-    let fill = if look.selected { p.accent_soft } else { base }.gamma_multiply(alpha);
+    // Dimmed cards fade towards the canvas but stay opaque, so the status
+    // colour painted under the body never shows through.
+    let fade = |color: Color32| theme::blend(p.canvas, color, alpha);
+    let fill = fade(if look.selected { p.accent_soft } else { base });
     let stroke = match () {
         _ if look.selected => Stroke::new(1.0, p.accent),
         _ if look.hovered => Stroke::new(1.0, theme::blend(p.surface, p.accent, 0.5)),
@@ -135,11 +138,7 @@ pub(super) fn paint_person_card(
     // painted in the status colour, then covered except for a thin strip.
     let stripe = look.status.map_or(0.0, |_| 3.0 * zoom.max(0.67));
     if let Some(status) = look.status {
-        painter.rect_filled(
-            rect,
-            radius,
-            theme::outcome_color(p, Some(status)).gamma_multiply(alpha),
-        );
+        painter.rect_filled(rect, radius, fade(theme::outcome_color(p, Some(status))));
     }
     let body = Rect::from_min_max(Pos2::new(rect.min.x + stripe, rect.min.y), rect.max);
     let body_radius = if stripe > 0.0 {
