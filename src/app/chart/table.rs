@@ -92,10 +92,8 @@ impl PlassiApp {
         self.table_people(ui, p, scene, &people);
         self.wishes_away(ui, p, scene, table_id, &people);
         for kind in Kind::ALL {
-            ui.add_space(theme::space::L);
             self.table_mix(ui, p, kind, &people);
         }
-        ui.add_space(theme::space::L);
         self.table_allergies(ui, p, &people);
     }
 
@@ -209,6 +207,7 @@ impl PlassiApp {
             return;
         }
         counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        ui.add_space(theme::space::L);
         theme::section_title(ui, p, kind.plural());
         let text = counts
             .iter()
@@ -229,6 +228,7 @@ impl PlassiApp {
         if allergies.is_empty() {
             return;
         }
+        ui.add_space(theme::space::L);
         theme::section_title(ui, p, tr("Allergies"));
         theme::text_rows(ui, |ui| {
             for (name, text) in allergies {
