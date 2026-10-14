@@ -1,6 +1,7 @@
 //! The "Not seated" list beside the chart: everyone without a seat in the
 //! option, as cards to drag onto seats or the chart, and "Seat the rest".
 
+use super::tray_menu::TrayAction;
 use super::*;
 
 /// Above this many people the list gets a search field.
@@ -160,6 +161,8 @@ impl PlassiApp {
     ) {
         if response.drag_started_by(egui::PointerButton::Primary) {
             self.start_drag(person, Vec2::ZERO);
+        } else if response.double_clicked() {
+            self.apply_tray_action(TrayAction::SeatBest(vec![person]), scene);
         } else if response.clicked() && ui.input(|i| i.modifiers.command || i.modifiers.shift) {
             self.toggle_pick(person);
         } else if response.clicked() {
