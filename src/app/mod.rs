@@ -120,6 +120,12 @@ impl PlassiApp {
 impl eframe::App for PlassiApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let previous_status = self.status.clone();
+        // Edits in this frame are undone back to the option shown now.
+        self.file.shown_option = self
+            .project
+            .candidates
+            .get(self.selected_candidate)
+            .map(|c| c.name.clone());
         self.sync_external();
         self.poll_solver();
         self.remember_option();

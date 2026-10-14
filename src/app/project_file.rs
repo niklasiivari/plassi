@@ -24,6 +24,8 @@ pub(super) struct ProjectFile {
     pub(super) revision: u64,
     pub(super) undo_stack: Vec<Step>,
     pub(super) redo_stack: Vec<Step>,
+    /// The option shown in the last frame, so undo can show it again.
+    pub(super) shown_option: Option<String>,
     /// A project file being uploaded in the browser.
     #[cfg(target_arch = "wasm32")]
     pub(super) upload: Option<platform::FilePick>,
@@ -34,6 +36,8 @@ pub(super) struct Step {
     pub(super) bytes: Vec<u8>,
     /// E.g. "Moved X to Table 2"; shown as "Undo: …".
     pub(super) change: String,
+    /// The option shown in this state.
+    pub(super) option: Option<String>,
 }
 
 /// A name that works as a file name: no path separators or reserved characters.
@@ -87,6 +91,7 @@ impl ProjectFile {
             revision: 0,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            shown_option: None,
             #[cfg(target_arch = "wasm32")]
             upload: None,
             library,
@@ -293,7 +298,12 @@ impl PlassiApp {
     }
 
     fn push_undo(&mut self, bytes: Vec<u8>, change: String) {
-        self.file.undo_stack.push(Step { bytes, change });
+        let option = self.file.shown_option.clone();
+        self.file.undo_stack.push(Step {
+            bytes,
+            change,
+            option,
+        });
         if self.file.undo_stack.len() > HISTORY {
             self.file.undo_stack.remove(0);
         }
@@ -311,8 +321,15 @@ impl PlassiApp {
             return;
         };
         let change = step.change.clone();
+        let option = step.option.clone();
         let current = self.file.last_bytes.clone();
         self.project = project;
+        // Back on the option shown in that state, when it is still there.
+        if let Some(index) =
+            option.and_then(|name| self.project.candidates.iter().position(|c| c.name == name))
+        {
+            self.selected_candidate = index;
+        }
         let message = if redo {
             fill("Redid: {}", &[&change])
         } else {
@@ -327,7 +344,12 @@ impl PlassiApp {
             (&mut self.file.undo_stack, &mut self.file.redo_stack)
         };
         from.pop();
-        to.extend(current.map(|bytes| Step { bytes, change }));
+        let option = self.file.shown_option.clone();
+        to.extend(current.map(|bytes| Step {
+            bytes,
+            change,
+            option,
+        }));
     }
 
     /// Writes the project; returns whether it was saved. On failure the

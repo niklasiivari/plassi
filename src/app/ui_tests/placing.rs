@@ -253,3 +253,39 @@ fn the_list_menu_leaves_seated_people_in_the_selection_where_they_are() {
     assert_eq!(ui.seat_of(b), seat_b);
     assert!(matches!(ui.option().spot_of(a), Spot::Seat(_)));
 }
+
+#[test]
+fn undoing_seat_the_rest_goes_back_to_the_option_it_started_from() {
+    let mut ui = solved();
+    let app = ui.app_mut();
+    let mut extra = app.project.candidates[0].clone();
+    extra.name = "Extra".into();
+    app.project.candidates.push(extra);
+    app.commit("extra");
+    ui.settle();
+    ui.app_mut().selected_candidate = 0;
+    ui.settle();
+    let first = ui.app().project.candidates[0].name.clone();
+    let [a, _] = ui.two_unpinned();
+    ui.click_at(
+        ui.card_of(a).center(),
+        PointerButton::Primary,
+        Modifiers::NONE,
+    );
+    ui.key(Modifiers::NONE, Key::Delete);
+    ui.click("Seat the rest");
+    ui.wait_until(20, |app| {
+        app.solving.is_none() && app.project.candidates.len() == 3
+    });
+    assert_eq!(ui.app().selected_candidate, 2);
+    let filled = ui.app().project.candidates[2].name.clone();
+    let shown = |ui: &Ui| {
+        let app = ui.app();
+        app.project.candidates[app.selected_candidate].name.clone()
+    };
+    ui.key(Modifiers::COMMAND, Key::Z);
+    assert_eq!(shown(&ui), first);
+    // Redo shows the new option again.
+    ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
+    assert_eq!(shown(&ui), filled);
+}
