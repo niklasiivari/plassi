@@ -185,4 +185,18 @@ mod tests {
             }
         }
     }
+
+    /// Help texts are kept untranslated and passed to `tr` when shown, so the
+    /// catalog check, which reads the texts written inside `tr` calls, does
+    /// not see them.
+    #[test]
+    fn every_help_text_has_a_finnish_entry() {
+        crate::i18n::set(crate::i18n::Lang::Fi);
+        for page in HelpPage::ALL {
+            let what = page.shortcuts().iter().map(|(_, what)| *what);
+            for text in page.bullets().iter().copied().chain(what) {
+                assert_ne!(tr(text), text, "not translated: {text}");
+            }
+        }
+    }
 }

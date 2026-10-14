@@ -469,6 +469,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Järjestäjän toive {}: henkilö puuttuu",
     ),
     ("Started empty", "Aloitettu tyhjästä"),
+    (
+        "Seats removed with a room change",
+        "Paikkoja poistettu pöytien muutoksessa",
+    ),
     ("Kept at table", "Lukittu pöytään"),
     (
         "{}: person {} is both seated and loose",

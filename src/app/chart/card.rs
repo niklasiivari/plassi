@@ -214,7 +214,7 @@ fn paint_avatar(
         rect.min.x + (12.0 * zoom).max(5.0) + radius,
         rect.center().y,
     );
-    let dark = p.bg.r() < 100;
+    let dark = p.is_dark();
     painter.circle_filled(
         centre,
         radius,

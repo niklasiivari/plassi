@@ -24,36 +24,24 @@ pub(super) struct Coloring {
 
 impl Coloring {
     pub(super) fn new(project: &Project, kind: Kind) -> Self {
-        let mut entries: Vec<ColorEntry> = Vec::new();
-        let mut blank = 0;
-        for attendee in &project.attendees {
-            let keys = project.category_keys(kind, attendee);
-            if keys.is_empty() {
-                blank += 1;
-                continue;
-            }
-            // A spelling such as "ABC/XYZ" counts in every category it means.
-            let mut names = project.category_names(kind, attendee);
-            if names.is_empty() {
-                names.push(kind.raw(attendee).trim().to_string());
-            }
-            for (key, name) in keys.into_iter().zip(names) {
-                match entries.iter_mut().find(|e| e.key == key) {
-                    Some(entry) => entry.count += 1,
-                    None => entries.push(ColorEntry {
-                        key,
-                        name,
-                        count: 1,
-                    }),
-                }
-            }
-        }
-        entries.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
+        let (entries, blank) = count_categories(project, kind, &project.attendees);
         Self {
             kind,
             entries,
             blank,
         }
+    }
+
+    /// A card's colour: of the person's category that comes first in the
+    /// legend, or of the one under the pointer in the legend when they are
+    /// in it, so a card in two categories lights up for both.
+    pub(super) fn tint(&self, keys: &[String], hovered: Option<&str>, p: Palette) -> Color32 {
+        let shown = hovered.filter(|h| keys.iter().any(|k| k == h)).or_else(|| {
+            keys.iter()
+                .min_by_key(|k| self.entries.iter().position(|e| e.key == **k))
+                .map(String::as_str)
+        });
+        shown.and_then(|key| self.color(key, p)).unwrap_or(p.border)
     }
 
     /// The colour of a category key; muted for "Other" and `None` for blank.
@@ -62,7 +50,7 @@ impl Coloring {
             return None;
         }
         let index = self.entries.iter().position(|e| e.key == key)?;
-        Some(theme::category_color(index, is_dark(p)).unwrap_or(p.muted))
+        Some(theme::category_color(index, p.is_dark()).unwrap_or(p.muted))
     }
 
     /// Entries that have a colour of their own, and how many people are in the rest.
@@ -70,7 +58,7 @@ impl Coloring {
         let mut own = Vec::new();
         let mut other = 0;
         for (index, entry) in self.entries.iter().enumerate() {
-            match theme::category_color(index, is_dark(p)) {
+            match theme::category_color(index, p.is_dark()) {
                 Some(color) => own.push((entry, color)),
                 None => other += entry.count,
             }
@@ -140,6 +128,42 @@ impl PlassiApp {
     }
 }
 
+/// How many of `people` belong to each category of `kind`, most first, and
+/// how many wrote nothing. Categories are told apart by key, so spellings
+/// that mean one category count together, and a spelling such as "ABC/XYZ"
+/// counts in every category it means.
+pub(super) fn count_categories<'a>(
+    project: &Project,
+    kind: Kind,
+    people: impl IntoIterator<Item = &'a crate::model::Attendee>,
+) -> (Vec<ColorEntry>, usize) {
+    let mut entries: Vec<ColorEntry> = Vec::new();
+    let mut blank = 0;
+    for attendee in people {
+        let keys = project.category_keys(kind, attendee);
+        if keys.is_empty() {
+            blank += 1;
+            continue;
+        }
+        let mut names = project.category_names(kind, attendee);
+        if names.is_empty() {
+            names.push(kind.raw(attendee).trim().to_string());
+        }
+        for (key, name) in keys.into_iter().zip(names) {
+            match entries.iter_mut().find(|e| e.key == key) {
+                Some(entry) => entry.count += 1,
+                None => entries.push(ColorEntry {
+                    key,
+                    name,
+                    count: 1,
+                }),
+            }
+        }
+    }
+    entries.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
+    (entries, blank)
+}
+
 /// The legend for a colouring, with counts. Returns the key of the category
 /// under the pointer ("" for "Not given"; nothing for "Other").
 fn color_legend(ui: &mut egui::Ui, p: Palette, coloring: &Coloring) -> Option<String> {
@@ -169,10 +193,6 @@ fn legend_row(ui: &mut egui::Ui, p: Palette, color: Color32, name: &str, count: 
         theme::hint(ui, p, count.to_string());
     });
     ui.rect_contains_pointer(row.response.rect)
-}
-
-fn is_dark(p: Palette) -> bool {
-    p.bg.r() < 100
 }
 
 #[cfg(test)]
@@ -207,6 +227,36 @@ mod tests {
             .map(|e| (e.name.as_str(), e.count))
             .collect();
         assert_eq!(counts, [("XYZ", 3), ("ABC", 2)]);
+    }
+
+    #[test]
+    fn a_card_in_two_categories_takes_the_colour_pointed_at() {
+        let mut project = people_in(&["ABC/XYZ", "XYZ", "XYZ"]);
+        let catalog = &mut project.catalog;
+        let abc = catalog.create(Kind::Organization, "ABC");
+        let xyz = catalog.create(Kind::Organization, "XYZ");
+        catalog.assign(Kind::Organization, "ABC/XYZ", abc);
+        catalog.assign(Kind::Organization, "ABC/XYZ", xyz);
+        let coloring = Coloring::new(&project, Kind::Organization);
+        let p = theme::LIGHT;
+        let keys = project.category_keys(Kind::Organization, &project.attendees[0]);
+        let color = |name: &str| {
+            let entry = coloring.entries.iter().find(|e| e.name == name).unwrap();
+            (entry.key.clone(), coloring.color(&entry.key, p).unwrap())
+        };
+        let ((_, xyz_color), (abc_key, abc_color)) = (color("XYZ"), color("ABC"));
+        // XYZ has more people, so it comes first in the legend.
+        assert_eq!(coloring.tint(&keys, None, p), xyz_color);
+        assert_eq!(coloring.tint(&keys, Some(&abc_key), p), abc_color);
+    }
+
+    #[test]
+    fn spellings_of_one_unmapped_category_count_together() {
+        let project = people_in(&["ABC", "abc ", ""]);
+        let (entries, blank) = count_categories(&project, Kind::Organization, &project.attendees);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].count, 2);
+        assert_eq!(blank, 1);
     }
 
     #[test]

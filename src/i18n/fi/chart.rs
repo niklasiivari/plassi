@@ -441,8 +441,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("{} → {} at {}", "{} → {}, {}"),
     ("Show who they wished for", "Näytä toivottu henkilö"),
     (
-        "Click a table for its summary.",
-        "Napsauta pöytää nähdäksesi sen yhteenvedon.",
+        "Select a person to see wishes, or a table for its summary.",
+        "Valitse henkilö nähdäksesi toiveet tai pöytä nähdäksesi sen yhteenvedon.",
     ),
     ("Change card colours", "Vaihda korttien värit"),
 ];

@@ -490,6 +490,8 @@ pub enum SolverStatus {
     EditedByHand,
     /// Made empty, to be seated by hand.
     StartedEmpty,
+    /// People lost their seats when the room changed.
+    RoomChanged,
 }
 
 impl SolverStatus {
@@ -517,6 +519,7 @@ impl SolverStatus {
             Self::Continued { from, seconds } => fill("Searched {} s more · {}", &[seconds, from]),
             Self::EditedByHand => tr("Edited by hand").into(),
             Self::StartedEmpty => tr("Started empty").into(),
+            Self::RoomChanged => tr("Seats removed with a room change").into(),
         }
     }
 }

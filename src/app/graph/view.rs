@@ -308,7 +308,7 @@ fn paint_nodes(
                     .any(|e| (e.from == h && e.to == i) || (e.to == h && e.from == i))
         })
     };
-    let dark = p.bg.r() < 100;
+    let dark = p.is_dark();
     for (i, &person) in graph.people.iter().enumerate() {
         let Some(attendee) = project.person(person) else {
             continue;

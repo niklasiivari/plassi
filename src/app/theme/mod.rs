@@ -43,6 +43,14 @@ pub struct Palette {
     pub shadow: Color32,
 }
 
+impl Palette {
+    /// Whether this is the dark theme, for colours that come in a light and a
+    /// dark variant.
+    pub fn is_dark(&self) -> bool {
+        self.bg.r() < 100
+    }
+}
+
 const fn rgb(hex: u32) -> Color32 {
     Color32::from_rgb((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
 }

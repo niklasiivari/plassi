@@ -301,8 +301,8 @@ impl PlassiApp {
                     detail: self.project.category_name(kind, attendee),
                     color_key: self.project.category_key(Kind::Organization, attendee),
                     tint: coloring.map(|c| {
-                        c.color(&self.project.category_key(kind, attendee), p)
-                            .unwrap_or(p.border)
+                        let keys = self.project.category_keys(kind, attendee);
+                        c.tint(&keys, self.chart.color_hover.as_deref(), p)
                     }),
                 };
                 paint_person_card(painter, p, rect, &person, look)

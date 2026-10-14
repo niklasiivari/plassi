@@ -226,7 +226,7 @@ impl PlassiApp {
         if edit.geometry {
             let fit = self.project.fit_to_room();
             self.chart.view.fit_pending = true;
-            self.commit(&room_message(&fit));
+            self.commit(&room_message(&fit, self.selected_candidate));
         } else if edit.labels {
             self.commit(tr("Saved room layout"));
         }
@@ -510,10 +510,13 @@ fn same_pair(a: &str, b: &str, c: &str, d: &str) -> bool {
     (a == c && b == d) || (a == d && b == c)
 }
 
-/// The status after a room change, saying what it took away.
-fn room_message(fit: &crate::model::RoomFit) -> String {
+/// The status after a room change, saying what it took away: counted in
+/// the option shown, with a note when only other options lost people.
+fn room_message(fit: &crate::model::RoomFit, shown: usize) -> String {
     let mut parts = vec![tr("Saved room layout").to_string()];
-    match fit.unseated {
+    let elsewhere = fit.unseated.iter().any(|n| *n > 0);
+    match fit.unseated.get(shown).copied().unwrap_or(0) {
+        0 if elsewhere => parts.push(tr("people in other options lost their seats").into()),
         0 => {}
         1 => parts.push(tr("1 person lost their seat and is not seated").into()),
         n => parts.push(fill("{} people lost their seats and are not seated", &[&n])),
@@ -524,4 +527,26 @@ fn room_message(fit: &crate::model::RoomFit) -> String {
         n => parts.push(fill("{} rules about removed places were deleted", &[&n])),
     }
     parts.join("; ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_room_change_counts_the_people_of_the_option_shown() {
+        crate::i18n::set(crate::i18n::Lang::En);
+        let fit = |unseated: Vec<usize>| crate::model::RoomFit {
+            unseated,
+            rules_removed: 0,
+        };
+        let shown_lost = room_message(&fit(vec![5, 3]), 1);
+        assert!(
+            shown_lost.contains("3 people lost their seats"),
+            "{shown_lost}"
+        );
+        let other_lost = room_message(&fit(vec![5, 0]), 1);
+        assert!(other_lost.contains("other options"), "{other_lost}");
+        assert_eq!(room_message(&fit(vec![0, 0]), 0), "Saved room layout");
+    }
 }

@@ -223,7 +223,7 @@ fn person_row(ui: &mut egui::Ui, p: Palette, person: &Attendee, info: &RowInfo) 
     };
     painter.rect_filled(rect, theme::radius::MD, fill);
     let avatar = rect.left_center() + egui::vec2(theme::space::S + 14.0, 0.0);
-    let dark = p.bg.r() < 100;
+    let dark = p.is_dark();
     painter.circle_filled(avatar, 14.0, theme::avatar_color(&info.color_key, dark));
     let initials = theme::initials(&person.name);
     painter.text(

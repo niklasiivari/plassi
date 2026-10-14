@@ -2,7 +2,7 @@
 //! mix of categories and the allergies.
 
 use super::*;
-use crate::model::Target;
+use crate::model::{DistanceClass, Target, distance_class};
 
 impl Scene {
     /// The table's body in world space, from its top seat to its bottom seat.
@@ -126,7 +126,9 @@ impl PlassiApp {
         });
     }
 
-    /// Wishes from people here for people seated at another table.
+    /// Wishes from people here for people seated at another table and not
+    /// together with them: a seat relation can make seats at two tables
+    /// count as beside, opposite or diagonal.
     fn wishes_away(
         &mut self,
         ui: &mut egui::Ui,
@@ -135,9 +137,9 @@ impl PlassiApp {
         table_id: &str,
         people: &[usize],
     ) {
-        let table_of = |person: usize| {
-            let seat = scene.seat_of.get(&person)?;
-            scene.seat(seat).map(|s| s.table_id.clone())
+        let seat_of = |person: usize| scene.seat(scene.seat_of.get(&person)?);
+        let apart = |a: &Seat, b: &Seat| {
+            distance_class(&self.project.layout, a, b) > DistanceClass::Diagonal
         };
         let mut away: Vec<(usize, usize, String)> = Vec::new();
         for rule in self.project.rules.iter().filter(|r| r.enabled) {
@@ -152,9 +154,14 @@ impl PlassiApp {
             if !people.contains(requester) {
                 continue;
             }
+            let Some(from) = seat_of(*requester) else {
+                continue;
+            };
             for &id in ids {
-                if let Some(other) = table_of(id).filter(|t| t != table_id) {
-                    away.push((*requester, id, other));
+                if let Some(to) =
+                    seat_of(id).filter(|to| to.table_id != table_id && apart(from, to))
+                {
+                    away.push((*requester, id, to.table_id.clone()));
                 }
             }
         }
@@ -189,29 +196,16 @@ impl PlassiApp {
 
     /// How many at the table belong to each category of `kind`, most first.
     fn table_mix(&self, ui: &mut egui::Ui, p: Palette, kind: Kind, people: &[usize]) {
-        let mut counts: Vec<(String, usize)> = Vec::new();
-        for attendee in people.iter().filter_map(|id| self.project.person(*id)) {
-            // A spelling such as "ABC/XYZ" counts in every category it means.
-            let mut names = self.project.category_names(kind, attendee);
-            if names.is_empty() {
-                names.push(kind.raw(attendee).trim().to_string());
-            }
-            for name in names.into_iter().filter(|n| !n.is_empty()) {
-                match counts.iter_mut().find(|(n, _)| *n == name) {
-                    Some((_, count)) => *count += 1,
-                    None => counts.push((name, 1)),
-                }
-            }
-        }
+        let attendees = people.iter().filter_map(|id| self.project.person(*id));
+        let (counts, _) = super::colors::count_categories(&self.project, kind, attendees);
         if counts.is_empty() {
             return;
         }
-        counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         ui.add_space(theme::space::L);
         theme::section_title(ui, p, kind.plural());
         let text = counts
             .iter()
-            .map(|(name, count)| format!("{name} {count}"))
+            .map(|entry| format!("{} {}", entry.name, entry.count))
             .collect::<Vec<_>>()
             .join(" · ");
         ui.label(RichText::new(text).size(theme::text::SMALL));

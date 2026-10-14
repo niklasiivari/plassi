@@ -986,6 +986,19 @@
           "required": [
             "kind"
           ]
+        },
+        {
+          "description": "People lost their seats when the room changed.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "room_changed"
+            }
+          },
+          "required": [
+            "kind"
+          ]
         }
       ]
     },

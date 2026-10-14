@@ -112,7 +112,7 @@ pub fn seat_shadow(p: Palette, zoom: f32, alpha: f32) -> egui::Shadow {
 }
 
 fn shadow_color(p: Palette, alpha: u8) -> Color32 {
-    let dark = p.bg.r() < 100;
+    let dark = p.is_dark();
     let alpha = if dark { alpha.saturating_mul(3) } else { alpha };
     Color32::from_rgba_unmultiplied(p.shadow.r(), p.shadow.g(), p.shadow.b(), alpha)
 }

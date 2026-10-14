@@ -160,6 +160,12 @@ impl PlassiApp {
         }
         let candidate = (!self.project.candidates.is_empty()).then_some(self.selected_candidate);
         self.chart.group_preview = None;
+        // However someone was selected (the list, search, the issue list,
+        // another page), they replace the table, which must not come back
+        // when they are deselected.
+        if self.selected_person.is_some() {
+            self.chart.selected_table = None;
+        }
         let key = (self.file.revision, candidate, self.chart.compare_with);
         let evaluation = self.evaluation();
         let scene = std::rc::Rc::clone(self.chart.scene.get(key, || {

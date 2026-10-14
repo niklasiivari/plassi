@@ -2,13 +2,13 @@
 
 use std::collections::HashSet;
 
-use super::{Area, Project, RuleKind};
+use super::{Area, Project, RuleKind, SolverStatus};
 
 /// What a room change took away.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct RoomFit {
-    /// People who lost a seat, in the option that lost the most.
-    pub unseated: usize,
+    /// How many people lost their seat, per option.
+    pub unseated: Vec<usize>,
     /// Rules about removed seats, tables or rows, pins included.
     pub rules_removed: usize,
 }
@@ -44,7 +44,7 @@ impl Project {
         layout
             .relations
             .retain(|r| seats.contains(&r.a) && seats.contains(&r.b));
-        let mut unseated = 0;
+        let mut unseated = Vec::new();
         for option in &mut self.candidates {
             let lost: Vec<usize> = option
                 .assignment
@@ -57,7 +57,11 @@ impl Project {
                 option.assignment.remove(person);
                 option.hand_placed.remove(person);
             }
-            unseated = unseated.max(lost.len());
+            if !lost.is_empty() {
+                // A solver's status no longer describes this option.
+                option.solver_status = SolverStatus::RoomChanged;
+            }
+            unseated.push(lost.len());
         }
         RoomFit {
             unseated,
@@ -68,7 +72,9 @@ impl Project {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{Area, DistanceClass, Pin, Rule, RuleKind, SeatRelation, Spot};
+    use crate::model::{
+        Area, DistanceClass, Pin, Rule, RuleKind, SeatRelation, SolverStatus, Spot,
+    };
 
     #[test]
     fn people_keep_seats_that_still_exist() {
@@ -102,7 +108,7 @@ mod tests {
         assert_eq!(
             project.fit_to_room(),
             super::RoomFit {
-                unseated: 5,
+                unseated: vec![5, 0],
                 rules_removed: 2
             }
         );
@@ -112,6 +118,11 @@ mod tests {
             Spot::Seat("t1:left:0".into())
         );
         let option = &project.candidates[0];
+        assert_eq!(option.solver_status, SolverStatus::RoomChanged);
+        assert_eq!(
+            project.candidates[1].solver_status,
+            SolverStatus::StartedEmpty
+        );
         assert_eq!(option.spot_of(kept), Spot::Seat("t1:left:0".into()));
         assert_eq!(option.spot_of(cut), Spot::Unseated);
         assert_eq!(option.spot_of(moved_table), Spot::Unseated);
