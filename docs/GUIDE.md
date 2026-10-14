@@ -73,7 +73,7 @@ The interface is in English or Finnish; the EN/FI button next to the light/dark 
 
 ## Keys
 
-On the chart: Ctrl+F finds someone (arrow keys and Enter pick from the matches), F fits the room, P pins or unpins the selected person (or every Ctrl-clicked person), G groups the Ctrl-clicked people, Esc clears. Ctrl+Z / Ctrl+Shift+Z undo and redo everywhere; the status message after an edit has its own Undo button.
+On the chart: Ctrl+F finds someone (arrow keys and Enter pick from the matches), F fits the room, P pins or unpins the selected person (or every Ctrl-clicked person), Delete takes them off the seats, the arrow keys move them one seat, G groups the Ctrl-clicked people, Esc clears. Ctrl+Z / Ctrl+Shift+Z undo and redo everywhere; the status message after an edit has its own Undo button.
 
 ## Printing
 
