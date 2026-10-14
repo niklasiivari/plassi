@@ -167,7 +167,7 @@ mod tests {
 
     fn people_in(organizations: &[&str]) -> Project {
         let mut project = crate::tests::two_tables();
-        project.attendees.truncate(0);
+        project.attendees.clear();
         for (id, organization) in organizations.iter().enumerate() {
             let mut attendee = crate::example::project().attendees[0].clone();
             attendee.id = id;
