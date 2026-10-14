@@ -6,6 +6,7 @@ use super::*;
 pub(in crate::app) const COLOR_SETTING: &str = "chart-colour";
 
 /// One category in view: its key, name and how many people belong to it.
+/// Someone whose spelling means several categories counts in each.
 pub(super) struct ColorEntry {
     pub(super) key: String,
     pub(super) name: String,
@@ -26,18 +27,25 @@ impl Coloring {
         let mut entries: Vec<ColorEntry> = Vec::new();
         let mut blank = 0;
         for attendee in &project.attendees {
-            let key = project.category_key(kind, attendee);
-            if key.is_empty() {
+            let keys = project.category_keys(kind, attendee);
+            if keys.is_empty() {
                 blank += 1;
                 continue;
             }
-            match entries.iter_mut().find(|e| e.key == key) {
-                Some(entry) => entry.count += 1,
-                None => entries.push(ColorEntry {
-                    key,
-                    name: project.category_name(kind, attendee),
-                    count: 1,
-                }),
+            // A spelling such as "ABC/XYZ" counts in every category it means.
+            let mut names = project.category_names(kind, attendee);
+            if names.is_empty() {
+                names.push(kind.raw(attendee).trim().to_string());
+            }
+            for (key, name) in keys.into_iter().zip(names) {
+                match entries.iter_mut().find(|e| e.key == key) {
+                    Some(entry) => entry.count += 1,
+                    None => entries.push(ColorEntry {
+                        key,
+                        name,
+                        count: 1,
+                    }),
+                }
             }
         }
         entries.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
@@ -120,9 +128,15 @@ impl PlassiApp {
         let (Some(hovered), Some(coloring)) = (&self.chart.color_hover, self.coloring()) else {
             return false;
         };
-        self.project
-            .person(person)
-            .is_some_and(|a| self.project.category_key(coloring.kind, a) != *hovered)
+        let Some(attendee) = self.project.person(person) else {
+            return false;
+        };
+        let keys = self.project.category_keys(coloring.kind, attendee);
+        if hovered.is_empty() {
+            !keys.is_empty()
+        } else {
+            !keys.contains(hovered)
+        }
     }
 }
 
@@ -176,6 +190,23 @@ mod tests {
             project.attendees.push(attendee);
         }
         project
+    }
+
+    #[test]
+    fn a_spelling_with_two_categories_counts_in_both() {
+        let mut project = people_in(&["ABC/XYZ", "ABC", "XYZ", "XYZ"]);
+        let catalog = &mut project.catalog;
+        let abc = catalog.create(Kind::Organization, "ABC");
+        let xyz = catalog.create(Kind::Organization, "XYZ");
+        catalog.assign(Kind::Organization, "ABC/XYZ", abc);
+        catalog.assign(Kind::Organization, "ABC/XYZ", xyz);
+        let coloring = Coloring::new(&project, Kind::Organization);
+        let counts: Vec<(&str, usize)> = coloring
+            .entries
+            .iter()
+            .map(|e| (e.name.as_str(), e.count))
+            .collect();
+        assert_eq!(counts, [("XYZ", 3), ("ABC", 2)]);
     }
 
     #[test]

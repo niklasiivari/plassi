@@ -121,7 +121,7 @@ pub(in crate::app) struct ChartState {
     pub(in crate::app) group_preview: Option<Vec<String>>,
     /// Table whose summary the side panel shows.
     pub(in crate::app) selected_table: Option<String>,
-    /// The category cards are coloured by; `None` colours by wishes only.
+    /// The category cards are coloured by; `None` keeps the usual look.
     pub(in crate::app) color_by: Option<Kind>,
     /// Categories of `color_by`, keyed by (revision, kind).
     coloring: Memo<(u64, Kind), Coloring>,

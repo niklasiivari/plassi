@@ -193,13 +193,16 @@ impl PlassiApp {
     fn table_mix(&self, ui: &mut egui::Ui, p: Palette, kind: Kind, people: &[usize]) {
         let mut counts: Vec<(String, usize)> = Vec::new();
         for attendee in people.iter().filter_map(|id| self.project.person(*id)) {
-            let name = self.project.category_name(kind, attendee);
-            if name.is_empty() {
-                continue;
+            // A spelling such as "ABC/XYZ" counts in every category it means.
+            let mut names = self.project.category_names(kind, attendee);
+            if names.is_empty() {
+                names.push(kind.raw(attendee).trim().to_string());
             }
-            match counts.iter_mut().find(|(n, _)| *n == name) {
-                Some((_, count)) => *count += 1,
-                None => counts.push((name, 1)),
+            for name in names.into_iter().filter(|n| !n.is_empty()) {
+                match counts.iter_mut().find(|(n, _)| *n == name) {
+                    Some((_, count)) => *count += 1,
+                    None => counts.push((name, 1)),
+                }
             }
         }
         if counts.is_empty() {
