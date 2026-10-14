@@ -19,6 +19,17 @@ pub(super) struct Paint<'a> {
     pub(super) scene: &'a Scene,
 }
 
+/// An outline around the card centred on screen point `centre`.
+fn outline_card(painter: &egui::Painter, view: &Viewport, centre: Pos2, stroke: Stroke) {
+    let card = Rect::from_center_size(centre, Vec2::new(CARD_W, CARD_H) * view.zoom);
+    painter.rect_stroke(
+        card.expand(3.0 * view.zoom.max(0.5)),
+        CornerRadius::same((10.0 * view.zoom).clamp(3.0, 12.0) as u8),
+        stroke,
+        StrokeKind::Outside,
+    );
+}
+
 /// Dotted backdrop that pans and zooms with the chart.
 fn paint_grid(painter: &egui::Painter, view: &Viewport, p: Palette) {
     let spacing = 40.0 * view.zoom;
@@ -138,8 +149,9 @@ impl PlassiApp {
 
     /// Lines from the selected person to the people they wished for (bold) and
     /// from people who wished for them (faint), coloured by how well each wish
-    /// is met. While someone is dragged, their lines follow the pointer; for
-    /// someone in the "Not seated" list they start at the list.
+    /// is met. While someone is dragged, their lines follow the pointer. For
+    /// someone in the "Not seated" list, with no card on the chart, the cards
+    /// at the other ends are outlined instead.
     fn paint_wish_lines(
         &self,
         ui: &egui::Ui,
@@ -150,17 +162,15 @@ impl PlassiApp {
     ) {
         let centre_of = |person: usize| scene.card_centre(person).map(|c| view.point(c));
         let dragged = self.chart.drag.as_ref().map(|d| d.people[0]);
-        let (selected, from) = match (dragged, self.chart.hovered_person, self.chart.tray_anchor) {
-            (Some(person), ..) => (person, ui.input(|i| i.pointer.interact_pos())),
-            (None, Some(person), _) => (person, centre_of(person)),
-            (None, None, Some((person, at))) => (person, Some(at)),
-            (None, None, None) => match self.selected_person {
-                Some(person) => (person, centre_of(person)),
-                None => return,
-            },
-        };
-        let Some(from) = from else {
+        let shown = (dragged.or(self.chart.hovered_person))
+            .or(self.chart.tray_hover)
+            .or(self.selected_person);
+        let Some(selected) = shown else {
             return;
+        };
+        let from = match dragged {
+            Some(_) => ui.input(|i| i.pointer.interact_pos()),
+            None => centre_of(selected),
         };
         for rule in self.project.rules.iter().filter(|r| r.enabled) {
             let RuleKind::Proximity {
@@ -188,8 +198,13 @@ impl PlassiApp {
             };
             let others = if outgoing { targets } else { vec![*requester] };
             for to in others.into_iter().filter_map(centre_of) {
-                painter.line_segment([from, to], stroke);
-                painter.circle_filled(to, 3.5, stroke.color);
+                match from {
+                    Some(from) => {
+                        painter.line_segment([from, to], stroke);
+                        painter.circle_filled(to, 3.5, stroke.color);
+                    }
+                    None => outline_card(painter, view, to, stroke),
+                }
             }
         }
     }

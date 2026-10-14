@@ -15,9 +15,6 @@ pub(in crate::app) struct Drag {
     pub(in crate::app) grip: Vec2,
 }
 
-/// Space between cards stacked when people without a place are dropped together.
-const STACK_GAP: f32 = 8.0;
-
 /// Where a drop would put each dragged person.
 pub(in crate::app) type Targets = Vec<(usize, Spot)>;
 
@@ -48,17 +45,16 @@ impl PlassiApp {
         if !view.clip.contains(pointer) {
             return None;
         }
-        let world = view.world(pointer);
-        let anchor = match scene.seat_at(world) {
-            Some(seat) => card_rect(seat).center(),
-            None => world - drag.grip,
-        };
+        // The grabbed card follows the pointer; it takes a seat only when its
+        // centre is over that seat's card, not as soon as the pointer is.
+        let anchor = view.world(pointer) - drag.grip;
         let mut targets = landing(scene, &drag.people, anchor);
         clear_of_loose(scene, &mut targets);
         Some(targets)
     }
 
-    /// Ghost cards where the people would land, and what the drop would do.
+    /// Cards following the pointer, the seats they would land on outlined,
+    /// and what the drop would do.
     pub(super) fn paint_drag(
         &mut self,
         ui: &egui::Ui,
@@ -76,15 +72,13 @@ impl PlassiApp {
             egui::Order::Tooltip,
             ui.id().with("ghost"),
         ));
-        let size = Vec2::new(CARD_W, CARD_H) * view.zoom.max(0.7);
-        for (i, &person) in drag.people.iter().enumerate() {
-            let target = targets.and_then(|t| t.iter().find(|(p, _)| *p == person));
-            let at = match target.map(|(_, spot)| spot) {
-                Some(Spot::Seat(id)) => scene.seat(id).map(|s| view.point(card_rect(s).center())),
-                Some(Spot::Loose(point)) => Some(view.point(Pos2::new(point.x, point.y))),
-                _ => None,
-            };
-            let at = at.unwrap_or(pointer + Vec2::new(0.0, i as f32 * (size.y + STACK_GAP)));
+        if let Some(targets) = targets {
+            outline_seats(&top, view, p, scene, targets);
+        }
+        let size = Vec2::new(CARD_W, CARD_H) * view.zoom;
+        let anchor = view.world(pointer) - drag.grip;
+        for (person, centre) in follow_pointer(scene, &drag.people, anchor) {
+            let at = view.point(centre);
             let look = CardLook {
                 status: scene.status(person),
                 selected: true,
@@ -151,6 +145,47 @@ impl PlassiApp {
         if let Some(targets) = targets {
             self.rearrange(&targets);
         }
+    }
+}
+
+/// Where each dragged card is drawn when the first one's centre is at
+/// `anchor`: the others keep their offset from it, and people without a
+/// card on the chart stack below, one seat apart.
+fn follow_pointer(scene: &Scene, people: &[usize], anchor: Pos2) -> Vec<(usize, Pos2)> {
+    let origin = scene.card_centre(people[0]);
+    let mut row = usize::from(origin.is_some());
+    people
+        .iter()
+        .map(|&p| {
+            let offset = match (origin, scene.card_centre(p)) {
+                (Some(origin), Some(centre)) => centre - origin,
+                _ => {
+                    row += 1;
+                    Vec2::new(0.0, (row - 1) as f32 * SEAT_PITCH)
+                }
+            };
+            (p, anchor + offset)
+        })
+        .collect()
+}
+
+/// An outline around each seat the dragged people would land on.
+fn outline_seats(
+    painter: &egui::Painter,
+    view: &Viewport,
+    p: Palette,
+    scene: &Scene,
+    targets: &Targets,
+) {
+    for (_, spot) in targets {
+        let Spot::Seat(id) = spot else { continue };
+        let Some(seat) = scene.seat(id) else { continue };
+        painter.rect_stroke(
+            view.rect(card_rect(seat)).expand(3.0 * view.zoom.max(0.5)),
+            CornerRadius::same((10.0 * view.zoom).clamp(3.0, 12.0) as u8),
+            Stroke::new(2.0, p.accent),
+            StrokeKind::Outside,
+        );
     }
 }
 

@@ -4,7 +4,7 @@
 use eframe::egui::{self, Key, Modifiers, PointerButton};
 use egui_kittest::kittest::Queryable;
 
-use super::arranging::{floor, solved};
+use super::arranging::solved;
 use super::harness::Ui;
 use crate::model::{Pin, Spot};
 
@@ -68,9 +68,6 @@ fn someone_without_a_seat_is_offered_the_best_free_seats() {
     // Without a seat their wishes are not judged: no status, no penalty.
     assert!(!ui.has_text("Waiting for people not seated"));
     assert!(!ui.has_text("−4000"));
-    // Their wish lines start at their card in the list.
-    let anchor = ui.app().chart.tray_anchor.map(|(person, _)| person);
-    assert_eq!(anchor, Some(first.id));
     let best = {
         let app = ui.app();
         let scorer = crate::seating::Scorer::new(&app.project);
@@ -160,18 +157,16 @@ fn someone_without_a_seat_can_be_kept_at_a_chosen_table() {
 fn a_right_button_drag_in_the_list_moves_nobody() {
     let mut ui = solved();
     let [a, _] = ui.two_unpinned();
-    ui.drag(ui.card_of(a).center(), floor(&ui));
+    ui.click_at(
+        ui.card_of(a).center(),
+        PointerButton::Primary,
+        Modifiers::NONE,
+    );
+    ui.key(Modifiers::NONE, Key::Delete);
     let loose = ui.option().spot_of(a);
-    assert!(matches!(loose, Spot::Loose(_)));
-    ui.key(Modifiers::NONE, Key::F);
+    assert_eq!(loose, Spot::Unseated);
     let name = ui.app().project.person_name(a).to_string();
-    // Their card in the list, not the one on the chart.
-    let tray = ui.app().chart.tray_rect.expect("list shown");
-    let from =
-        ui.h.query_all_by_label(&name)
-            .map(|n| n.rect().center())
-            .find(|at| tray.contains(*at))
-            .expect("card in the list");
+    let from = ui.list_card(&name).expect("card in the list").center();
     let press = |pos, pressed| egui::Event::PointerButton {
         pos,
         button: PointerButton::Secondary,
@@ -202,9 +197,10 @@ fn finding_someone_without_a_seat_scrolls_the_list_to_them() {
     ui.type_text(&last.name);
     ui.key(Modifiers::NONE, Key::Enter);
     assert_eq!(ui.app().selected_person, Some(last.id));
-    // Selected and in view in the list, their wish lines start there.
-    let anchor = ui.app().chart.tray_anchor.map(|(person, _)| person);
-    assert_eq!(anchor, Some(last.id));
+    // Their card is scrolled into view in the list.
+    let list = ui.app().chart.tray_rect.expect("the list is shown");
+    let card = ui.list_card(&last.name).expect("card in the list");
+    assert!(list.contains_rect(card));
 }
 
 #[test]

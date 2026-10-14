@@ -87,6 +87,10 @@ fn people_dragged_off_their_seat_stay_loose_until_dropped_on_one() {
     ui.drag(ui.card_of(a).center(), floor(&ui));
     assert!(matches!(ui.option().spot_of(a), Spot::Loose(_)));
     assert!(ui.has_text("Option 1  1 not seated"), "{:?}", ui.dump());
+    // On the chart only, not in the list as well.
+    assert!(ui.has_text("1 of them on the chart"), "{:?}", ui.dump());
+    let name = ui.app().project.person_name(a).to_string();
+    assert_eq!(ui.list_card(&name), None);
     // The empty seat is allowed while editing; nobody slides up.
     assert_eq!(ui.seat_of(b), seat_b);
     assert!(!ui.option().assignment.values().any(|s| *s == seat_a));

@@ -168,6 +168,16 @@ impl Ui {
         self.app().card_on_screen(person).expect("card on screen")
     }
 
+    /// The card of the person named `name` in the "Not seated" list, if it is
+    /// there (the side panel and the chart can show the name too).
+    pub(super) fn list_card(&self, name: &str) -> Option<egui::Rect> {
+        let list = self.app().chart.tray_rect?;
+        self.h
+            .query_all_by_label(name)
+            .map(|n| n.rect())
+            .find(|r| list.contains(r.center()))
+    }
+
     /// The chart canvas on screen.
     pub(super) fn canvas(&self) -> egui::Rect {
         self.app().canvas_on_screen().expect("chart shown")

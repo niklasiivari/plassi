@@ -29,6 +29,9 @@ pub(super) struct CardLook {
     pub(super) loose: bool,
     /// An empty seat that a click would seat the selected person on.
     pub(super) placing: bool,
+    /// An empty seat in an option where people still need seats: free to
+    /// take, not a spare seat left empty on purpose.
+    pub(super) free: bool,
 }
 
 /// How a person is pinned: a filled lock for a seat, an outlined one for a table.
@@ -74,11 +77,16 @@ fn dashed_outline(painter: &egui::Painter, rect: Rect, zoom: f32, color: Color32
 /// A spare seat (outlined), or a gap mid-table (red) that should be closed.
 pub(super) fn paint_empty_seat(painter: &egui::Painter, p: Palette, rect: Rect, look: CardLook) {
     let zoom = rect.height() / CARD_H;
+    let empty = if look.free {
+        tr("free seat")
+    } else {
+        tr("spare seat")
+    };
     let (fill, stroke, text, text_color) = match () {
         _ if look.hovered && look.placing => {
             (p.accent_soft, p.accent, tr("click to seat here"), p.accent)
         }
-        _ if look.hovered => (p.accent_soft, p.accent, tr("spare seat"), p.muted),
+        _ if look.hovered => (p.accent_soft, p.accent, empty, p.muted),
         _ if look.gap => (
             theme::blend(p.canvas, p.bad, 0.12),
             p.bad,
@@ -88,7 +96,7 @@ pub(super) fn paint_empty_seat(painter: &egui::Painter, p: Palette, rect: Rect, 
         _ => (
             Color32::TRANSPARENT,
             theme::blend(p.border, p.muted, 0.35),
-            tr("spare seat"),
+            empty,
             p.muted,
         ),
     };

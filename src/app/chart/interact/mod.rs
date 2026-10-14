@@ -166,6 +166,7 @@ impl PlassiApp {
             gap: matches!(place, Place::Seat(seat) if scene.gaps.contains(&seat.id)),
             loose: matches!(place, Place::Loose(..)),
             placing: self.placing(scene, place).is_some(),
+            free: !scene.unseated.is_empty(),
         }
     }
 

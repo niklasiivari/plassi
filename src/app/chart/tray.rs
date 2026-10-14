@@ -1,5 +1,6 @@
-//! The "Not seated" list beside the chart: everyone without a seat in the
-//! option, as cards to drag onto seats or the chart, and "Seat the rest".
+//! The "Not seated" list beside the chart: everyone without a seat who is not
+//! on the chart either, as cards to drag onto seats or the chart, and "Seat
+//! the rest". People left on the chart show there only, never in both places.
 
 use super::tray_menu::TrayAction;
 use super::*;
@@ -19,7 +20,7 @@ impl PlassiApp {
         }
         if !shown {
             self.chart.tray_rect = None;
-            self.chart.tray_anchor = None;
+            self.chart.tray_hover = None;
             self.chart.tray_reveal = None;
             return;
         }
@@ -37,6 +38,10 @@ impl PlassiApp {
 
     fn tray_contents(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
         theme::section_title(ui, p, &fill("Not seated · {}", &[&scene.unseated.len()]));
+        let on_chart = scene.unseated.len() - scene.listed.len();
+        if on_chart > 0 {
+            theme::hint(ui, p, fill("{} of them on the chart", &[&on_chart]));
+        }
         theme::hint(
             ui,
             p,
@@ -65,7 +70,7 @@ impl PlassiApp {
             self.start_improve();
         }
         ui.add_space(theme::space::M);
-        if scene.unseated.len() > SEARCH_FROM {
+        if scene.listed.len() > SEARCH_FROM {
             ui.add(
                 theme::field(&mut self.chart.tray_search)
                     .hint_text(tr("Search"))
@@ -78,16 +83,16 @@ impl PlassiApp {
             .show(ui, |ui| self.tray_cards(ui, p, scene));
     }
 
-    /// One draggable card per person without a seat.
+    /// One draggable card per person in the list.
     fn tray_cards(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
         let reveal = self.chart.tray_reveal.take();
         if reveal.is_some_and(|person| !self.matches_tray_search(person)) {
             self.chart.tray_search.clear();
         }
         let needle = crate::app::search::Needle::new(&self.chart.tray_search);
-        let (mut hovered, mut selected) = (None, None);
+        let mut hovered = None;
         let mut action = None;
-        for &person in &scene.unseated {
+        for &person in &scene.listed {
             let Some(attendee) = self.project.person(person) else {
                 continue;
             };
@@ -110,7 +115,6 @@ impl PlassiApp {
                 hovered: response.hovered(),
                 dimmed: dragged,
                 pin: scene.pin_mark(person),
-                loose: scene.loose.contains_key(&person),
                 ..Default::default()
             };
             response.widget_info(|| {
@@ -127,11 +131,8 @@ impl PlassiApp {
             if reveal == Some(person) {
                 ui.scroll_to_rect(rect, None);
             }
-            let anchor = Some((person, rect.right_center()));
             if response.hovered() {
-                hovered = anchor;
-            } else if self.selected_person == Some(person) && ui.is_rect_visible(rect) {
-                selected = anchor;
+                hovered = Some(person);
             }
             egui::Popup::context_menu(&response)
                 .style(theme::menu_style)
@@ -139,7 +140,7 @@ impl PlassiApp {
             self.tray_card_input(ui, scene, &response, person);
             ui.add_space(theme::space::XS);
         }
-        self.chart.tray_anchor = hovered.or(selected);
+        self.chart.tray_hover = hovered;
         if let Some(action) = action {
             self.apply_tray_action(action, scene);
         }

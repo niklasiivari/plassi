@@ -4,6 +4,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("all of {}: {}", "kaikki seuraavista: {} · {}"),
     // Cards and drag previews
     ("spare seat", "vapaa paikka"),
+    ("free seat", "vapaana"),
     ("click to seat here", "sijoita tähän napsauttamalla"),
     (
         "gap — close it",
@@ -361,6 +362,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "{} henkilöä siirretty Ei paikkaa -listaan",
     ),
     ("Not seated · {}", "Ei paikkaa · {}"),
+    (
+        "{} of them on the chart",
+        "{} heistä istumajärjestyksen alueella",
+    ),
     (
         "Drag people onto seats or anywhere on the chart, or select one and click an empty seat.",
         "Vedä henkilöitä paikoille tai minne tahansa istumajärjestykseen, tai valitse henkilö ja napsauta vapaata paikkaa.",

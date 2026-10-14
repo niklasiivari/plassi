@@ -17,9 +17,13 @@ pub(super) struct Scene {
     pub(super) loose: BTreeMap<usize, Pos2>,
     /// Everyone without a seat, loose or not, in attendee order.
     pub(super) unseated: Vec<usize>,
+    /// People without a seat who are not on the chart either: the ones the
+    /// "Not seated" list shows.
+    pub(super) listed: Vec<usize>,
     /// People seated differently in the option being compared against.
     pub(super) moved: HashSet<usize>,
-    /// Empty seats with someone seated below them on the same side.
+    /// Empty seats with someone seated below them on the same side, once
+    /// everyone has a seat.
     pub(super) gaps: HashSet<String>,
     /// Wish penalty plus policy cost; lower is better.
     pub(super) score: i64,
@@ -35,7 +39,7 @@ impl Scene {
         let seats = project.layout.seats();
         let option = candidate.and_then(|i| project.candidates.get(i));
         let assignment = option.map(|c| c.assignment.clone()).unwrap_or_default();
-        let loose = option
+        let loose: BTreeMap<usize, Pos2> = option
             .map(|c| {
                 c.loose
                     .iter()
@@ -44,6 +48,11 @@ impl Scene {
             })
             .unwrap_or_default();
         let unseated = option.map(|c| c.unseated(project)).unwrap_or_default();
+        let listed = unseated
+            .iter()
+            .copied()
+            .filter(|p| !loose.contains_key(p))
+            .collect();
         let occupant = assignment.iter().map(|(p, s)| (s.clone(), *p)).collect();
         let mut own: HashMap<usize, Vec<(u64, RuleResult)>> = HashMap::new();
         if let Some(evaluation) = &evaluation {
@@ -68,10 +77,16 @@ impl Scene {
                     .collect()
             })
             .unwrap_or_default();
-        let gaps = crate::model::gaps(&seats, &assignment)
-            .into_iter()
-            .map(|s| s.id.clone())
-            .collect();
+        // While people still need seats, empty seats are simply free; gaps
+        // only matter once everyone is seated.
+        let gaps = if unseated.is_empty() {
+            crate::model::gaps(&seats, &assignment)
+                .into_iter()
+                .map(|s| s.id.clone())
+                .collect()
+        } else {
+            HashSet::new()
+        };
         let score = evaluation.as_ref().map_or(0, |e| e.penalty());
         let seat_index = seats
             .iter()
@@ -87,6 +102,7 @@ impl Scene {
             own,
             pins: project.pins(),
             loose,
+            listed,
             unseated,
             moved,
             score,

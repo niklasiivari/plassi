@@ -87,9 +87,9 @@ pub(in crate::app) struct ChartState {
     pub(in crate::app) marquee: Option<Pos2>,
     /// Where the "Not seated" list was drawn last frame; dropping there unseats.
     pub(in crate::app) tray_rect: Option<Rect>,
-    /// The person hovered, else selected, in the "Not seated" list, and the
-    /// edge of their card there: their wish lines start at it.
-    pub(in crate::app) tray_anchor: Option<(usize, Pos2)>,
+    /// The person under the pointer in the "Not seated" list; the people in
+    /// their wishes are outlined on the chart.
+    pub(in crate::app) tray_hover: Option<usize>,
     /// Person to scroll the "Not seated" list to on the next frame.
     pub(in crate::app) tray_reveal: Option<usize>,
     /// Search in the "Not seated" list.
