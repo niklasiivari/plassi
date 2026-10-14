@@ -142,6 +142,8 @@ impl PlassiApp {
         if self.file.external_invalid {
             return;
         }
+        // Any move ends a swap still waiting for its second person.
+        self.chart.swap_from = None;
         let edit = match plan_in(&self.project, self.selected_candidate, wanted) {
             Some(Ok(edit)) if !edit.is_empty() => edit,
             Some(Err(reason)) => {
@@ -153,7 +155,7 @@ impl PlassiApp {
         let scorer = crate::seating::Scorer::new(&self.project);
         let assignment = &self.project.candidates[self.selected_candidate].assignment;
         let (before, _) = total_score(&scorer, &self.project, assignment);
-        edit.apply(&mut self.project, self.selected_candidate);
+        let unpinned = edit.apply(&mut self.project, self.selected_candidate);
         let assignment = &self.project.candidates[self.selected_candidate].assignment;
         let (after, _) = total_score(&scorer, &self.project, assignment);
         self.chart.last_change = Some((after - before, web_time::Instant::now()));
@@ -169,6 +171,7 @@ impl PlassiApp {
                 &[&what, &before, &after, &signed(after - before)],
             ),
         };
+        let message = self.with_unpinned(message, &unpinned);
         self.commit(&message);
     }
 
@@ -177,21 +180,27 @@ impl PlassiApp {
     fn describe_edit(&self, wanted: &[(usize, Spot)], edit: &Rearrangement) -> String {
         let name = |id: usize| self.project.person_name(id).to_string();
         let moved = edit.moves.len() - edit.displaced;
+        // Only the people who actually move; some asked for may stay put.
+        let movers: Vec<usize> = wanted
+            .iter()
+            .map(|(p, _)| *p)
+            .filter(|p| edit.moves.iter().any(|(m, _)| m == p))
+            .collect();
         if wanted.iter().all(|(_, spot)| *spot == Spot::Unseated) {
-            return match wanted {
-                [(person, _)] => fill("Moved {} to the Not seated list", &[&name(*person)]),
+            return match movers.as_slice() {
+                [person] => fill("Moved {} to the Not seated list", &[&name(*person)]),
                 _ => fill("Moved {} people to the Not seated list", &[&moved]),
             };
         }
-        match (wanted, edit.displaced) {
-            ([(person, _)], 1) => {
+        match (movers.as_slice(), edit.displaced) {
+            ([person], 1) => {
                 let other = edit.moves.iter().map(|(p, _)| *p).find(|p| p != person);
                 fill(
                     "Swapped {} ↔ {}",
                     &[&name(*person), &name(other.unwrap_or(*person))],
                 )
             }
-            ([(person, _)], _) => fill("Moved {}", &[&name(*person)]),
+            ([person], _) => fill("Moved {}", &[&name(*person)]),
             _ => fill("Moved {} people", &[&moved]),
         }
     }

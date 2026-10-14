@@ -24,13 +24,7 @@ impl PlassiApp {
                 None
             }
         };
-        let message = match unpinned {
-            Some(other) => fill(
-                "{}; {} is no longer pinned to that seat",
-                &[&message, &self.project.person_name(other)],
-            ),
-            None => message,
-        };
+        let message = self.with_unpinned(message, unpinned.as_slice());
         self.commit(&message);
     }
 
@@ -72,7 +66,11 @@ impl PlassiApp {
             for &person in &pinned {
                 self.project.unpin(person);
             }
-            self.commit(&fill("Unpinned {} people", &[&pinned.len()]));
+            let message = match pinned.as_slice() {
+                [one] => fill("Unpinned {}", &[&self.project.person_name(*one)]),
+                _ => fill("Unpinned {} people", &[&pinned.len()]),
+            };
+            self.commit(&message);
             return;
         }
         let seats: Vec<(usize, String)> = people
@@ -81,22 +79,32 @@ impl PlassiApp {
             .filter_map(|&p| Some((p, self.seat_in_option(p)?)))
             .collect();
         let count = seats.len();
+        let seats_pinned: Vec<usize> = seats.iter().map(|(p, _)| *p).collect();
         let mut unpinned = Vec::new();
         for (person, seat) in seats {
             unpinned.extend(self.project.pin(person, Pin::Seat(seat)));
         }
-        let mut message = fill("Pinned {} people", &[&count]);
-        if !unpinned.is_empty() {
-            let names: Vec<String> = unpinned
-                .iter()
-                .map(|p| self.project.person_name(*p).to_string())
-                .collect();
-            message = fill(
-                "{}; {} is no longer pinned to that seat",
-                &[&message, &names.join(", ")],
-            );
-        }
+        let message = match seats_pinned.as_slice() {
+            [one] => fill("Pinned {}", &[&self.project.person_name(*one)]),
+            _ => fill("Pinned {} people", &[&count]),
+        };
+        let message = self.with_unpinned(message, &unpinned);
         self.commit(&message);
+    }
+
+    /// Adds who lost their seat pin to a history message.
+    pub(super) fn with_unpinned(&self, message: String, unpinned: &[usize]) -> String {
+        if unpinned.is_empty() {
+            return message;
+        }
+        let names: Vec<&str> = unpinned
+            .iter()
+            .map(|p| self.project.person_name(*p))
+            .collect();
+        fill(
+            "{}; {} is no longer pinned to that seat",
+            &[&message, &names.join(", ")],
+        )
     }
 
     /// Keeps people at a table: the solver may change their seats there.

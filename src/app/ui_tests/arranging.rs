@@ -320,3 +320,57 @@ fn the_list_appearing_keeps_a_zoomed_in_view() {
     ui.key(Modifiers::NONE, Key::Delete);
     assert_eq!(ui.app().chart.view.camera.target(), zoomed);
 }
+
+#[test]
+fn a_pin_moved_onto_a_seat_pinned_to_someone_else_says_so() {
+    let mut ui = solved();
+    let [a, b] = ui.two_unpinned();
+    let seat_b = ui.seat_of(b);
+    let other = ui
+        .app()
+        .project
+        .attendees
+        .iter()
+        .map(|x| x.id)
+        .find(|id| ![a, b].contains(id) && !ui.app().project.pins().contains_key(id))
+        .expect("a third person");
+    // Someone pinned to b's seat while sitting elsewhere, as after pinning
+    // in another option.
+    let app = ui.app_mut();
+    app.project.pin(
+        a,
+        Pin::Seat(app.project.candidates[0].assignment[&a].clone()),
+    );
+    app.project.pin(other, Pin::Seat(seat_b.clone()));
+    app.commit("pins");
+    ui.settle();
+    ui.drag(ui.card_of(a).center(), ui.card_of(b).center());
+    assert_eq!(ui.seat_of(a), seat_b);
+    let name = ui.app().project.person_name(other).to_string();
+    let said = format!("{name} is no longer pinned to that seat");
+    assert!(ui.has_text(&said), "{:?}", ui.dump());
+}
+
+#[test]
+fn a_loose_card_dropped_on_another_does_not_cover_it() {
+    let mut ui = solved();
+    let [a, b] = ui.two_unpinned();
+    let app = ui.app_mut();
+    let below = app
+        .project
+        .layout
+        .seats()
+        .iter()
+        .map(|s| s.y)
+        .fold(0.0, f32::max)
+        + 200.0;
+    let option = &mut app.project.candidates[0];
+    option.place(a, Spot::Loose(crate::model::Point { x: 0.0, y: below }));
+    option.place(b, Spot::Loose(crate::model::Point { x: 300.0, y: below }));
+    app.commit("loose");
+    ui.key(Modifiers::NONE, Key::F);
+    ui.drag(ui.card_of(a).center(), ui.card_of(b).center());
+    assert!(matches!(ui.option().spot_of(a), Spot::Loose(_)));
+    let (ra, rb) = (ui.card_of(a), ui.card_of(b));
+    assert!(!ra.intersects(rb), "{ra:?} {rb:?}");
+}

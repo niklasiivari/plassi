@@ -41,20 +41,21 @@ impl Rearrangement {
         next
     }
 
-    /// Applies the edit to option `index` and moves the pins along.
-    pub fn apply(&self, project: &mut Project, index: usize) {
+    /// Applies the edit to option `index` and moves the pins along. Returns
+    /// the people whose seat pin a moved pin took over.
+    pub fn apply(&self, project: &mut Project, index: usize) -> Vec<usize> {
         let Some(candidate) = project.candidates.get(index) else {
-            return;
+            return Vec::new();
         };
         project.candidates[index] = self.result(candidate);
+        let mut unpinned = Vec::new();
         for (person, pin) in &self.repins {
             match pin {
-                Some(pin) => {
-                    project.pin(*person, pin.clone());
-                }
+                Some(pin) => unpinned.extend(project.pin(*person, pin.clone())),
                 None => project.unpin(*person),
             }
         }
+        unpinned
     }
 }
 

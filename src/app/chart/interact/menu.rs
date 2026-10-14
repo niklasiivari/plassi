@@ -15,12 +15,17 @@ impl PlassiApp {
     ) {
         let pin = scene.pins.get(&id);
         let people = self.acting_on(id);
+        // Only the people P acts on: pinned or seated.
+        let counted = people
+            .iter()
+            .filter(|p| scene.pins.contains_key(p) || scene.seat_of.contains_key(p))
+            .count();
         match (place, pin) {
-            _ if people.len() > 1 => {
+            _ if counted > 1 => {
                 let label = if self.would_unpin(&people) {
-                    fill("Unpin {} people (P)", &[&people.len()])
+                    fill("Unpin {} people (P)", &[&counted])
                 } else {
-                    fill("Pin {} people to their seats (P)", &[&people.len()])
+                    fill("Pin {} people to their seats (P)", &[&counted])
                 };
                 if ui.button(label).clicked() {
                     actions.pin_all = Some(people.clone());
@@ -57,7 +62,12 @@ impl PlassiApp {
         if people.len() == 1 && ui.button(tr("Swap with…")).clicked() {
             actions.start_swap = Some(id);
         }
-        let off = match (place, people.len()) {
+        // Only people on a seat or the chart can be taken off it.
+        let on_chart = people
+            .iter()
+            .filter(|p| scene.seat_of.contains_key(p) || scene.loose.contains_key(p))
+            .count();
+        let off = match (place, on_chart) {
             (Place::Seat(_), 1) => tr("Take off the seat").to_string(),
             (Place::Seat(_), n) => fill("Take {} people off their seats", &[&n]),
             (Place::Loose(..), 1) => tr("Move to the Not seated list").to_string(),

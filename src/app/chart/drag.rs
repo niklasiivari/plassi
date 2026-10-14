@@ -53,7 +53,9 @@ impl PlassiApp {
             Some(seat) => card_rect(seat).center(),
             None => world - drag.grip,
         };
-        Some(landing(scene, &drag.people, anchor))
+        let mut targets = landing(scene, &drag.people, anchor);
+        clear_of_loose(scene, &mut targets);
+        Some(targets)
     }
 
     /// Ghost cards where the people would land, and what the drop would do.
@@ -183,6 +185,29 @@ fn landing(scene: &Scene, people: &[usize], anchor: Pos2) -> Targets {
         .iter()
         .map(|&p| (p, placed.get(&p).cloned().unwrap_or_else(&mut stack)))
         .collect()
+}
+
+/// Moves cards dropped on the floor down until they don't cover a loose card
+/// that stays where it is.
+fn clear_of_loose(scene: &Scene, targets: &mut Targets) {
+    let size = Vec2::new(CARD_W, CARD_H);
+    let staying: Vec<Rect> = scene
+        .loose
+        .iter()
+        .filter(|(p, _)| !targets.iter().any(|(t, _)| t == *p))
+        .map(|(_, at)| Rect::from_center_size(*at, size))
+        .collect();
+    for (_, spot) in targets.iter_mut() {
+        let Spot::Loose(point) = spot else { continue };
+        let mut at = Pos2::new(point.x, point.y);
+        while let Some(under) = staying
+            .iter()
+            .find(|r| r.intersects(Rect::from_center_size(at, size)))
+        {
+            at.y = under.bottom() + CARD_H / 2.0 + 4.0;
+        }
+        *point = Point { x: at.x, y: at.y };
+    }
 }
 
 /// The seat whose card covers a point, or that point on the floor.
