@@ -73,7 +73,8 @@ fn someone_without_a_seat_is_offered_the_best_free_seats() {
     assert_eq!(anchor, Some(first.id));
     let best = {
         let app = ui.app();
-        crate::arrange::free_seats(&app.project, ui.option(), first.id)[0]
+        let scorer = crate::seating::Scorer::new(&app.project);
+        crate::arrange::free_seats(&app.project, &scorer, ui.option(), first.id)[0]
             .0
             .clone()
     };
@@ -288,4 +289,27 @@ fn undoing_seat_the_rest_goes_back_to_the_option_it_started_from() {
     // Redo shows the new option again.
     ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
     assert_eq!(shown(&ui), filled);
+}
+
+#[test]
+fn undo_finds_the_option_shown_even_when_two_share_a_name() {
+    let mut ui = solved();
+    let app = ui.app_mut();
+    // A second option renamed to the first one's name.
+    let copy = app.project.candidates[0].clone();
+    app.project.candidates.push(copy);
+    app.commit("copy");
+    ui.settle();
+    ui.app_mut().selected_candidate = 1;
+    ui.settle();
+    let [a, _] = ui.two_unpinned();
+    ui.click_at(
+        ui.card_of(a).center(),
+        PointerButton::Primary,
+        Modifiers::NONE,
+    );
+    ui.key(Modifiers::NONE, Key::Delete);
+    ui.key(Modifiers::COMMAND, Key::Z);
+    assert_eq!(ui.app().selected_candidate, 1);
+    assert!(matches!(ui.option().spot_of(a), Spot::Seat(_)));
 }

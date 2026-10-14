@@ -131,12 +131,7 @@ pub fn evaluate_with(
         left_out: breakdown.left_out,
         left_out_penalty: breakdown.left_out_penalty,
         assignment_errors: assignment_errors(project, assignment),
-        unseated: project
-            .attendees
-            .iter()
-            .map(|a| a.id)
-            .filter(|id| !assignment.contains_key(id))
-            .collect(),
+        unseated: project.unseated_in(assignment),
     }
 }
 

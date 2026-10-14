@@ -69,8 +69,9 @@ pub fn add(project: &mut Project, person: NewAttendee) -> Result<usize> {
         .max()
         .unwrap_or(0);
     project.attendees.push(person.into_attendee(id));
+    let scorer = crate::seating::Scorer::new(project);
     for index in 0..project.candidates.len() {
-        if let Some(seat) = best_free_seat(project, index, id) {
+        if let Some(seat) = best_free_seat(project, &scorer, index, id) {
             let candidate = &mut project.candidates[index];
             candidate.assignment.insert(id, seat);
             candidate.hand_placed.insert(id);
@@ -137,9 +138,14 @@ pub fn replace(project: &mut Project, old: usize, person: NewAttendee) -> Result
 }
 
 /// The free seat in option `index` where `person` scores best.
-fn best_free_seat(project: &Project, index: usize, person: usize) -> Option<String> {
+fn best_free_seat(
+    project: &Project,
+    scorer: &crate::seating::Scorer,
+    index: usize,
+    person: usize,
+) -> Option<String> {
     let candidate = &project.candidates[index];
-    let (seat, _) = crate::arrange::free_seats(project, candidate, person)
+    let (seat, _) = crate::arrange::free_seats(project, scorer, candidate, person)
         .into_iter()
         .next()?;
     Some(seat)

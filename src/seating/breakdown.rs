@@ -50,6 +50,14 @@ impl Scorer {
         Self(Problem::new(project, &HashSet::new(), None, None))
     }
 
+    /// The solver's cost of a chart: broken hard rules weigh the project's
+    /// score radix each, on top of the score. Far cheaper than a breakdown,
+    /// for ranking many charts.
+    pub fn cost(&self, assignment: &BTreeMap<usize, String>) -> i64 {
+        let (seat_of, occupant) = self.0.state_of(assignment);
+        self.0.cost(&seat_of, &occupant)
+    }
+
     pub fn breakdown(&self, assignment: &BTreeMap<usize, String>) -> Breakdown {
         let pr = &self.0;
         let (seat_of, occupant) = pr.state_of(assignment);

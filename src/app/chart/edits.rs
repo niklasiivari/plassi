@@ -106,7 +106,8 @@ pub(super) fn best_moves(project: &Project, candidate: usize, person: usize) -> 
         return Vec::new();
     }
     if !option.assignment.contains_key(&person) {
-        return arrange::free_seats(project, option, person)
+        let scorer = crate::seating::Scorer::new(project);
+        return arrange::free_seats(project, &scorer, option, person)
             .into_iter()
             .map(|(seat, delta)| (seat, None, delta))
             .collect();
@@ -174,7 +175,7 @@ impl PlassiApp {
         let scorer = crate::seating::Scorer::new(&self.project);
         let assignment = &self.project.candidates[self.selected_candidate].assignment;
         let (before, _) = total_score(&scorer, &self.project, assignment);
-        let unpinned = edit.apply(&mut self.project, self.selected_candidate);
+        edit.apply(&mut self.project, self.selected_candidate);
         let assignment = &self.project.candidates[self.selected_candidate].assignment;
         let (after, _) = total_score(&scorer, &self.project, assignment);
         self.chart.last_change = Some((after - before, web_time::Instant::now()));
@@ -182,7 +183,7 @@ impl PlassiApp {
         // While people have no seat the score itself means little; the
         // change still does.
         let unfinished = assignment.len() < self.project.attendees.len();
-        let message = match unfinished {
+        let mut message = match unfinished {
             true if after == before => fill("{} · score unchanged", &[&what]),
             true => fill("{} · score {}", &[&what, &signed(after - before)]),
             false => fill(
@@ -190,7 +191,6 @@ impl PlassiApp {
                 &[&what, &before, &after, &signed(after - before)],
             ),
         };
-        let mut message = self.with_unpinned(message, &unpinned);
         if let Some(other) = pinned_elsewhere(&self.project, &edit.moves) {
             let name = self.project.person_name(other);
             message = fill("{}; the seat is pinned to {}", &[&message, &name]);
@@ -202,13 +202,9 @@ impl PlassiApp {
     /// seated list", for the history.
     fn describe_edit(&self, wanted: &[(usize, Spot)], edit: &Rearrangement) -> String {
         let name = |id: usize| self.project.person_name(id).to_string();
-        let moved = edit.moves.len() - edit.displaced;
         // Only the people who actually move; some asked for may stay put.
-        let movers: Vec<usize> = wanted
-            .iter()
-            .map(|(p, _)| *p)
-            .filter(|p| edit.moves.iter().any(|(m, _)| m == p))
-            .collect();
+        let movers: Vec<usize> = edit.movers().iter().map(|(p, _)| *p).collect();
+        let moved = movers.len();
         if wanted.iter().all(|(_, spot)| *spot == Spot::Unseated) {
             return match movers.as_slice() {
                 [person] => fill("Moved {} to the Not seated list", &[&name(*person)]),

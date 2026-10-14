@@ -322,7 +322,7 @@ fn the_list_appearing_keeps_a_zoomed_in_view() {
 }
 
 #[test]
-fn a_pin_moved_onto_a_seat_pinned_to_someone_else_says_so() {
+fn a_pin_is_not_moved_onto_a_seat_pinned_to_someone_else() {
     let mut ui = solved();
     let [a, b] = ui.two_unpinned();
     let seat_b = ui.seat_of(b);
@@ -344,10 +344,13 @@ fn a_pin_moved_onto_a_seat_pinned_to_someone_else_says_so() {
     app.project.pin(other, Pin::Seat(seat_b.clone()));
     app.commit("pins");
     ui.settle();
+    let seat_a = ui.seat_of(a);
     ui.drag(ui.card_of(a).center(), ui.card_of(b).center());
-    assert_eq!(ui.seat_of(a), seat_b);
+    // Refused, with the reason: the other person keeps their pin.
+    assert_eq!(ui.seat_of(a), seat_a);
+    assert_eq!(ui.app().project.pins()[&other], Pin::Seat(seat_b));
     let name = ui.app().project.person_name(other).to_string();
-    let said = format!("{name} is no longer pinned to that seat");
+    let said = format!("That seat is pinned to {name}");
     assert!(ui.has_text(&said), "{:?}", ui.dump());
 }
 

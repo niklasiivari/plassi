@@ -67,16 +67,20 @@ impl Candidate {
 
     /// People without a seat, in attendee order.
     pub fn unseated(&self, project: &Project) -> Vec<usize> {
-        project
-            .attendees
-            .iter()
-            .map(|a| a.id)
-            .filter(|id| !self.assignment.contains_key(id))
-            .collect()
+        project.unseated_in(&self.assignment)
     }
 }
 
 impl Project {
+    /// People `assignment` gives no seat, in attendee order.
+    pub fn unseated_in(&self, assignment: &BTreeMap<usize, String>) -> Vec<usize> {
+        self.attendees
+            .iter()
+            .map(|a| a.id)
+            .filter(|id| !assignment.contains_key(id))
+            .collect()
+    }
+
     /// "Option N" in the interface language, for the lowest N from the
     /// option count up that no option is called yet, so a deleted option's
     /// name is not repeated.

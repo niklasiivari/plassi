@@ -13,9 +13,10 @@ use crate::model::{Candidate, Pin, Project, SolverStatus, Spot, seat_table};
 /// A checked hand edit, ready to preview or apply.
 #[derive(Clone, Debug, Default)]
 pub struct Rearrangement {
-    /// Everyone whose place changes, and where they go.
+    /// Everyone whose place changes, and where they go: the people moved on
+    /// purpose first, then the people who made room for them.
     pub moves: Vec<(usize, Spot)>,
-    /// How many of them made room for the people moved on purpose.
+    /// How many of `moves`, at the end, made room for the others.
     pub displaced: usize,
     /// Pins that follow their person: the new pin, or `None` to unpin.
     pub repins: Vec<(usize, Option<Pin>)>,
@@ -26,11 +27,19 @@ impl Rearrangement {
         self.moves.is_empty()
     }
 
-    /// The option after the edit.
+    /// The people moved on purpose.
+    pub fn movers(&self) -> &[(usize, Spot)] {
+        &self.moves[..self.moves.len() - self.displaced]
+    }
+
+    /// The option after the edit. Only people moved on purpose onto a seat
+    /// count as placed by hand; people pushed aside are free for the search
+    /// again, since nobody chose their new place.
     pub fn result(&self, candidate: &Candidate) -> Candidate {
         let mut next = candidate.clone();
-        for (person, spot) in &self.moves {
-            if matches!(spot, Spot::Seat(_)) {
+        let movers = self.movers().len();
+        for (i, (person, spot)) in self.moves.iter().enumerate() {
+            if i < movers && matches!(spot, Spot::Seat(_)) {
                 next.hand_placed.insert(*person);
             } else {
                 next.hand_placed.remove(person);
@@ -41,24 +50,22 @@ impl Rearrangement {
         next
     }
 
-    /// Applies the edit to option `index` and moves the pins along. Returns
-    /// the people whose seat pin a moved pin took over.
-    pub fn apply(&self, project: &mut Project, index: usize) -> Vec<usize> {
+    /// Applies the edit to option `index` and moves the pins along. A moved
+    /// pin never takes over a seat pinned to someone else (`plan` refuses
+    /// that), so nobody loses a pin they did not move.
+    pub fn apply(&self, project: &mut Project, index: usize) {
         let Some(candidate) = project.candidates.get(index) else {
-            return Vec::new();
+            return;
         };
         project.candidates[index] = self.result(candidate);
-        let mut unpinned = Vec::new();
         for (person, pin) in &self.repins {
             match pin {
-                Some(pin) => unpinned.extend(project.pin(*person, pin.clone())),
+                Some(pin) => {
+                    project.pin(*person, pin.clone());
+                }
                 None => project.unpin(*person),
             }
         }
-        // Someone in the edit may have been re-pinned after losing a pin.
-        let pins = project.pins();
-        unpinned.retain(|p| !pins.contains_key(p));
-        unpinned
     }
 }
 
@@ -98,10 +105,11 @@ pub fn plan(
         moves.push((occupant, spot));
         displaced += 1;
     }
-    let repins = movers
+    let repins: Vec<(usize, Option<Pin>)> = movers
         .iter()
         .filter_map(|(person, spot)| Some((*person, follow(pins.get(person)?, spot)?)))
         .collect();
+    check_takeover(project, &pins, &moving, &repins)?;
     Ok(Rearrangement {
         moves,
         displaced,
@@ -134,7 +142,32 @@ fn vacated(candidate: &Candidate, landing: &HashMap<String, usize>, mover: usize
     spot
 }
 
-/// Whether a displaced person's pin allows them to go to `spot`.
+/// Fails when a pin that follows its person would land on a seat pinned to
+/// someone who is not moving: that person would silently lose their pin.
+fn check_takeover(
+    project: &Project,
+    pins: &HashMap<usize, Pin>,
+    moving: &HashSet<usize>,
+    repins: &[(usize, Option<Pin>)],
+) -> Result<(), String> {
+    for (_, pin) in repins {
+        let Some(pin @ Pin::Seat(_)) = pin else {
+            continue;
+        };
+        if let Some((other, _)) = pins
+            .iter()
+            .find(|(p, held)| *held == pin && !moving.contains(p))
+        {
+            let name = project.person_name(*other);
+            return Err(fill("That seat is pinned to {}", &[&name]));
+        }
+    }
+    Ok(())
+}
+
+/// Whether a displaced person's pin allows them to go to `spot`. Someone
+/// kept at a table may leave the seats, like people moved on purpose, but
+/// not sit at another table.
 fn check_pin(
     project: &Project,
     pin: Option<&Pin>,
@@ -144,12 +177,11 @@ fn check_pin(
     let name = project.person_name(person);
     match (pin, spot) {
         (Some(Pin::Seat(_)), _) => Err(fill("{} is pinned here", &[&name])),
-        (Some(Pin::Table(table)), Spot::Seat(seat)) if seat_table(seat) == table => Ok(()),
-        (Some(Pin::Table(table)), _) => Err(fill(
+        (Some(Pin::Table(table)), Spot::Seat(seat)) if seat_table(seat) != table => Err(fill(
             "{} is kept at {}",
             &[&name, &project.table_label(table)],
         )),
-        (None, _) => Ok(()),
+        (Some(Pin::Table(_)), _) | (None, _) => Ok(()),
     }
 }
 

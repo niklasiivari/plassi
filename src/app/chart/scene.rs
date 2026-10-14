@@ -5,6 +5,8 @@ use super::*;
 /// Everything the chart needs for one frame, derived from the project.
 pub(super) struct Scene {
     pub(super) seats: Vec<Seat>,
+    /// Each seat's index in `seats`, by seat ID.
+    seat_index: HashMap<String, usize>,
     pub(super) occupant: HashMap<String, usize>,
     pub(super) seat_of: HashMap<usize, String>,
     pub(super) evaluation: Option<std::rc::Rc<Evaluation>>,
@@ -71,8 +73,14 @@ impl Scene {
             .map(|s| s.id.clone())
             .collect();
         let score = evaluation.as_ref().map_or(0, |e| e.penalty());
+        let seat_index = seats
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (s.id.clone(), i))
+            .collect();
         Self {
             seats,
+            seat_index,
             occupant,
             seat_of: assignment.into_iter().collect(),
             evaluation,
@@ -104,7 +112,7 @@ impl Scene {
     }
 
     pub(super) fn seat(&self, id: &str) -> Option<&Seat> {
-        self.seats.iter().find(|s| s.id == id)
+        self.seats.get(*self.seat_index.get(id)?)
     }
 
     /// The seat whose card covers a world point.

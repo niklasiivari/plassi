@@ -29,6 +29,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Kaksi henkilöä osuisi samalle paikalle",
     ),
     ("{} is kept at {}", "{} on lukittu pöytään {}"),
+    (
+        "That seat is pinned to {}",
+        "Paikka on lukittu henkilölle {}",
+    ),
     ("no change", "ei muutosta"),
     ("+{} worse", "+{} (huonompi)"),
     ("{} better", "{} (parempi)"),

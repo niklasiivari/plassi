@@ -24,8 +24,10 @@ pub(super) struct ProjectFile {
     pub(super) revision: u64,
     pub(super) undo_stack: Vec<Step>,
     pub(super) redo_stack: Vec<Step>,
-    /// The option shown in the last frame, so undo can show it again.
-    pub(super) shown_option: Option<String>,
+    /// The option shown at the start of this frame, so undo can show it
+    /// again. Its index is into the options of the last saved state, which
+    /// is the state an undo step saves, so it needs no name to find it.
+    pub(super) shown_option: Option<usize>,
     /// A project file being uploaded in the browser.
     #[cfg(target_arch = "wasm32")]
     pub(super) upload: Option<platform::FilePick>,
@@ -36,8 +38,8 @@ pub(super) struct Step {
     pub(super) bytes: Vec<u8>,
     /// E.g. "Moved X to Table 2"; shown as "Undo: …".
     pub(super) change: String,
-    /// The option shown in this state.
-    pub(super) option: Option<String>,
+    /// The option shown in this state, as its index there.
+    pub(super) option: Option<usize>,
 }
 
 /// A name that works as a file name: no path separators or reserved characters.
@@ -298,7 +300,7 @@ impl PlassiApp {
     }
 
     fn push_undo(&mut self, bytes: Vec<u8>, change: String) {
-        let option = self.file.shown_option.clone();
+        let option = self.file.shown_option;
         self.file.undo_stack.push(Step {
             bytes,
             change,
@@ -321,13 +323,11 @@ impl PlassiApp {
             return;
         };
         let change = step.change.clone();
-        let option = step.option.clone();
+        let option = step.option;
         let current = self.file.last_bytes.clone();
         self.project = project;
-        // Back on the option shown in that state, when it is still there.
-        if let Some(index) =
-            option.and_then(|name| self.project.candidates.iter().position(|c| c.name == name))
-        {
+        // Back on the option shown in that state.
+        if let Some(index) = option.filter(|i| *i < self.project.candidates.len()) {
             self.selected_candidate = index;
         }
         let message = if redo {
@@ -344,7 +344,7 @@ impl PlassiApp {
             (&mut self.file.undo_stack, &mut self.file.redo_stack)
         };
         from.pop();
-        let option = self.file.shown_option.clone();
+        let option = self.file.shown_option;
         to.extend(current.map(|bytes| Step {
             bytes,
             change,

@@ -28,7 +28,8 @@ fn moving_onto_someone_swaps_the_two() {
     let next = after(&project, &candidate, &[(0, seat("t2:left:0"))]);
     assert_eq!(next.spot_of(0), seat("t2:left:0"));
     assert_eq!(next.spot_of(4), candidate.spot_of(0));
-    assert!(next.hand_placed.contains(&0) && next.hand_placed.contains(&4));
+    // Only the person moved on purpose counts as placed by hand.
+    assert!(next.hand_placed.contains(&0) && !next.hand_placed.contains(&4));
 }
 
 #[test]
@@ -212,4 +213,59 @@ fn a_free_option_name_skips_names_in_use() {
     project.candidates[0].name = "A (copy)".into();
     let names = ["A (copy)", "A (copy 2)"].map(String::from).into_iter();
     assert_eq!(project.free_option_name(names), "A (copy 2)");
+}
+
+#[test]
+fn someone_kept_at_a_table_may_be_pushed_off_the_seats() {
+    let (mut project, candidate) = seated();
+    project.pin(4, Pin::Table("t2".into()));
+    let off = after(&project, &candidate, &[(0, Spot::Unseated)]);
+    // 0 comes back from the list onto 4's seat; 4 takes 0's place in the list.
+    plan(&project, &off, &[(0, seat("t2:left:0"))])
+        .unwrap()
+        .apply(&mut project, 0);
+    assert_eq!(project.candidates[0].spot_of(4), Spot::Unseated);
+    assert_eq!(project.pins()[&4], Pin::Table("t2".into()));
+}
+
+#[test]
+fn a_moved_pin_never_takes_a_seat_pinned_to_someone_else() {
+    let (mut project, mut candidate) = seated();
+    project.pin(0, Pin::Seat("t1:left:0".into()));
+    // 5 is pinned to t2:left:0 but sits elsewhere, as after pinning in
+    // another option.
+    candidate.place(4, Spot::Unseated);
+    project.pin(5, Pin::Seat("t2:left:0".into()));
+    let refused = plan(&project, &candidate, &[(0, seat("t2:left:0"))]);
+    assert!(refused.is_err());
+    // Someone without a pin may sit there; the seat stays 5's.
+    plan(&project, &candidate, &[(1, seat("t2:left:0"))])
+        .unwrap()
+        .apply(&mut project, 0);
+    assert_eq!(project.pins()[&5], Pin::Seat("t2:left:0".into()));
+}
+
+#[test]
+fn free_seats_skip_seats_pinned_to_others_and_score_like_the_report() {
+    let (mut project, mut candidate) = seated();
+    project.rules.push(crate::import::wish_rule(
+        900,
+        0,
+        vec![1],
+        crate::model::WishKind::Avec,
+        "",
+    ));
+    candidate.place(0, Spot::Unseated);
+    candidate.place(2, Spot::Unseated);
+    project.pin(2, Pin::Seat("t1:right:0".into()));
+    let scorer = crate::seating::Scorer::new(&project);
+    let free = free_seats(&project, &scorer, &candidate, 0);
+    assert!(free.iter().all(|(s, _)| s != "t1:right:0"), "{free:?}");
+    let (best, delta) = free[0].clone();
+    assert_eq!(best, "t1:left:0", "beside the person 0 wished for");
+    let mut seated = candidate.assignment.clone();
+    let before = crate::score::evaluate(&project, &seated).penalty();
+    seated.insert(0, best);
+    let after = crate::score::evaluate(&project, &seated).penalty();
+    assert_eq!(delta, after - before);
 }
