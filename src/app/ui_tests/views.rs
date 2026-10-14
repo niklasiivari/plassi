@@ -160,3 +160,64 @@ fn a_table_summary_lists_wishes_that_leave_the_table() {
     ui.click(&line);
     assert_eq!(ui.app().selected_person, Some(to));
 }
+
+#[test]
+fn removing_a_table_with_pinned_loose_and_moved_people() {
+    let mut ui = solved();
+    let table = first_table(&ui);
+    let seat = |i: usize| format!("{table}:left:{i}");
+    let on = |ui: &Ui, seat: &str| {
+        *ui.option()
+            .assignment
+            .iter()
+            .find(|(_, s)| *s == seat)
+            .unwrap()
+            .0
+    };
+    let (pinned, loose, moved) = (on(&ui, &seat(0)), on(&ui, &seat(1)), on(&ui, &seat(2)));
+    {
+        let app = ui.app_mut();
+        app.project.pin(pinned, crate::model::Pin::Seat(seat(0)));
+        let option = &mut app.project.candidates[app.selected_candidate];
+        option.place(
+            loose,
+            Spot::Loose(crate::model::Point { x: -200.0, y: 0.0 }),
+        );
+        option.hand_placed.insert(moved);
+        app.commit("Arranged by hand");
+    }
+    ui.settle();
+
+    ui.go_to("Room layout");
+    ui.click("×");
+    let option = ui.option();
+    assert_eq!(option.spot_of(pinned), Spot::Unseated);
+    assert!(matches!(option.spot_of(loose), Spot::Loose(_)));
+    assert_eq!(option.spot_of(moved), Spot::Unseated);
+    assert!(
+        !option.hand_placed.contains(&moved),
+        "nobody keeps a seat they lost"
+    );
+    assert!(!ui.app().project.pins().contains_key(&pinned));
+    ui.app().project.validate().unwrap();
+
+    // Undo brings the table, the pin and the seats back.
+    ui.key(Modifiers::COMMAND, Key::Z);
+    assert_eq!(ui.option().spot_of(pinned), Spot::Seat(seat(0)));
+    assert!(ui.app().project.pins().contains_key(&pinned));
+}
+
+#[test]
+fn removing_every_table_leaves_everyone_not_seated() {
+    let mut ui = solved();
+    ui.go_to("Room layout");
+    while ui.has("×") {
+        ui.click("×");
+    }
+    let app = ui.app();
+    assert!(app.project.layout.seats().is_empty());
+    assert_eq!(app.project.candidates.len(), 1);
+    assert!(ui.option().assignment.is_empty());
+    app.project.validate().unwrap();
+    ui.go_to("Seating chart");
+}

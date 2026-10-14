@@ -160,3 +160,48 @@ fn legend_row(ui: &mut egui::Ui, p: Palette, color: Color32, name: &str, count: 
 fn is_dark(p: Palette) -> bool {
     p.bg.r() < 100
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn people_in(organizations: &[&str]) -> Project {
+        let mut project = crate::tests::two_tables();
+        project.attendees.truncate(0);
+        for (id, organization) in organizations.iter().enumerate() {
+            let mut attendee = crate::example::project().attendees[0].clone();
+            attendee.id = id;
+            attendee.name = format!("Person {id}");
+            attendee.organization = organization.to_string();
+            project.attendees.push(attendee);
+        }
+        project
+    }
+
+    #[test]
+    fn nobody_means_an_empty_legend() {
+        let coloring = Coloring::new(&people_in(&[]), Kind::Organization);
+        assert!(coloring.entries.is_empty() && coloring.blank == 0);
+        let (own, other) = coloring.legend(theme::LIGHT);
+        assert!(own.is_empty() && other == 0);
+    }
+
+    #[test]
+    fn categories_past_the_palette_share_other() {
+        let names: Vec<String> = (0..14).map(|i| format!("Org {i:02}")).collect();
+        let mut organizations: Vec<&str> = names.iter().map(String::as_str).collect();
+        // The most common one comes first and keeps the first colour.
+        organizations.extend(["Org 13", "Org 13", ""]);
+        let coloring = Coloring::new(&people_in(&organizations), Kind::Organization);
+        assert_eq!(coloring.entries[0].name, "Org 13");
+        assert_eq!(coloring.entries[0].count, 3);
+        assert_eq!(coloring.blank, 1);
+        let p = theme::LIGHT;
+        let (own, other) = coloring.legend(p);
+        assert_eq!(own.len(), 10);
+        assert_eq!(other, 4);
+        let last = &coloring.entries.last().unwrap().key;
+        assert_eq!(coloring.color(last, p), Some(p.muted));
+        assert_eq!(coloring.color("", p), None);
+    }
+}

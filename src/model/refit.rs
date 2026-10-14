@@ -46,9 +46,18 @@ impl Project {
             .retain(|r| seats.contains(&r.a) && seats.contains(&r.b));
         let mut unseated = 0;
         for option in &mut self.candidates {
-            let seated = option.assignment.len();
-            option.assignment.retain(|_, seat| seats.contains(seat));
-            unseated = unseated.max(seated - option.assignment.len());
+            let lost: Vec<usize> = option
+                .assignment
+                .iter()
+                .filter(|(_, seat)| !seats.contains(*seat))
+                .map(|(person, _)| *person)
+                .collect();
+            for person in &lost {
+                // No longer placed anywhere, so Improve has nothing to keep.
+                option.assignment.remove(person);
+                option.hand_placed.remove(person);
+            }
+            unseated = unseated.max(lost.len());
         }
         RoomFit {
             unseated,
