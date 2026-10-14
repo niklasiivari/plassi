@@ -135,7 +135,8 @@ impl PlassiApp {
                 preview(project, candidate, targets)
             });
         if let Some(preview) = preview {
-            let (text, color) = preview_text(preview, p);
+            let pinned = preview.pinned_to.map(|id| self.project.person_name(id));
+            let (text, color) = preview_text(preview, pinned, p);
             badge(painter, at, &text, color, p);
         }
     }

@@ -13,6 +13,8 @@ pub(in crate::app) struct DropPreview {
     /// Change in wishes fully met.
     pub met_delta: i64,
     pub blocked: Option<String>,
+    /// Someone else pinned to a seat the people land on.
+    pub pinned_to: Option<usize>,
 }
 
 impl DropPreview {
@@ -22,6 +24,7 @@ impl DropPreview {
             hard_delta: 0,
             met_delta: 0,
             blocked: Some(reason),
+            pinned_to: None,
         }
     }
 }
@@ -70,6 +73,21 @@ pub(super) fn preview(
         hard_delta: after.hard_violations as i64 - before.hard_violations as i64,
         met_delta: wishes_met(project, &after) - wishes_met(project, &before),
         blocked: None,
+        pinned_to: pinned_elsewhere(project, wanted),
+    })
+}
+
+/// Someone not moving who is pinned to a seat these people land on: the
+/// solver would put them back there (pins hold in every option).
+pub(super) fn pinned_elsewhere(project: &Project, wanted: &[(usize, Spot)]) -> Option<usize> {
+    let pins = project.pins();
+    wanted.iter().find_map(|(_, spot)| {
+        let Spot::Seat(seat) = spot else { return None };
+        pins.iter()
+            .find(|(p, pin)| {
+                **pin == Pin::Seat(seat.clone()) && !wanted.iter().any(|(w, _)| w == *p)
+            })
+            .map(|(p, _)| *p)
     })
 }
 
@@ -171,7 +189,11 @@ impl PlassiApp {
                 &[&what, &before, &after, &signed(after - before)],
             ),
         };
-        let message = self.with_unpinned(message, &unpinned);
+        let mut message = self.with_unpinned(message, &unpinned);
+        if let Some(other) = pinned_elsewhere(&self.project, wanted) {
+            let name = self.project.person_name(other);
+            message = fill("{}; the seat is pinned to {}", &[&message, &name]);
+        }
         self.commit(&message);
     }
 

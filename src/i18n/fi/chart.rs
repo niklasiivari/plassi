@@ -45,6 +45,12 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Score {}", "Pistemuutos {}"),
     ("Score unchanged", "Pisteet ennallaan"),
+    ("score unchanged", "pisteet ennallaan"),
+    (" · seat pinned to {}", " · paikka on lukittu henkilölle {}"),
+    (
+        "{}; the seat is pinned to {}",
+        "{}; paikka on lukittu henkilölle {}",
+    ),
     ("{} · score unchanged", "{} · pisteet ennallaan"),
     // Edits
     ("Edited by hand", "Muokattu käsin"),

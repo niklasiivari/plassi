@@ -374,3 +374,23 @@ fn a_loose_card_dropped_on_another_does_not_cover_it() {
     let (ra, rb) = (ui.card_of(a), ui.card_of(b));
     assert!(!ra.intersects(rb), "{ra:?} {rb:?}");
 }
+
+#[test]
+fn seating_someone_on_a_seat_pinned_to_another_person_warns() {
+    let mut ui = solved();
+    let [a, b] = ui.two_unpinned();
+    let seat = ui.seat_of(a);
+    // Pinned to that seat but without a seat in this option, as after
+    // pinning in another option.
+    let app = ui.app_mut();
+    app.project.pin(a, Pin::Seat(seat.clone()));
+    app.project.candidates[0].place(a, Spot::Unseated);
+    app.commit("pin");
+    ui.key(Modifiers::NONE, Key::F);
+    let to = ui.app().seat_card_on_screen(&seat).expect("seat").center();
+    ui.drag(ui.card_of(b).center(), to);
+    assert_eq!(ui.seat_of(b), seat);
+    let name = ui.app().project.person_name(a).to_string();
+    let said = format!("the seat is pinned to {name}");
+    assert!(ui.has_text(&said), "{:?}", ui.dump());
+}

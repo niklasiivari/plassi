@@ -316,7 +316,13 @@ pub(super) fn badge(painter: &egui::Painter, at: Pos2, text: &str, color: Color3
     painter.galley(rect.center() - galley.size() / 2.0, galley, color);
 }
 
-pub(super) fn preview_text(preview: &DropPreview, p: Palette) -> (String, Color32) {
+/// The drop badge: what the drop would change; `pinned_name` is whoever
+/// else is pinned to a seat it lands on.
+pub(super) fn preview_text(
+    preview: &DropPreview,
+    pinned_name: Option<&str>,
+    p: Palette,
+) -> (String, Color32) {
     if let Some(reason) = &preview.blocked {
         return (reason.clone(), p.bad);
     }
@@ -327,13 +333,21 @@ pub(super) fn preview_text(preview: &DropPreview, p: Palette) -> (String, Color3
         n if n > 0 => fill("{} more wishes met · ", &[&n]),
         n => fill("{} wishes fewer met · ", &[&-n]),
     };
-    let mut text = format!("{wishes}{}", fill("score {}", &[&signed(preview.delta)]));
+    let score = match preview.delta {
+        0 => tr("score unchanged").to_string(),
+        d => fill("score {}", &[&signed(d)]),
+    };
+    let mut text = format!("{wishes}{score}");
     if preview.hard_delta > 0 {
         text.push_str(tr(" · breaks a hard rule"));
         return (text, p.bad);
     }
     if preview.hard_delta < 0 {
         text.push_str(tr(" · fixes a hard rule"));
+    }
+    if let Some(name) = pinned_name {
+        text.push_str(&fill(" · seat pinned to {}", &[&name]));
+        return (text, p.warn);
     }
     let color = match preview.delta {
         d if d < 0 => p.good,
