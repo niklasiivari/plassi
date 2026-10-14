@@ -124,9 +124,13 @@ impl Scene {
         Some(&self.evaluation.as_ref()?.policy)
     }
 
-    /// The worst outcome of this person's rules; `None` without any. Wishes
-    /// waiting for someone to be seated don't count yet.
+    /// The worst outcome of this person's rules; `None` without any or
+    /// without a seat. Wishes waiting for someone to be seated don't count yet.
     pub(super) fn status(&self, person: usize) -> Option<Outcome> {
+        // Without a seat, nothing about them can be judged yet.
+        if !self.seat_of.contains_key(&person) {
+            return None;
+        }
         self.own
             .get(&person)?
             .iter()

@@ -139,6 +139,8 @@ impl PlassiApp {
             && let Ok(percent) = self.chart.zoom_entry.trim().parse::<f32>()
             && percent.is_finite()
             && percent > 0.0
+            && format!("{:.0}", self.chart.view.camera.zoom_target() * 100.0)
+                != self.chart.zoom_entry.trim()
         {
             self.chart.view.camera.zoom_to(percent / 100.0);
         }

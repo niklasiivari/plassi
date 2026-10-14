@@ -103,8 +103,8 @@ impl PlassiApp {
                 .drag
                 .as_ref()
                 .is_some_and(|d| d.people.contains(&person));
-            // Without a seat, their wishes can't be met yet: no status colour.
             let look = CardLook {
+                status: scene.status(person),
                 selected: self.selected_person == Some(person)
                     || self.chart.multi.contains(&person),
                 hovered: response.hovered(),

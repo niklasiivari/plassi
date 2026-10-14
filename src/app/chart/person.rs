@@ -142,7 +142,8 @@ impl PlassiApp {
             let result = scene
                 .own
                 .get(requester)
-                .and_then(|rs| rs.iter().find(|(r, _)| *r == rule.id));
+                .and_then(|rs| rs.iter().find(|(r, _)| *r == rule.id))
+                .filter(|(_, r)| scene.judged(*requester, r));
             let color = theme::outcome_color(p, result.map(|(_, r)| r.outcome()));
             ui.horizontal(|ui| {
                 theme::status_dot(ui, color);
