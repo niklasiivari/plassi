@@ -221,3 +221,63 @@ fn removing_every_table_leaves_everyone_not_seated() {
     app.project.validate().unwrap();
     ui.go_to("Seating chart");
 }
+
+#[test]
+fn a_new_table_is_empty_and_everyone_keeps_their_seat() {
+    let mut ui = solved();
+    let before = ui.option().assignment.clone();
+    ui.go_to("Room layout");
+    ui.click("+ Add table");
+    assert_eq!(ui.option().assignment, before);
+    assert_eq!(ui.app().status, "Saved room layout");
+
+    ui.go_to("Seating chart");
+    ui.key(Modifiers::NONE, Key::F);
+    let table = ui.app().project.layout.rows[0]
+        .tables
+        .last()
+        .unwrap()
+        .id
+        .clone();
+    let at = ui.app().table_on_screen(&table).expect("table on screen");
+    ui.click_at(at, PointerButton::Primary, Modifiers::NONE);
+    assert_eq!(
+        ui.app().chart.selected_table.as_deref(),
+        Some(table.as_str())
+    );
+    assert!(ui.has_text("Nobody sits here yet"), "{:?}", ui.dump());
+    assert!(ui.has("0 of 16 seats taken"), "{:?}", ui.dump());
+}
+
+#[test]
+fn a_very_long_table_shows_its_summary() {
+    let mut ui = solved();
+    let table = first_table(&ui);
+    {
+        let app = ui.app_mut();
+        let spec = &mut app.project.layout.rows[0].tables[0];
+        spec.left = 120;
+        spec.right = 120;
+        app.project.fit_to_room();
+        app.commit("Made a long table");
+    }
+    ui.settle();
+    ui.key(Modifiers::NONE, Key::F);
+    let at = ui.app().table_on_screen(&table).expect("table on screen");
+    ui.click_at(at, PointerButton::Primary, Modifiers::NONE);
+    assert_eq!(
+        ui.app().chart.selected_table.as_deref(),
+        Some(table.as_str())
+    );
+    let seated = ui
+        .option()
+        .assignment
+        .values()
+        .filter(|s| s.starts_with(&format!("{table}:")))
+        .count();
+    assert!(
+        ui.has(&format!("{seated} of 240 seats taken")),
+        "{:?}",
+        ui.dump()
+    );
+}

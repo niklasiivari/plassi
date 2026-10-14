@@ -256,10 +256,13 @@ impl PlassiApp {
         self.world_on_screen(card_rect(seats.iter().find(|s| s.id == seat_id)?))
     }
 
-    /// A point on a table's body, between its two top seats, in the last frame.
+    /// A point on a table's body, between its two middle seats, in the last frame.
     pub(in crate::app) fn table_on_screen(&self, table_id: &str) -> Option<Pos2> {
-        let left = self.seat_card_on_screen(&format!("{table_id}:left:0"))?;
-        let right = self.seat_card_on_screen(&format!("{table_id}:right:0"))?;
+        let tables = self.project.layout.rows.iter().flat_map(|r| &r.tables);
+        let table = tables.into_iter().find(|t| t.id == table_id)?;
+        let row = table.left.min(table.right).saturating_sub(1) / 2;
+        let left = self.seat_card_on_screen(&format!("{table_id}:left:{row}"))?;
+        let right = self.seat_card_on_screen(&format!("{table_id}:right:{row}"))?;
         Some(left.center().lerp(right.center(), 0.5))
     }
 

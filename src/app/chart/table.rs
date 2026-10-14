@@ -244,7 +244,7 @@ fn table_stats(ui: &mut egui::Ui, p: Palette, scene: &Scene, people: &[usize]) {
     let met = statuses.iter().filter(|s| **s == Outcome::Met).count();
     let broken = statuses.iter().filter(|s| **s == Outcome::Broken).count();
     ui.columns(2, |cols| {
-        let met_color = if met == statuses.len() {
+        let met_color = if !statuses.is_empty() && met == statuses.len() {
             p.good
         } else {
             p.text
