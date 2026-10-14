@@ -126,8 +126,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Create room", "Luo pöydät"),
     ("Replace room", "Korvaa pöydät"),
     (
-        "Replaces all tables and clears seating options.",
-        "Korvaa kaikki pöydät ja poistaa tallennetut istumajärjestykset.",
+        "Replaces all tables. People keep seats that still exist.",
+        "Korvaa kaikki pöydät. Henkilöt pitävät paikkansa, jos paikka on yhä olemassa.",
     ),
     (
         "For {} people: {} tables with {} seats per side",
@@ -273,8 +273,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Luo kerralla useita samankokoisia pöytiä.",
     ),
     (
-        "Changing seats clears seating options.",
-        "Paikkojen muuttaminen poistaa tallennetut istumajärjestykset.",
+        "People keep their seats when tables change.",
+        "Henkilöt pitävät paikkansa, kun pöytiä muutetaan.",
     ),
     (
         "Set tags and custom distances for special seats.",

@@ -63,7 +63,7 @@ impl HelpPage {
             HelpPage::Room => &[
                 "Set up tables and seats.",
                 "Quick setup creates equal tables.",
-                "Changing seats clears seating options.",
+                "People keep their seats when tables change.",
                 "Set tags and custom distances for special seats.",
             ],
             HelpPage::Print => &[

@@ -138,7 +138,9 @@ impl PlassiApp {
                         },
                         p,
                     ))
-                    .on_hover_text(tr("Replaces all tables and clears seating options."))
+                    .on_hover_text(tr(
+                        "Replaces all tables. People keep seats that still exist.",
+                    ))
                     .clicked();
             });
             if people > 0 {
