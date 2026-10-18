@@ -49,7 +49,7 @@ impl PlassiApp {
         // centre is over that seat's card, not as soon as the pointer is.
         let anchor = view.world(pointer) - drag.grip;
         let mut targets = landing(scene, &drag.people, anchor);
-        clear_of_loose(scene, &mut targets);
+        clear_of_obstacles(scene, &mut targets);
         Some(targets)
     }
 
@@ -224,15 +224,31 @@ fn landing(scene: &Scene, people: &[usize], anchor: Pos2) -> Targets {
 }
 
 /// Moves the cards dropped on the floor down together, keeping their shape,
-/// until none covers a loose card that stays where it is.
-fn clear_of_loose(scene: &Scene, targets: &mut Targets) {
+/// until none covers a table, its chairs, or a loose card that stays where it is.
+fn clear_of_obstacles(scene: &Scene, targets: &mut Targets) {
+    if !targets
+        .iter()
+        .any(|(_, spot)| matches!(spot, Spot::Loose(_)))
+    {
+        return;
+    }
     let size = Vec2::new(CARD_W, CARD_H);
-    let staying: Vec<Rect> = scene
+    let mut obstacles: Vec<Rect> = scene
         .loose
         .iter()
         .filter(|(p, _)| !targets.iter().any(|(t, _)| t == *p))
         .map(|(_, at)| Rect::from_center_size(*at, size))
         .collect();
+    // Reserve the whole table and chair area, including the gaps between
+    // neighbouring seats. Check the full floating card, not just its centre.
+    let mut tables: HashMap<&str, Rect> = HashMap::new();
+    for seat in &scene.seats {
+        let area = tables
+            .entry(&seat.table_id)
+            .or_insert_with(|| scene.table_body(&seat.table_id).expect("table has a seat"));
+        *area = area.union(card_rect(seat));
+    }
+    obstacles.extend(tables.into_values());
     let dropped: Vec<Pos2> = targets
         .iter()
         .filter_map(|(_, spot)| match spot {
@@ -241,10 +257,10 @@ fn clear_of_loose(scene: &Scene, targets: &mut Targets) {
         })
         .collect();
     let mut dy = 0.0;
-    // Each step clears one covered card, so this ends.
+    // Each step clears one obstacle below, so this ends.
     while let Some(push) = dropped.iter().find_map(|at| {
         let card = Rect::from_center_size(*at + Vec2::new(0.0, dy), size);
-        let under = staying.iter().find(|r| r.intersects(card))?;
+        let under = obstacles.iter().find(|r| r.intersects(card))?;
         Some(under.bottom() + 4.0 - card.top())
     }) {
         dy += push;
@@ -261,5 +277,106 @@ fn spot_at(scene: &Scene, at: Pos2) -> Spot {
     match scene.seat_at(at) {
         Some(seat) => Spot::Seat(seat.id.clone()),
         None => Spot::Loose(Point { x: at.x, y: at.y }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::Layout;
+
+    fn scene() -> Scene {
+        let project = Project {
+            layout: Layout::simple(2, 3),
+            ..Project::new()
+        };
+        Scene::build(&project, None, None, None)
+    }
+
+    fn loose(at: Pos2) -> Spot {
+        Spot::Loose(Point { x: at.x, y: at.y })
+    }
+
+    fn assert_clear(scene: &Scene, targets: &Targets) {
+        for (_, spot) in targets {
+            let Spot::Loose(point) = spot else { continue };
+            let card =
+                Rect::from_center_size(Pos2::new(point.x, point.y), Vec2::new(CARD_W, CARD_H));
+            for seat in &scene.seats {
+                assert!(!card.intersects(card_rect(seat)));
+                assert!(!card.intersects(scene.table_body(&seat.table_id).unwrap()));
+            }
+            for at in scene.loose.values() {
+                assert!(!card.intersects(Rect::from_center_size(*at, Vec2::new(CARD_W, CARD_H))));
+            }
+        }
+    }
+
+    #[test]
+    fn floating_cards_clear_table_centres_chair_gaps_and_partial_overlaps() {
+        let scene = scene();
+        let body = scene.table_body("table-1").unwrap();
+        let chair = card_rect(&scene.seats[0]);
+        for at in [
+            body.center(),
+            chair.center() + Vec2::new(0.0, SEAT_PITCH / 2.0),
+            chair.left_center() - Vec2::new(CARD_W / 2.0 - 1.0, 0.0),
+        ] {
+            let mut targets = landing(&scene, &[0], at);
+            assert!(matches!(targets[0].1, Spot::Loose(_)));
+            clear_of_obstacles(&scene, &mut targets);
+            assert_ne!(targets[0].1, loose(at));
+            assert_clear(&scene, &targets);
+        }
+    }
+
+    #[test]
+    fn clearing_a_table_and_a_loose_card_keeps_the_block_together() {
+        let mut scene = scene();
+        let body = scene.table_body("table-1").unwrap();
+        let at = body.center();
+        scene
+            .loose
+            .insert(2, Pos2::new(at.x, body.bottom() + CARD_H));
+        let mut targets = vec![(0, loose(at)), (1, loose(at + Vec2::new(0.0, SEAT_PITCH)))];
+        clear_of_obstacles(&scene, &mut targets);
+        assert_clear(&scene, &targets);
+        let (Spot::Loose(a), Spot::Loose(b)) = (&targets[0].1, &targets[1].1) else {
+            panic!("both cards stay on the floor");
+        };
+        assert_eq!(a.x, b.x);
+        assert_eq!(b.y - a.y, SEAT_PITCH);
+    }
+
+    #[test]
+    fn clearing_one_table_does_not_leave_the_card_on_the_next_row() {
+        let mut scene = scene();
+        let first = scene.table_body("table-1").unwrap();
+        let second = scene.table_body("table-2").unwrap();
+        for seat in &mut scene.seats {
+            if seat.table_id == "table-2" {
+                seat.x -= second.left() - first.left();
+                seat.y += 200.0;
+            }
+        }
+        let mut targets = landing(&scene, &[0], first.center());
+        clear_of_obstacles(&scene, &mut targets);
+        assert_clear(&scene, &targets);
+    }
+
+    #[test]
+    fn seat_drops_and_clear_floor_positions_stay_where_requested() {
+        let scene = scene();
+        let mut targets = landing(&scene, &[0], card_rect(&scene.seats[0]).center());
+        let expected = targets.clone();
+        clear_of_obstacles(&scene, &mut targets);
+        assert_eq!(targets, expected);
+        assert_eq!(targets[0].1, Spot::Seat(scene.seats[0].id.clone()));
+
+        let floor = Pos2::new(-400.0, SEAT_PITCH);
+        let mut targets = landing(&scene, &[0], floor);
+        clear_of_obstacles(&scene, &mut targets);
+        assert_eq!(targets, vec![(0, loose(floor))]);
+        assert_clear(&scene, &targets);
     }
 }
