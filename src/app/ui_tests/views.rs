@@ -342,3 +342,28 @@ fn a_table_summary_does_not_come_back_after_someone_is_deselected() {
     assert_eq!(ui.app().chart.selected_table, None);
     assert!(!ui.has_text("seats taken"), "{:?}", ui.dump());
 }
+
+#[test]
+fn licences_have_reading_room_and_close_stays_visible_on_small_screens() {
+    let mut ui = Ui::open();
+    ui.click("About Plassi");
+    ui.click("MIT License (MIT)");
+    let close = ui.node("Close about window").rect();
+    let privacy = ui.node("PRIVACY").rect();
+    assert!(close.right() - privacy.left() > 800.0);
+    for size in [
+        eframe::egui::vec2(390.0, 600.0),
+        eframe::egui::vec2(800.0, 400.0),
+    ] {
+        ui.h.set_size(size);
+        ui.h.run_steps(5);
+        ui.settle();
+        let close = ui.node("Close about window").rect();
+        assert!(
+            eframe::egui::Rect::from_min_size(eframe::egui::Pos2::ZERO, size).contains_rect(close),
+            "size={size:?}, close={close:?}"
+        );
+    }
+    ui.click("Close about window");
+    assert!(!ui.has("Software and fonts"));
+}

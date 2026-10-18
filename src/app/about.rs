@@ -73,7 +73,11 @@ fn parse(markdown: &str) -> Vec<Section> {
 pub(super) fn button(ui: &mut egui::Ui, p: Palette) {
     let id = egui::Id::new("about-plassi");
     let mut open = ui.ctx().data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
-    if theme::icon_button(ui, p, theme::Icon::Info, tr("About Plassi"), open).clicked() {
+    let response = theme::icon_button(ui, p, theme::Icon::Info, tr("About Plassi"), open);
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tr("About Plassi"))
+    });
+    if response.clicked() {
         open = !open;
     }
     if open {
@@ -83,20 +87,27 @@ pub(super) fn button(ui: &mut egui::Ui, p: Palette) {
 }
 
 fn window(ctx: &egui::Context, p: Palette, open: &mut bool) {
+    let viewport = ctx.content_rect().size();
+    let width = (viewport.x - 80.0).clamp(200.0, 900.0);
+    let height = (viewport.y - 80.0).max(200.0);
     egui::Window::new(tr("About Plassi"))
         .title_bar(false)
         .collapsible(false)
         .resizable(false)
+        .fixed_size(egui::vec2(width, height))
         .frame(theme::card(p))
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx, |ui| {
-            ui.set_width(560.0);
+            ui.set_width(width);
             let header_width = ui.available_width();
             ui.horizontal(|ui| {
                 ui.add_space(theme::CONTROL_HEIGHT);
                 ui.allocate_ui_with_layout(
                     egui::vec2(
-                        (header_width - 2.0 * theme::CONTROL_HEIGHT).max(0.0),
+                        (header_width
+                            - 2.0 * theme::CONTROL_HEIGHT
+                            - 2.0 * ui.spacing().item_spacing.x)
+                            .max(0.0),
                         theme::CONTROL_HEIGHT,
                     ),
                     egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
@@ -108,38 +119,47 @@ fn window(ctx: &egui::Context, p: Palette, open: &mut bool) {
                         );
                     },
                 );
-                if theme::icon_button(ui, p, theme::Icon::Close, tr("Close about window"), false)
-                    .clicked()
-                {
+                let response =
+                    theme::icon_button(ui, p, theme::Icon::Close, tr("Close about window"), false);
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(
+                        egui::WidgetType::Button,
+                        true,
+                        tr("Close about window"),
+                    )
+                });
+                if response.clicked() {
                     *open = false;
                 }
             });
             ui.separator();
-            ui.label(
-                RichText::new(format!("Plassi {}", env!("CARGO_PKG_VERSION")))
-                    .size(theme::text::TITLE)
-                    .strong(),
-            );
-            ui.label(tr("© 2026 Niklas Iivari. All rights reserved."));
-            ui.add_space(theme::space::M);
-            theme::section_title(ui, p, tr("Privacy"));
-            ui.add(egui::Label::new(tr(PRIVACY)).wrap());
-            ui.add_space(theme::space::M);
-            theme::section_title(ui, p, tr("Licences"));
-            theme::hint(ui, p, tr("Software and fonts"));
-            ui.add_space(theme::space::S);
             egui::ScrollArea::vertical()
-                .max_height(360.0)
+                .id_salt("about-content")
+                .max_height((height - theme::CONTROL_HEIGHT - 60.0).max(80.0))
+                .auto_shrink([false, false])
                 .show(ui, |ui| {
+                    ui.label(
+                        RichText::new(format!("Plassi {}", env!("CARGO_PKG_VERSION")))
+                            .size(theme::text::TITLE)
+                            .strong(),
+                    );
+                    ui.label(tr("© 2026 Niklas Iivari. All rights reserved."));
+                    ui.add_space(theme::space::M);
+                    theme::section_title(ui, p, tr("Privacy"));
+                    ui.add(egui::Label::new(tr(PRIVACY)).wrap());
+                    ui.add_space(theme::space::M);
+                    theme::section_title(ui, p, tr("Licences"));
+                    theme::hint(ui, p, tr("Software and fonts"));
+                    ui.add_space(theme::space::S);
                     for section in sections() {
                         egui::CollapsingHeader::new(crate::i18n::tr_any(&section.title))
-                            .show(ui, |ui| section_body(ui, p, section));
+                            .show(ui, |ui| section_body(ui, section));
                     }
                 });
         });
 }
 
-fn section_body(ui: &mut egui::Ui, p: Palette, section: &Section) {
+fn section_body(ui: &mut egui::Ui, section: &Section) {
     for block in &section.body {
         match block {
             Block::Heading(text) => {
@@ -147,14 +167,11 @@ fn section_body(ui: &mut egui::Ui, p: Palette, section: &Section) {
                 ui.label(RichText::new(text).strong());
             }
             Block::Text(text) => {
-                ui.add(
-                    egui::Label::new(RichText::new(text).size(theme::text::SMALL).color(p.muted))
-                        .wrap(),
-                );
+                ui.add(egui::Label::new(RichText::new(text).size(theme::text::BODY)).wrap());
             }
             Block::Code(text) => {
                 ui.add(
-                    egui::Label::new(RichText::new(text).monospace().size(theme::text::CAPTION))
+                    egui::Label::new(RichText::new(text).monospace().size(theme::text::BODY))
                         .wrap(),
                 );
             }
