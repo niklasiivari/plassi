@@ -15,8 +15,16 @@ pub(super) struct ProjectsState {
 
 impl PlassiApp {
     pub(super) fn project_switcher(&mut self, ui: &mut egui::Ui, p: Palette) {
+        self.project_switcher_ui(ui, p, false);
+    }
+
+    pub(super) fn sidebar_project_switcher(&mut self, ui: &mut egui::Ui, p: Palette) {
+        self.project_switcher_ui(ui, p, true);
+    }
+
+    fn project_switcher_ui(&mut self, ui: &mut egui::Ui, p: Palette, sidebar: bool) {
         let current = self.file.name.clone();
-        if self.projects.editing_name {
+        if self.projects.editing_name && (!sidebar || ui.available_width() >= 210.0) {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = theme::space::XS;
                 let field_width =
@@ -52,67 +60,82 @@ impl PlassiApp {
                 let config = egui::containers::menu::MenuConfig::new()
                     .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                     .style(theme::menu_style);
-                let (button, _) = ui
-                    .scope(|ui| {
+                let button = if sidebar {
+                    project_row(ui, p, &current)
+                } else {
+                    ui.scope(|ui| {
                         ui.spacing_mut().button_padding.x += theme::space::S;
-                        egui::containers::menu::MenuButton::new(label)
-                            .config(config)
-                            .ui(ui, |ui| {
-                                ui.set_min_width(240.0);
-                                theme::section_title(ui, p, tr("Projects"));
-                                for name in self.file.library.projects() {
-                                    if ui.selectable_label(name == current, &name).clicked()
-                                        && name != current
-                                    {
-                                        self.switch_project(&name);
-                                        ui.close();
-                                    }
-                                }
-                                ui.separator();
-                                if ui.button(tr("New project")).clicked() {
-                                    self.create_project(tr("New event"), Project::new());
-                                    ui.close();
-                                }
-                                if ui.button(tr("Rename project")).clicked() {
-                                    self.projects.rename = current.clone();
-                                    self.projects.editing_name = true;
-                                    self.projects.focus_name = true;
-                                    ui.close();
-                                }
-                                if ui.button(tr("Duplicate project")).clicked() {
-                                    let copy = self.project.clone();
-                                    self.create_project(&fill("{} (copy)", &[&current]), copy);
-                                    ui.close();
-                                }
-                                self.file_actions(ui);
-                                self.backup_menu_items(ui);
-                                ui.separator();
-                                if self.projects.confirm_delete {
-                                    ui.label(
-                                        RichText::new(fill(
-                                            "Delete {}? Restore it from Deleted projects.",
-                                            &[&current],
-                                        ))
-                                        .color(p.bad),
-                                    );
-                                    ui.horizontal(|ui| {
-                                        if ui.add(theme::danger_button(tr("Delete"), p)).clicked() {
-                                            self.projects.confirm_delete = false;
-                                            self.delete_project();
-                                            ui.close();
-                                        }
-                                        if ui.button(tr("Cancel")).clicked() {
-                                            self.projects.confirm_delete = false;
-                                        }
-                                    });
-                                } else if ui.button(tr("Delete project…")).clicked() {
-                                    self.projects.confirm_delete = true;
-                                }
-                            })
+                        ui.add(egui::Button::new(label))
                     })
-                    .inner;
-                let chevron = button.rect.right_center() - egui::vec2(theme::space::M, 0.0);
-                theme::paint_icon(ui.painter(), theme::Icon::ChevronDown, chevron, p.muted);
+                    .inner
+                };
+                if !sidebar {
+                    theme::paint_icon(
+                        ui.painter(),
+                        theme::Icon::ChevronDown,
+                        button.rect.right_center() - egui::vec2(theme::space::M, 0.0),
+                        p.muted,
+                    );
+                }
+                egui::Popup::menu(&button)
+                    .close_behavior(config.close_behavior)
+                    .style(theme::menu_style)
+                    .show(|ui| {
+                        ui.set_min_width(240.0);
+                        theme::section_title(ui, p, tr("Projects"));
+                        for name in self.file.library.projects() {
+                            if ui.selectable_label(name == current, &name).clicked()
+                                && name != current
+                            {
+                                self.switch_project(&name);
+                                ui.close();
+                            }
+                        }
+                        ui.separator();
+                        if ui.button(tr("New project")).clicked() {
+                            self.create_project(tr("New event"), Project::new());
+                            ui.close();
+                        }
+                        if ui.button(tr("Rename project")).clicked() {
+                            self.projects.rename = current.clone();
+                            if sidebar {
+                                self.sidebar_compact = false;
+                                self.tablet_sidebar_expanded = true;
+                            }
+                            self.projects.editing_name = true;
+                            self.projects.focus_name = true;
+                            ui.close();
+                        }
+                        if ui.button(tr("Duplicate project")).clicked() {
+                            let copy = self.project.clone();
+                            self.create_project(&fill("{} (copy)", &[&current]), copy);
+                            ui.close();
+                        }
+                        self.file_actions(ui);
+                        self.backup_menu_items(ui);
+                        ui.separator();
+                        if self.projects.confirm_delete {
+                            ui.label(
+                                RichText::new(fill(
+                                    "Delete {}? Restore it from Deleted projects.",
+                                    &[&current],
+                                ))
+                                .color(p.bad),
+                            );
+                            ui.horizontal(|ui| {
+                                if ui.add(theme::danger_button(tr("Delete"), p)).clicked() {
+                                    self.projects.confirm_delete = false;
+                                    self.delete_project();
+                                    ui.close();
+                                }
+                                if ui.button(tr("Cancel")).clicked() {
+                                    self.projects.confirm_delete = false;
+                                }
+                            });
+                        } else if ui.button(tr("Delete project…")).clicked() {
+                            self.projects.confirm_delete = true;
+                        }
+                    });
                 if button.clicked() {
                     self.projects.rename = current.clone();
                 }
@@ -146,4 +169,67 @@ impl PlassiApp {
             ui.close();
         }
     }
+}
+
+/// A quiet project row, with the same emblem position in both sidebar widths.
+fn project_row(ui: &mut egui::Ui, p: Palette, name: &str) -> egui::Response {
+    let (rect, response) =
+        ui.allocate_exact_size(egui::vec2(ui.available_width(), 56.0), egui::Sense::click());
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, name));
+    if response.hovered() {
+        ui.painter()
+            .rect_filled(rect, theme::radius::MD, p.surface_hi);
+    }
+    let center = rect.left_center() + egui::vec2(34.0, 0.0);
+    ui.painter().rect_filled(
+        egui::Rect::from_center_size(center, egui::vec2(32.0, 32.0)),
+        theme::radius::SM,
+        p.accent_soft,
+    );
+    let initial = name
+        .trim()
+        .chars()
+        .next()
+        .unwrap_or('P')
+        .to_uppercase()
+        .to_string();
+    ui.painter().text(
+        center,
+        egui::Align2::CENTER_CENTER,
+        initial,
+        egui::FontId::proportional(theme::text::LEAD),
+        p.accent,
+    );
+    let opacity = ((rect.width() - 68.0) / 160.0).clamp(0.0, 1.0);
+    if opacity > 0.0 {
+        let left = rect.left() + 60.0;
+        ui.painter().text(
+            egui::pos2(left, rect.center().y - 9.0),
+            egui::Align2::LEFT_CENTER,
+            tr("Projects"),
+            egui::FontId::proportional(theme::text::CAPTION),
+            p.muted.gamma_multiply(opacity),
+        );
+        let galley = egui::WidgetText::from(RichText::new(name).strong().size(theme::text::BODY))
+            .into_galley(
+                ui,
+                Some(egui::TextWrapMode::Truncate),
+                (rect.width() - 88.0).max(0.0),
+                egui::TextStyle::Body,
+            );
+        ui.painter().galley(
+            egui::pos2(left, rect.center().y + 3.0),
+            galley,
+            p.text.gamma_multiply(opacity),
+        );
+        theme::paint_icon(
+            ui.painter(),
+            theme::Icon::ChevronDown,
+            rect.right_center() - egui::vec2(16.0, 0.0),
+            p.muted.gamma_multiply(opacity),
+        );
+    }
+    response
+        .on_hover_text(name)
+        .on_hover_cursor(egui::CursorIcon::PointingHand)
 }

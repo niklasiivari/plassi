@@ -197,8 +197,17 @@ impl PlassiApp {
     ) -> bool {
         let bounds = ui.max_rect();
         let footer_top = (bounds.bottom() - 176.0).max(bounds.top());
+        let mut header = ui.new_child(
+            egui::UiBuilder::new()
+                .id_salt("sidebar-project-selector")
+                .max_rect(egui::Rect::from_min_size(
+                    bounds.min,
+                    egui::vec2(bounds.width(), 56.0),
+                )),
+        );
+        self.sidebar_project_switcher(&mut header, p);
         let navigation_rect = egui::Rect::from_min_max(
-            bounds.min,
+            bounds.min + egui::vec2(0.0, 64.0),
             egui::pos2(bounds.right(), footer_top - theme::space::S),
         );
         let mut navigation = ui.new_child(
@@ -238,8 +247,6 @@ impl PlassiApp {
                 ));
             project.set_opacity(openness);
             project.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
-            self.project_switcher(&mut project, p);
-            project.add_space(theme::space::M);
             self.file_controls(&mut project, p);
         }
         toggle

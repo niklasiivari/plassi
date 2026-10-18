@@ -537,3 +537,29 @@ fn sidebar_controls_stay_pinned_through_the_width_animation() {
         }
     }
 }
+
+#[test]
+fn project_header_fits_long_names_and_renames_from_the_rail() {
+    let mut ui = Ui::with_example();
+    ui.app_mut()
+        .rename_project("<project> <project> <project> <project>");
+    let name = ui.app().file.name.clone();
+    ui.h.set_size(egui::vec2(1024.0, 768.0));
+    ui.settle();
+    let compact = ui.node(&name).rect();
+    assert!(compact.top() < 20.0 && compact.right() <= 84.0);
+    ui.open_project_menu();
+    assert!(ui.has("New project"));
+    ui.click("Rename project");
+    assert!(ui.has("Collapse sidebar"));
+    fits(&ui, "Save project name", 244.0);
+    fits(&ui, "Cancel rename", 244.0);
+    ui.click("Save project name");
+    let expanded = ui.node(&name).rect();
+    assert!(expanded.top() < 20.0 && expanded.right() <= 244.0);
+    assert!(expanded.width() > 200.0);
+    let footer = ui.node("Collapse sidebar").rect().center();
+    ui.click("Collapse sidebar");
+    assert!(ui.node("Expand sidebar").rect().center().distance(footer) < 1.0);
+    assert!((ui.node(&name).rect().top() - compact.top()).abs() < 1.0);
+}
