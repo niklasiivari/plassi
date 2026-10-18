@@ -187,6 +187,7 @@ impl PlassiApp {
                 self.backups = Default::default();
                 self.selected_candidate = saved_option(&project);
                 self.selected_person = None;
+                self.people.clear_import();
                 self.chart.selected_table = None;
                 self.chart.view.fit_pending = true;
                 self.replace_project(project);

@@ -19,7 +19,7 @@ fn kind_of(name: &str) -> DropKind {
         .unwrap_or_default();
     match ext.as_str() {
         "tsv" | "csv" | "txt" => DropKind::Text,
-        "xlsx" | "xls" | "xlsm" | "ods" => DropKind::Excel,
+        "xlsx" | "xls" | "xlsm" | "xlsb" | "ods" => DropKind::Excel,
         _ => DropKind::Other,
     }
 }
@@ -32,34 +32,41 @@ fn file_name(file: &dyn egui::DroppedFile) -> String {
         .unwrap_or_default()
 }
 
-/// Text of a dropped sheet; a byte-order mark is dropped and invalid UTF-8 replaced.
-fn sheet_text(bytes: &[u8]) -> String {
-    let text = String::from_utf8_lossy(bytes);
-    text.trim_start_matches('\u{feff}').to_string()
-}
-
 impl PlassiApp {
     /// True while a file is dragged over the window.
     pub(super) fn file_hovering(ui: &egui::Ui) -> bool {
         ui.input(|i| !i.raw.hovered_files.is_empty())
     }
 
-    /// Starts reading a dropped .csv/.tsv/.txt, and once read puts it in the
-    /// import box, showing the overview so the preview appears before
-    /// anything is applied.
+    /// Reads picked or dropped spreadsheets into the mapping preview, without
+    /// applying anything to the project.
     pub(super) fn take_dropped_sheet(&mut self, ui: &egui::Ui) {
         if let Some(file) = ui.input(|i| i.raw.dropped_files.first().cloned()) {
             let name = file_name(file.as_ref());
             match kind_of(&name) {
-                DropKind::Text => {
-                    self.people.dropped = Some((name, crate::platform::DroppedRead::start(file)))
-                }
-                DropKind::Excel => {
-                    self.status = tr("Save Excel as CSV/TSV, or copy and paste the rows.").into();
+                DropKind::Text | DropKind::Excel => {
+                    self.people.sheet_picker = None;
+                    self.people.dropped = Some((
+                        name,
+                        crate::platform::DroppedRead::start(file, ui.ctx().clone()),
+                    ))
                 }
                 DropKind::Other => {
-                    self.status = fill("{} is not a .csv, .tsv or .txt file", &[&name])
+                    self.status = tr("Choose an Excel, CSV, TSV or ODS file").into();
                 }
+            }
+        }
+        if let Some(picked) = self
+            .people
+            .sheet_picker
+            .as_ref()
+            .and_then(|picker| picker.poll())
+        {
+            self.people.sheet_picker = None;
+            match picked {
+                Ok(Some(file)) => self.load_sheet_file(&file.name, &file.bytes),
+                Ok(None) => {}
+                Err(error) => self.status = fill("Import failed: {}", &[&error]),
             }
         }
         let Some(read) = self
@@ -73,13 +80,28 @@ impl PlassiApp {
         let (name, _) = self.people.dropped.take().expect("a read in progress");
         match read {
             Ok(bytes) => {
-                self.people.import_text = sheet_text(&bytes);
-                self.selected_person = None;
-                self.status = fill("Loaded {}. Check the preview and import.", &[&name]);
+                self.load_sheet_file(&name, &bytes);
             }
             Err(error) => self.status = fill("Could not read {}: {}", &[&name, &error]),
         }
         ui.ctx().request_repaint();
+    }
+
+    /// File contents enter the same editable mapping preview as pasted rows.
+    pub(in crate::app) fn load_sheet_file(&mut self, name: &str, bytes: &[u8]) {
+        match crate::import::read_sheets(name, bytes) {
+            Ok(sheets) => {
+                self.people.import_text = sheets[0].1.clone();
+                self.people.import_sheets = sheets;
+                self.people.import_sheet = 0;
+                self.people.import_mapping = Default::default();
+                self.people.import_mode = Default::default();
+                self.people.import_open = true;
+                self.people.roster = None;
+                self.status = fill("Loaded {}. Check the preview and import.", &[&name]);
+            }
+            Err(error) => self.status = fill("Import failed: {}", &[&format!("{error:#}")]),
+        }
     }
 }
 
@@ -93,10 +115,5 @@ mod tests {
         assert_eq!(kind_of("guests.tsv"), DropKind::Text);
         assert_eq!(kind_of("guests.xlsx"), DropKind::Excel);
         assert_eq!(kind_of("guests"), DropKind::Other);
-    }
-
-    #[test]
-    fn byte_order_mark_is_removed() {
-        assert_eq!(sheet_text("\u{feff}Name\tAvec".as_bytes()), "Name\tAvec");
     }
 }

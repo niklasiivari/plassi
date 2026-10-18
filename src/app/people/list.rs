@@ -28,10 +28,18 @@ impl PlassiApp {
                     .on_hover_text(tr("Add a person"))
                     .clicked()
                 {
+                    self.people.import_open = false;
                     self.people.roster = Some(roster::RosterEdit::Add(Default::default()));
                 }
             });
         });
+        if ui
+            .add(theme::secondary_button(tr("Import people")))
+            .clicked()
+        {
+            self.people.import_open = true;
+            self.people.roster = None;
+        }
         ui.add_space(theme::space::M);
         if self.project.attendees.is_empty() {
             theme::hint(ui, p, tr("Paste a sheet or add people."));
@@ -94,6 +102,7 @@ impl PlassiApp {
                     if row.clicked() && ui.input(|i| i.modifiers.command || i.modifiers.shift) {
                         pick = Some(person.id);
                     } else if row.clicked() {
+                        self.people.import_open = false;
                         select = Some(person.id);
                     }
                 }

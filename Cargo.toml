@@ -13,9 +13,11 @@ publish = false
 
 [dependencies]
 anyhow = "1"
+calamine = "0.36.1"
 csv = "1.4"
 eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "glow", "x11", "wayland"] }
 rand = "0.9"
+rfd = "0.17.2"
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

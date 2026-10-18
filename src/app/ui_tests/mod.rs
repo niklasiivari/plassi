@@ -6,5 +6,6 @@ mod harness;
 
 mod arranging;
 mod flows;
+mod importing;
 mod placing;
 mod views;

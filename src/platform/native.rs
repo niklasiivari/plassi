@@ -332,13 +332,48 @@ pub fn system_locale() -> Option<String> {
 pub struct DroppedRead(std::cell::Cell<Option<Result<Vec<u8>, String>>>);
 
 impl DroppedRead {
-    pub fn start(file: eframe::egui::DroppedFileHandle) -> Self {
+    pub fn start(file: eframe::egui::DroppedFileHandle, _ctx: eframe::egui::Context) -> Self {
         Self(std::cell::Cell::new(Some(file.bytes())))
     }
 
     /// The file's bytes, once read.
     pub fn poll(&self) -> Option<Result<Vec<u8>, String>> {
         self.0.take()
+    }
+}
+
+/// File selection and reading run off the UI thread. `Ok(None)` means cancelled.
+pub struct SheetPick(Receiver<std::result::Result<Option<super::SheetFile>, String>>);
+
+impl SheetPick {
+    pub fn start(ctx: eframe::egui::Context) -> Self {
+        let (send, receive) = mpsc::channel();
+        std::thread::spawn(move || {
+            let picked = rfd::FileDialog::new()
+                .add_filter(crate::i18n::tr("Spreadsheets"), super::SHEET_EXTENSIONS)
+                .pick_file();
+            let result = picked
+                .map(|path| {
+                    fs::read(&path)
+                        .map(|bytes| super::SheetFile {
+                            name: path
+                                .file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .into_owned(),
+                            bytes,
+                        })
+                        .map_err(|error| error.to_string())
+                })
+                .transpose();
+            let _ = send.send(result);
+            ctx.request_repaint();
+        });
+        Self(receive)
+    }
+
+    pub fn poll(&self) -> Option<std::result::Result<Option<super::SheetFile>, String>> {
+        self.0.try_recv().ok()
     }
 }
 

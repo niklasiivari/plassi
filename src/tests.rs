@@ -712,6 +712,60 @@ fn merge_import_keeps_rules_and_adds_food() {
 }
 
 #[test]
+fn adding_another_sheet_preserves_existing_people_wishes_and_seats() {
+    use crate::import::{ImportMode, parse_sheet, prepare};
+    let mut project = fixture();
+    project.pin(0, Pin::Seat("table-a:left:0".into()));
+    project
+        .candidates
+        .push(project.empty_option("Option 1".into()));
+    let rule_id = project.next_rule_id();
+    project.rules.push(crate::import::wish_rule(
+        rule_id,
+        0,
+        vec![1],
+        WishKind::Seating,
+        "",
+    ));
+    let before = serde_json::to_value(&project).unwrap();
+    let sheet = parse_sheet("Name,Organization\nPerson 0,XYZ\nX,ABC").unwrap();
+    let (next, summary) = prepare(&project, &sheet, ImportMode::Add).unwrap();
+    assert_eq!((summary.added, summary.updated), (2, 0));
+    assert_eq!(
+        serde_json::to_value(&project).unwrap(),
+        before,
+        "preview changes nothing"
+    );
+    assert_eq!(next.attendees.len(), 6);
+    assert_eq!(
+        serde_json::to_value(&next.attendees[..4]).unwrap(),
+        before["attendees"]
+    );
+    let after = serde_json::to_value(&next).unwrap();
+    for field in [
+        "layout",
+        "candidates",
+        "rules",
+        "notes",
+        "policy",
+        "preferences",
+    ] {
+        assert_eq!(after[field], before[field], "{field}");
+    }
+    next.validate().unwrap();
+}
+
+#[test]
+fn failed_import_does_not_save_mapping_or_change_the_project() {
+    let mut project = fixture();
+    let before = serde_json::to_value(&project).unwrap();
+    let mut sheet = crate::import::parse_sheet("Attendee,Other\n,ABC").unwrap();
+    sheet.columns[0] = crate::import::Column::Name;
+    assert!(crate::import::merge(&mut project, &sheet).is_err());
+    assert_eq!(serde_json::to_value(&project).unwrap(), before);
+}
+
+#[test]
 fn group_move_leaves_pinned_members_and_is_not_undone() {
     let mut project = fixture();
     project.layout.rows[0].tables[0].left = 3;

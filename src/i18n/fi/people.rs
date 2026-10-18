@@ -1,6 +1,50 @@
 //! Finnish text: people.
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
+    // Repeat spreadsheet imports
+    (
+        "Import people from another file or paste rows at any time.",
+        "Tuo henkilöitä toisesta tiedostosta tai liitä rivejä milloin tahansa.",
+    ),
+    ("Spreadsheets", "Taulukot"),
+    (
+        "Choose an Excel, CSV, TSV or ODS file",
+        "Valitse Excel-, CSV-, TSV- tai ODS-tiedosto",
+    ),
+    (
+        "No non-empty worksheets in this file",
+        "Tiedostossa ei ole sisältöä sisältäviä laskentataulukoita",
+    ),
+    ("Back to overview", "Takaisin yleiskatsaukseen"),
+    (
+        "Import another sheet at any time. Review its columns before adding people.",
+        "Voit tuoda uuden taulukon milloin tahansa. Tarkista sarakkeet ennen henkilöiden lisäämistä.",
+    ),
+    ("Choose file…", "Valitse tiedosto…"),
+    ("Worksheet", "Laskentataulukko"),
+    (
+        "Choose or drop an Excel, CSV, TSV or ODS file, or paste rows with headers.",
+        "Valitse tai vedä Excel-, CSV-, TSV- tai ODS-tiedosto tai liitä rivit otsikoineen.",
+    ),
+    (
+        "Name required. Choose what each column means for this sheet.",
+        "Nimi on pakollinen. Valitse tämän taulukon sarakkeiden merkitykset.",
+    ),
+    ("Add as new people", "Lisää uusina henkilöinä"),
+    ("Update matching names", "Päivitä samannimiset"),
+    (
+        "Each row adds a separate person. Existing people and seats stay unchanged.",
+        "Jokainen rivi lisää erillisen henkilön. Nykyiset henkilöt ja paikat säilyvät ennallaan.",
+    ),
+    (
+        "Matching names update existing people. New names are added; nobody is removed.",
+        "Samannimisten tiedot päivitetään. Uudet nimet lisätään, eikä ketään poisteta.",
+    ),
+    (
+        "To add: {} · to update: {}",
+        "Lisätään: {} · päivitetään: {}",
+    ),
+    ("People after import: {}", "Henkilöitä tuonnin jälkeen: {}"),
     // List
     ("People & wishes", "Henkilöt ja toiveet"),
     ("+ Add person", "+ Lisää henkilö"),

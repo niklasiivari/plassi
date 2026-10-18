@@ -456,7 +456,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Apache License 2.0 (Apache-2.0)
 
-accesskit 0.24.1, adler2 2.0.1, ahash 0.8.12, anyhow 1.0.104, approx 0.5.1, ar_archive_writer 0.5.3, arboard 3.6.1, arrayvec 0.7.8, as-raw-xcb-connection 1.0.1, autocfg 1.5.1, az 1.3.0, base64 0.22.1, base64 0.23.1, biblatex 0.12.0, bit-set 0.8.0, bit-vec 0.8.0, bitflags 1.3.2, bitflags 2.13.2, bumpalo 3.20.3, by_address 1.2.1, bytemuck 1.25.2, bytemuck_derive 1.12.1, cc 1.5.1, cfg-if 1.0.5, cgl 0.3.2, chrono 0.4.45, ciborium 0.2.2, ciborium-io 0.2.2, ciborium-ll 0.2.2, citationberg 0.7.0, cobs 0.3.0, codex 0.3.0, color 0.3.3, comemo 0.5.1, comemo-macros 0.5.1, concurrent-queue 2.5.0, core-foundation 0.9.4, core-foundation-sys 0.8.7, core-graphics 0.23.2, core-graphics-types 0.1.3, crc32fast 1.5.2, crossbeam-deque 0.8.8, crossbeam-epoch 0.9.21, crossbeam-utils 0.8.23, cursor-icon 1.2.0, data-url 0.3.2, deranged 0.5.8, dirs 6.0.0, dirs-sys 0.5.0, dispatch2 0.3.1, displaydoc 0.2.7, document-features 0.2.12, downcast-rs 1.2.1, dpi 0.1.2, dyn-clone 1.0.20, ecolor 0.36.2, ecow 0.2.6, eframe 0.36.2, egui 0.36.2, egui-winit 0.36.2, egui_glow 0.36.2, either 1.18.0, emath 0.36.2, epaint 0.36.2, epaint_default_fonts 0.36.2, equivalent 1.0.2, errno 0.3.14, euclid 0.22.14, fastrand 2.5.0, fdeflate 0.3.7, fearless_simd 0.4.1, find-msvc-tools 0.1.14, flate2 1.1.10, fnv 1.0.7, font-types 0.11.3, font-types 0.12.5, foreign-types 0.5.0, foreign-types-macros 0.2.4, foreign-types-shared 0.3.1, form_urlencoded 1.2.2, futures-core 0.3.34, futures-task 0.3.34, futures-util 0.3.34, gethostname 1.1.0, getrandom 0.3.4, gif 0.14.2, gl_generator 0.14.0, glidesort 0.1.2, glow 0.17.0, glutin 0.32.3, glutin_egl_sys 0.7.1, glutin_glx_sys 0.6.1, glutin_wgl_sys 0.6.1, guillotiere 0.7.0, half 2.7.1, hashbrown 0.17.1, hayagriva 0.10.1, hayro 0.7.1, hayro-ccitt 0.3.0, hayro-cmap 0.1.0, hayro-interpret 0.7.0, hayro-jbig2 0.3.0, hayro-jpeg2000 0.3.5, hayro-postscript 0.1.0, hayro-svg 0.7.0, hayro-syntax 0.7.2, hayro-write 0.7.0, heck 0.5.0, hypher 0.1.8, iana-time-zone 0.1.65, idna 1.1.0, idna_adapter 1.2.2, image 0.25.10, image-webp 0.2.4, indexmap 2.14.2, itertools 0.15.0, itoa 1.0.18, js-sys 0.3.106, khronos_api 3.1.0, krilla 0.8.2, krilla-svg 0.8.1, kurbo 0.13.1, libc 0.2.189, linebender_resource_handle 0.1.1, linked-hash-map 0.5.6, linux-raw-sys 0.12.1, linux-raw-sys 0.4.15, litrs 1.0.0, lock_api 0.4.14, log 0.4.34, memmap2 0.9.11, miniz_oxide 0.8.9, miniz_oxide 0.9.1, moxcms 0.8.1, nohash-hasher 0.2.0, num-bigint 0.4.8, num-conv 0.2.2, num-integer 0.1.47, num-traits 0.2.19, objc2-app-kit 0.3.2, objc2-core-foundation 0.3.2, objc2-core-graphics 0.3.2, object 0.39.1, once_cell 1.21.4, palette 0.7.7, palette_derive 0.7.7, palette_math 0.7.7, parking_lot 0.12.5, parking_lot_core 0.9.12, paste 1.0.15, pdf-writer 0.15.0, peniko 0.6.1, percent-encoding 2.3.2, pic-scale 0.7.12, pin-project 1.1.13, pin-project-internal 1.1.13, pin-project-lite 0.2.17, pkg-config 0.3.34, png 0.18.1, polling 3.11.0, polycool 0.4.0, portable-atomic 1.15.0, postcard 1.1.3, powerfmt 0.2.0, ppv-lite86 0.2.21, proc-macro-hack 0.5.20+deprecated, proc-macro2 1.0.107, profiling 1.0.18, psm 0.1.32, pxfm 0.1.30, quick-error 2.0.1, quote 1.0.47, rand 0.8.8, rand 0.9.5, rand_chacha 0.3.1, rand_chacha 0.9.0, rand_core 0.6.4, rand_core 0.9.5, raw-window-handle 0.6.2, rayon 1.12.0, rayon-core 1.13.0, read-fonts 0.39.2, read-fonts 0.41.0, ref-cast 1.0.27, ref-cast-impl 1.0.27, regex 1.13.1, regex-automata 0.4.18, regex-syntax 0.8.11, resvg 0.47.0, roxmltree 0.20.0, roxmltree 0.21.1, rustc-hash 2.1.3, rustix 0.38.44, rustix 1.1.5, rustversion 1.0.23, ryu 1.0.23, scoped-tls 1.0.1, scopeguard 1.2.0, self_cell 1.3.0, semver 1.0.28, serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_derive_internals 0.30.0, serde_json 1.0.151, serde_path_to_error 0.1.20, serde_spanned 0.6.9, serde_yaml 0.9.34+deprecated, shlex 2.0.1, simplecss 0.2.2, siphasher 1.0.4, skrifa 0.42.1, skrifa 0.44.0, smallvec 1.16.2, smol_str 0.2.2, stable_deref_trait 1.2.1, stacker 0.1.25, static_assertions 1.1.0, subsetter 0.2.6, svgtypes 0.16.1, syn 2.0.119, syn 3.0.6, thin-vec 0.2.20, thiserror 1.0.69, thiserror 2.0.21, thiserror-impl 1.0.69, thiserror-impl 2.0.21, time 0.3.55, time-core 0.1.9, time-macros 0.2.32, tinyvec 1.13.3, toml 0.8.23, toml_datetime 0.6.11, toml_edit 0.22.27, toml_write 0.1.2, ttf-parser 0.25.1, two-face 0.4.5, typst 0.15.1, typst-assets 0.15.1, typst-eval 0.15.1, typst-html 0.15.1, typst-layout 0.15.1, typst-library 0.15.1, typst-macros 0.15.1, typst-pdf 0.15.1, typst-realize 0.15.1, typst-svg 0.15.1, typst-syntax 0.15.1, typst-timing 0.15.1, typst-utils 0.15.1, unic-langid 0.9.6, unic-langid-impl 0.9.6, unic-langid-macros 0.9.6, unic-langid-macros-impl 0.9.6, unicode-bidi 0.3.18, unicode-bidi-mirroring 0.4.0, unicode-ccc 0.4.0, unicode-general-category 1.1.0, unicode-ident 1.0.26, unicode-math-class 0.1.0, unicode-normalization 0.1.25, unicode-properties 0.1.4, unicode-script 0.5.8, unicode-segmentation 1.13.3, unicode-vo 0.1.0, unscanny 0.1.0, url 2.5.8, usvg 0.47.0, utf16_iter 1.0.5, utf8_iter 1.0.4, uuid 1.26.1, vello_common 0.0.8, vello_common 0.1.0, vello_cpu 0.0.8, vello_cpu 0.1.0, version_check 0.9.5, wasm-bindgen 0.2.129, wasm-bindgen-futures 0.4.79, wasm-bindgen-macro 0.2.129, wasm-bindgen-macro-support 0.2.129, wasm-bindgen-shared 0.2.129, wasmi 1.1.0, wasmi_collections 1.1.0, wasmi_core 1.1.0, wasmi_ir 1.1.0, wasmparser 0.239.0, web-sys 0.3.106, web-time 1.1.0, weezl 0.1.12, windows-core 0.62.2, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.2.1, windows-result 0.4.1, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1, winit 0.30.13, write-fonts 0.48.1, write16 1.0.0, x11rb 0.13.2, x11rb-protocol 0.13.2, xkeysym 0.2.1, xmp-writer 0.3.3, yaml-rust 0.4.5, zerocopy 0.8.59, zerocopy-derive 0.8.59, zune-core 0.5.3, zune-jpeg 0.5.15
+accesskit 0.24.1, adler2 2.0.1, ahash 0.8.12, anyhow 1.0.104, approx 0.5.1, ar_archive_writer 0.5.3, arboard 3.6.1, arrayvec 0.7.8, as-raw-xcb-connection 1.0.1, atoi_simd 0.18.1, autocfg 1.5.1, az 1.3.0, base64 0.22.1, base64 0.23.1, biblatex 0.12.0, bit-set 0.8.0, bit-vec 0.8.0, bitflags 1.3.2, bitflags 2.13.2, bumpalo 3.20.3, by_address 1.2.1, bytemuck 1.25.2, bytemuck_derive 1.12.1, cc 1.5.1, cfg-if 1.0.5, cgl 0.3.2, chrono 0.4.45, ciborium 0.2.2, ciborium-io 0.2.2, ciborium-ll 0.2.2, citationberg 0.7.0, cobs 0.3.0, codepage 0.1.3, codex 0.3.0, color 0.3.3, comemo 0.5.1, comemo-macros 0.5.1, concurrent-queue 2.5.0, core-foundation 0.9.4, core-foundation-sys 0.8.7, core-graphics 0.23.2, core-graphics-types 0.1.3, core_detect 1.0.0, crc32fast 1.5.2, crossbeam-deque 0.8.8, crossbeam-epoch 0.9.21, crossbeam-utils 0.8.23, cursor-icon 1.2.0, data-url 0.3.2, debug_unsafe 0.1.4, deranged 0.5.8, dirs 6.0.0, dirs-sys 0.5.0, dispatch2 0.3.1, displaydoc 0.2.7, document-features 0.2.12, downcast-rs 1.2.1, dpi 0.1.2, dyn-clone 1.0.20, ecolor 0.36.2, ecow 0.2.6, eframe 0.36.2, egui 0.36.2, egui-winit 0.36.2, egui_glow 0.36.2, either 1.18.0, emath 0.36.2, encoding_rs 0.8.42, epaint 0.36.2, epaint_default_fonts 0.36.2, equivalent 1.0.2, errno 0.3.14, euclid 0.22.14, fast-float2 0.2.4, fastrand 2.5.0, fdeflate 0.3.7, fearless_simd 0.4.1, find-msvc-tools 0.1.14, flate2 1.1.10, fnv 1.0.7, font-types 0.11.3, font-types 0.12.5, foreign-types 0.5.0, foreign-types-macros 0.2.4, foreign-types-shared 0.3.1, form_urlencoded 1.2.2, futures-core 0.3.34, futures-task 0.3.34, futures-util 0.3.34, gethostname 1.1.0, getrandom 0.3.4, gif 0.14.2, gl_generator 0.14.0, glidesort 0.1.2, glow 0.17.0, glutin 0.32.3, glutin_egl_sys 0.7.1, glutin_glx_sys 0.6.1, glutin_wgl_sys 0.6.1, guillotiere 0.7.0, half 2.7.1, hashbrown 0.17.1, hayagriva 0.10.1, hayro 0.7.1, hayro-ccitt 0.3.0, hayro-cmap 0.1.0, hayro-interpret 0.7.0, hayro-jbig2 0.3.0, hayro-jpeg2000 0.3.5, hayro-postscript 0.1.0, hayro-svg 0.7.0, hayro-syntax 0.7.2, hayro-write 0.7.0, heck 0.5.0, hypher 0.1.8, iana-time-zone 0.1.65, idna 1.1.0, idna_adapter 1.2.2, image 0.25.10, image-webp 0.2.4, indexmap 2.14.2, itertools 0.15.0, itoa 1.0.18, js-sys 0.3.106, khronos_api 3.1.0, krilla 0.8.2, krilla-svg 0.8.1, kurbo 0.13.1, libc 0.2.189, linebender_resource_handle 0.1.1, linked-hash-map 0.5.6, linux-raw-sys 0.12.1, linux-raw-sys 0.4.15, litrs 1.0.0, lock_api 0.4.14, log 0.4.34, memmap2 0.9.11, miniz_oxide 0.8.9, miniz_oxide 0.9.1, moxcms 0.8.1, multiversion_no_op 1.0.0, nohash-hasher 0.2.0, num-bigint 0.4.8, num-conv 0.2.2, num-integer 0.1.47, num-traits 0.2.19, objc2-app-kit 0.3.2, objc2-core-foundation 0.3.2, objc2-core-graphics 0.3.2, object 0.39.1, once_cell 1.21.4, palette 0.7.7, palette_derive 0.7.7, palette_math 0.7.7, parking_lot 0.12.5, parking_lot_core 0.9.12, paste 1.0.15, pdf-writer 0.15.0, peniko 0.6.1, percent-encoding 2.3.2, pic-scale 0.7.12, pin-project 1.1.13, pin-project-internal 1.1.13, pin-project-lite 0.2.17, pkg-config 0.3.34, png 0.18.1, polling 3.11.0, pollster 0.4.0, polycool 0.4.0, portable-atomic 1.15.0, postcard 1.1.3, powerfmt 0.2.0, ppv-lite86 0.2.21, proc-macro-hack 0.5.20+deprecated, proc-macro2 1.0.107, profiling 1.0.18, psm 0.1.32, pxfm 0.1.30, quick-error 2.0.1, quote 1.0.47, rand 0.8.8, rand 0.9.5, rand_chacha 0.3.1, rand_chacha 0.9.0, rand_core 0.6.4, rand_core 0.9.5, raw-window-handle 0.6.2, rayon 1.12.0, rayon-core 1.13.0, read-fonts 0.39.2, read-fonts 0.41.0, ref-cast 1.0.27, ref-cast-impl 1.0.27, regex 1.13.1, regex-automata 0.4.18, regex-syntax 0.8.11, resvg 0.47.0, roxmltree 0.20.0, roxmltree 0.21.1, rustc-hash 2.1.3, rustix 0.38.44, rustix 1.1.5, rustversion 1.0.23, ryu 1.0.23, scoped-tls 1.0.1, scopeguard 1.2.0, self_cell 1.3.0, semver 1.0.28, serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_derive_internals 0.30.0, serde_json 1.0.151, serde_path_to_error 0.1.20, serde_spanned 0.6.9, serde_yaml 0.9.34+deprecated, shlex 2.0.1, simdutf8 0.1.5, simplecss 0.2.2, siphasher 1.0.4, skrifa 0.42.1, skrifa 0.44.0, smallvec 1.16.2, smol_str 0.2.2, stable_deref_trait 1.2.1, stacker 0.1.25, static_assertions 1.1.0, subsetter 0.2.6, svgtypes 0.16.1, syn 2.0.119, syn 3.0.6, thin-vec 0.2.20, thiserror 1.0.69, thiserror 2.0.21, thiserror-impl 1.0.69, thiserror-impl 2.0.21, time 0.3.55, time-core 0.1.9, time-macros 0.2.32, tinyvec 1.13.3, toml 0.8.23, toml_datetime 0.6.11, toml_edit 0.22.27, toml_write 0.1.2, ttf-parser 0.25.1, two-face 0.4.5, typed-path 0.12.3, typst 0.15.1, typst-assets 0.15.1, typst-eval 0.15.1, typst-html 0.15.1, typst-layout 0.15.1, typst-library 0.15.1, typst-macros 0.15.1, typst-pdf 0.15.1, typst-realize 0.15.1, typst-svg 0.15.1, typst-syntax 0.15.1, typst-timing 0.15.1, typst-utils 0.15.1, unic-langid 0.9.6, unic-langid-impl 0.9.6, unic-langid-macros 0.9.6, unic-langid-macros-impl 0.9.6, unicode-bidi 0.3.18, unicode-bidi-mirroring 0.4.0, unicode-ccc 0.4.0, unicode-general-category 1.1.0, unicode-ident 1.0.26, unicode-math-class 0.1.0, unicode-normalization 0.1.25, unicode-properties 0.1.4, unicode-script 0.5.8, unicode-segmentation 1.13.3, unicode-vo 0.1.0, unscanny 0.1.0, url 2.5.8, usvg 0.47.0, utf16_iter 1.0.5, utf8_iter 1.0.4, uuid 1.26.1, vello_common 0.0.8, vello_common 0.1.0, vello_cpu 0.0.8, vello_cpu 0.1.0, version_check 0.9.5, wasm-bindgen 0.2.129, wasm-bindgen-futures 0.4.79, wasm-bindgen-macro 0.2.129, wasm-bindgen-macro-support 0.2.129, wasm-bindgen-shared 0.2.129, wasmi 1.1.0, wasmi_collections 1.1.0, wasmi_core 1.1.0, wasmi_ir 1.1.0, wasmparser 0.239.0, web-sys 0.3.106, web-time 1.1.0, weezl 0.1.12, windows-core 0.62.2, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.2.1, windows-result 0.4.1, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1, winit 0.30.13, write-fonts 0.48.1, write16 1.0.0, x11rb 0.13.2, x11rb-protocol 0.13.2, xkeysym 0.2.1, xmp-writer 0.3.3, yaml-rust 0.4.5, zerocopy 0.8.59, zerocopy-derive 0.8.59, zopfli 0.8.4, zune-core 0.5.3, zune-jpeg 0.5.15
 
 ```text
                                  Apache License
@@ -664,7 +664,7 @@ accesskit 0.24.1, adler2 2.0.1, ahash 0.8.12, anyhow 1.0.104, approx 0.5.1, ar_a
 
 ## MIT License (MIT)
 
-aho-corasick 1.1.5, bincode 1.3.3, block2 0.5.1, block2 0.6.2, byteorder-lite 0.1.0, calloop 0.13.0, calloop 0.14.4, calloop-wayland-source 0.3.0, calloop-wayland-source 0.4.1, cfg_aliases 0.2.2, chinese-number 0.7.8, chinese-variant 1.1.6, color_quant 1.1.0, core_maths 0.1.1, csv 1.4.0, csv-core 0.1.13, dispatch 0.2.0, dlib 0.5.3, dpi 0.1.2, enum-ordinalize 4.4.2, enum-ordinalize-derive 4.4.2, fancy-regex 0.16.2, fax 0.2.7, float-cmp 0.9.0, fontconfig-parser 0.5.8, fontdb 0.23.0, glutin-winit 0.5.0, harfrust 0.12.0, imagesize 0.14.0, infer 0.19.0, libm 0.2.16, lipsum 0.9.1, memchr 2.8.3, objc-sys 0.3.5, objc2 0.5.2, objc2 0.6.4, objc2-app-kit 0.2.2, objc2-encode 4.1.0, objc2-foundation 0.2.2, objc2-foundation 0.3.2, phf 0.13.1, phf_generator 0.13.1, phf_macros 0.13.1, phf_shared 0.13.1, pico-args 0.5.0, plist 1.10.1, quick-xml 0.38.4, quick-xml 0.41.0, quick-xml 0.42.0, rgb 0.8.53, rust_decimal 1.43.0, rustybuzz 0.20.1, same-file 1.0.6, schemars 1.2.2, schemars_derive 1.2.2, simd-adler32 0.3.10, slab 0.4.12, smithay-client-toolkit 0.19.2, smithay-client-toolkit 0.20.0, smithay-clipboard 0.7.3, spin 0.9.9, strict-num 0.1.1, strum 0.27.2, strum_macros 0.27.2, synstructure 0.14.0, syntect 5.3.0, tiff 0.11.3, tracing 0.1.44, tracing-core 0.1.36, typed-arena 2.0.2, typst-as-lib 0.16.0, unsafe-libyaml 0.2.11, walkdir 2.5.0, wayland-backend 0.3.17, wayland-client 0.31.15, wayland-csd-frame 0.3.0, wayland-cursor 0.31.14, wayland-protocols 0.32.13, wayland-protocols-experimental 20250721.0.1, wayland-protocols-misc 0.3.12, wayland-protocols-plasma 0.3.12, wayland-protocols-wlr 0.3.12, wayland-scanner 0.31.11, wayland-sys 0.31.11, winapi-util 0.1.11, winnow 0.7.15, x11-dl 2.21.0, xcursor 0.3.11, xkbcommon-dl 0.4.2, xml-rs 0.8.29, xmlwriter 0.1.0, zmij 1.0.23
+aho-corasick 1.1.5, bincode 1.3.3, block2 0.5.1, block2 0.6.2, byteorder 1.5.0, byteorder-lite 0.1.0, calamine 0.36.1, calloop 0.13.0, calloop 0.14.4, calloop-wayland-source 0.3.0, calloop-wayland-source 0.4.1, cfg_aliases 0.2.2, chinese-number 0.7.8, chinese-variant 1.1.6, color_quant 1.1.0, core_maths 0.1.1, csv 1.4.0, csv-core 0.1.13, dispatch 0.2.0, dlib 0.5.3, dpi 0.1.2, enum-ordinalize 4.4.2, enum-ordinalize-derive 4.4.2, fancy-regex 0.16.2, fax 0.2.7, float-cmp 0.9.0, fontconfig-parser 0.5.8, fontdb 0.23.0, glutin-winit 0.5.0, harfrust 0.12.0, imagesize 0.14.0, infer 0.19.0, libm 0.2.16, lipsum 0.9.1, memchr 2.8.3, objc-sys 0.3.5, objc2 0.5.2, objc2 0.6.4, objc2-app-kit 0.2.2, objc2-encode 4.1.0, objc2-foundation 0.2.2, objc2-foundation 0.3.2, phf 0.13.1, phf_generator 0.13.1, phf_macros 0.13.1, phf_shared 0.13.1, pico-args 0.5.0, plist 1.10.1, quick-xml 0.38.4, quick-xml 0.41.0, quick-xml 0.42.0, rfd 0.17.2, rgb 0.8.53, rust_decimal 1.43.0, rustybuzz 0.20.1, same-file 1.0.6, schemars 1.2.2, schemars_derive 1.2.2, simd-adler32 0.3.10, slab 0.4.12, smithay-client-toolkit 0.19.2, smithay-client-toolkit 0.20.0, smithay-clipboard 0.7.3, spin 0.9.9, strict-num 0.1.1, strum 0.27.2, strum_macros 0.27.2, synstructure 0.14.0, syntect 5.3.0, tiff 0.11.3, tracing 0.1.44, tracing-core 0.1.36, typed-arena 2.0.2, typst-as-lib 0.16.0, unsafe-libyaml 0.2.11, walkdir 2.5.0, wayland-backend 0.3.17, wayland-client 0.31.15, wayland-csd-frame 0.3.0, wayland-cursor 0.31.14, wayland-protocols 0.32.13, wayland-protocols-experimental 20250721.0.1, wayland-protocols-misc 0.3.12, wayland-protocols-plasma 0.3.12, wayland-protocols-wlr 0.3.12, wayland-scanner 0.31.11, wayland-sys 0.31.11, winapi-util 0.1.11, winnow 0.7.15, x11-dl 2.21.0, xcursor 0.3.11, xkbcommon-dl 0.4.2, xml-rs 0.8.29, xmlwriter 0.1.0, zip 8.6.0, zmij 1.0.23
 
 ```text
     MIT License
@@ -1351,6 +1351,30 @@ SOFTWARE.
 ```text
 MIT License
 
+Copyright (c) 2020 Bilal Elmoussaoui
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+```text
+MIT License
+
 Copyright (c) 2020 Katharos Technology
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -1364,6 +1388,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 MIT License
 
 Copyright (c) 2020 Samuele Esposito
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+```text
+MIT License
+
+Copyright (c) 2022 Bartłomiej Maryńczak
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -2215,6 +2263,129 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 ```
 
+## BSD 3-Clause "New" or "Revised" License (BSD-3-Clause)
+
+encoding_rs 0.8.42, tiny-skia 0.12.0, tiny-skia-path 0.12.0
+
+```text
+// Copyright © WHATWG (Apple, Google, Mozilla, Microsoft).
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation
+//    and/or other materials provided with the distribution.
+//
+// 3. Neither the name of the copyright holder nor the names of its
+//    contributors may be used to endorse or promote products derived from
+//    this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+// FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+// OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+/// The PUA code points special-cased in the GB18030 encoder.
+pub(crate) static GB18030_2022_OVERRIDE_PUA: [u16; 18] = [
+    0xE78D, 0xE78E, 0xE78F, 0xE790, 0xE791, 0xE792, 0xE793, 0xE794, 0xE795, 0xE796, 0xE81E, 0xE826,
+    0xE82B, 0xE82C, 0xE832, 0xE843, 0xE854, 0xE864,
+];
+
+/// The bytes corresponding to the PUA code points special-cased in the GB18030 encoder.
+pub(crate) static GB18030_2022_OVERRIDE_BYTES: [[u8; 2]; 18] = [
+    [0xA6, 0xD9],
+    [0xA6, 0xDA],
+    [0xA6, 0xDB],
+    [0xA6, 0xDC],
+    [0xA6, 0xDD],
+    [0xA6, 0xDE],
+    [0xA6, 0xDF],
+    [0xA6, 0xEC],
+    [0xA6, 0xED],
+    [0xA6, 0xF3],
+    [0xFE, 0x59],
+    [0xFE, 0x61],
+    [0xFE, 0x66],
+    [0xFE, 0x67],
+    [0xFE, 0x6D],
+    [0xFE, 0x7E],
+    [0xFE, 0x90],
+    [0xFE, 0xA0],
+];
+```
+
+```text
+Copyright (c) 2011 Google Inc. All rights reserved.
+Copyright (c) 2020 Yevhenii Reizner All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in
+    the documentation and/or other materials provided with the
+    distribution.
+
+  * Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived
+    from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+```text
+Copyright © WHATWG (Apple, Google, Mozilla, Microsoft).
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
 ## zlib License (Zlib)
 
 foldhash 0.2.0, slotmap 1.1.1, zlib-rs 0.6.8
@@ -2283,43 +2454,6 @@ the following restrictions:
     misrepresented as being the original software.
 
 3. This notice may not be removed or altered from any source distribution.
-```
-
-## BSD 3-Clause "New" or "Revised" License (BSD-3-Clause)
-
-tiny-skia 0.12.0, tiny-skia-path 0.12.0
-
-```text
-Copyright (c) 2011 Google Inc. All rights reserved.
-Copyright (c) 2020 Yevhenii Reizner All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-  * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-
-  * Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in
-    the documentation and/or other materials provided with the
-    distribution.
-
-  * Neither the name of the copyright holder nor the names of its
-    contributors may be used to endorse or promote products derived
-    from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 ## Boost Software License 1.0 (BSL-1.0)

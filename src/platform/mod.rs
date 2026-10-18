@@ -8,6 +8,14 @@
 mod backup_plan;
 pub use backup_plan::{Keep, now_stamp};
 
+/// A picked spreadsheet, read without changing the open project.
+pub struct SheetFile {
+    pub name: String,
+    pub bytes: Vec<u8>,
+}
+
+const SHEET_EXTENSIONS: &[&str] = &["xlsx", "xls", "xlsm", "xlsb", "ods", "csv", "tsv", "txt"];
+
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
 #[cfg(not(target_arch = "wasm32"))]

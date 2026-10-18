@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::i18n::{fill, tr};
-use crate::import::{Column, Match, Sheet};
+use crate::import::{Column, ImportMode, Match, Sheet};
 
 /// The pasted text's column meanings as the person set them, kept while the
 /// header row stays the same.
@@ -16,6 +16,15 @@ pub(in crate::app) struct ImportMapping {
 
 impl PlassiApp {
     pub(super) fn import_panel(&mut self, ui: &mut egui::Ui, p: Palette) {
+        if self.people.import_open
+            && !self.project.attendees.is_empty()
+            && ui
+                .add(theme::ghost_button(tr("Back to overview"), p))
+                .clicked()
+        {
+            self.people.import_open = false;
+            self.selected_person = None;
+        }
         let hovering = Self::file_hovering(ui);
         let frame = if hovering {
             theme::tinted_card(p, p.accent)
@@ -30,6 +39,29 @@ impl PlassiApp {
                     .strong(),
             );
             ui.add_space(theme::space::XS);
+            theme::hint(ui, p, tr("Import another sheet at any time. Review its columns before adding people."));
+            ui.add_space(theme::space::S);
+            if ui.add_enabled(self.people.sheet_picker.is_none(), theme::secondary_button(tr("Choose file…"))).clicked() {
+                self.people.dropped = None;
+                self.people.sheet_picker = Some(crate::platform::SheetPick::start(ui.ctx().clone()));
+            }
+            if self.people.import_sheets.len() > 1 {
+                ui.horizontal(|ui| {
+                    ui.label(tr("Worksheet"));
+                    let previous = self.people.import_sheet;
+                    theme::combo("import-worksheet", &self.people.import_sheets[previous].0)
+                        .show_ui(ui, |ui| {
+                            for (index, (name, _)) in self.people.import_sheets.iter().enumerate() {
+                                ui.selectable_value(&mut self.people.import_sheet, index, name);
+                            }
+                        });
+                    if previous != self.people.import_sheet {
+                        self.people.import_text = self.people.import_sheets[self.people.import_sheet].1.clone();
+                        self.people.import_mapping = Default::default();
+                    }
+                });
+            }
+            ui.add_space(theme::space::S);
             self.template_bar(ui, p);
             ui.add_space(theme::space::M);
             ui.add(
@@ -42,7 +74,7 @@ impl PlassiApp {
             if hovering {
                 ui.label(RichText::new(tr("Drop to import")).color(p.accent).strong());
             } else {
-                theme::hint(ui, p, tr("Drop a CSV or TSV file"));
+                theme::hint(ui, p, tr("Choose or drop an Excel, CSV, TSV or ODS file, or paste rows with headers."));
             }
             if !self.people.import_text.trim().is_empty() {
                 self.sheet_preview(ui, p);
@@ -64,7 +96,7 @@ impl PlassiApp {
         theme::hint(
             ui,
             p,
-            tr("Name required. Matching names update existing people."),
+            tr("Name required. Choose what each column means for this sheet."),
         );
         ui.add_space(theme::space::S);
         egui::CollapsingHeader::new(tr("Columns")).show(ui, |ui| {
@@ -144,13 +176,66 @@ impl PlassiApp {
                     .color(p.warn),
             );
         }
+        if !self.project.attendees.is_empty() {
+            ui.horizontal_wrapped(|ui| {
+                ui.radio_value(
+                    &mut self.people.import_mode,
+                    ImportMode::Add,
+                    tr("Add as new people"),
+                );
+                ui.radio_value(
+                    &mut self.people.import_mode,
+                    ImportMode::UpdateMatching,
+                    tr("Update matching names"),
+                );
+            });
+            theme::hint(
+                ui,
+                p,
+                match self.people.import_mode {
+                    ImportMode::Add => tr(
+                        "Each row adds a separate person. Existing people and seats stay unchanged.",
+                    ),
+                    ImportMode::UpdateMatching => tr(
+                        "Matching names update existing people. New names are added; nobody is removed.",
+                    ),
+                },
+            );
+        }
+        let prepared = sheet
+            .has_name()
+            .then(|| crate::import::prepare(&self.project, &sheet, self.people.import_mode));
+        if let Some(result) = &prepared {
+            match result {
+                Ok((next, summary)) => {
+                    ui.label(fill(
+                        "To add: {} · to update: {}",
+                        &[&summary.added, &summary.updated],
+                    ));
+                    theme::hint(
+                        ui,
+                        p,
+                        fill("People after import: {}", &[&next.attendees.len()]),
+                    );
+                }
+                Err(error) => {
+                    ui.label(RichText::new(format!("{error:#}")).color(p.warn));
+                }
+            }
+        }
         ui.horizontal(|ui| {
-            let apply = ui.add_enabled(sheet.has_name(), theme::primary_button(tr("Import"), p));
-            if apply.clicked() {
-                self.merge_sheet(&sheet);
+            let ready = prepared.as_ref().is_some_and(|result| result.is_ok())
+                && !self.file.external_invalid;
+            let apply = ui.add_enabled(ready, theme::primary_button(tr("Import"), p));
+            if apply.clicked()
+                && let Some(Ok((next, summary))) = prepared
+            {
+                self.project = next;
+                self.finish_import(summary);
             }
             if ui.add(theme::ghost_button(tr("Clear"), p)).clicked() {
-                self.people.import_text.clear();
+                self.people.clear_import();
+                self.people.import_open = true;
             }
         });
     }
@@ -168,29 +253,28 @@ impl PlassiApp {
         sheet.columns = mapping.columns.clone();
     }
 
-    fn merge_sheet(&mut self, sheet: &Sheet) {
-        match crate::import::merge(&mut self.project, sheet) {
-            Ok(summary) => {
-                self.people.import_text.clear();
-                let mut message = fill(
-                    "Imported: {} updated, {} added, {} new notes, {} wishes matched",
-                    &[
-                        &summary.updated,
-                        &summary.added,
-                        &summary.new_notes,
-                        &summary.new_rules,
-                    ],
-                );
-                if !summary.duplicate_names.is_empty() {
-                    message += &fill(
-                        " · duplicate names kept separate: {}",
-                        &[&summary.duplicate_names.join(", ")],
-                    );
-                }
-                self.commit(&message);
-            }
-            Err(error) => self.status = fill("Import failed: {}", &[&format!("{error:#}")]),
+    fn finish_import(&mut self, summary: crate::import::MergeSummary) {
+        self.people.clear_import();
+        self.people.search.clear();
+        self.people.filter = PeopleFilter::All;
+        self.people.picked.clear();
+        self.selected_person = None;
+        let mut message = fill(
+            "Imported: {} updated, {} added, {} new notes, {} wishes matched",
+            &[
+                &summary.updated,
+                &summary.added,
+                &summary.new_notes,
+                &summary.new_rules,
+            ],
+        );
+        if !summary.duplicate_names.is_empty() {
+            message += &fill(
+                " · duplicate names kept separate: {}",
+                &[&summary.duplicate_names.join(", ")],
+            );
         }
+        self.commit(&message);
     }
 }
 
