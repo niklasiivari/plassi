@@ -76,6 +76,7 @@ pub(super) struct PlassiApp {
     status: String,
     status_at: Instant,
     sidebar_compact: bool,
+    tablet_sidebar_expanded: bool,
     /// The option shown on the chart and printed.
     selected_candidate: usize,
     /// Shared between the chart and the People page.
@@ -161,7 +162,11 @@ impl eframe::App for PlassiApp {
         } else {
             let frame = theme::floating_panel_frame(p);
             let auto_compact = ui.ctx().content_rect().width() < theme::SIDEBAR_EXPANDED_MIN;
-            let mut expanded = !self.sidebar_compact && !auto_compact;
+            let mut expanded = if auto_compact {
+                self.tablet_sidebar_expanded
+            } else {
+                !self.sidebar_compact
+            };
             let mut toggle_sidebar = false;
             egui::Panel::show_switched(
                 ui,
@@ -189,7 +194,7 @@ impl eframe::App for PlassiApp {
             );
             if toggle_sidebar {
                 if auto_compact {
-                    self.open_navigation_window(ui, p);
+                    self.tablet_sidebar_expanded = !expanded;
                 } else {
                     self.sidebar_compact = expanded;
                 }
@@ -211,7 +216,6 @@ impl eframe::App for PlassiApp {
         if self.status != previous_status {
             self.status_at = Instant::now();
         }
-        self.navigation_window(ui.ctx(), p);
         about::show(ui.ctx(), p);
         self.backups_window(ui.ctx(), p);
         self.toast(ui.ctx(), p);
@@ -339,6 +343,7 @@ impl PlassiApp {
             status,
             status_at: Instant::now(),
             sidebar_compact: false,
+            tablet_sidebar_expanded: false,
             selected_candidate: option,
             selected_person: None,
             solving: None,

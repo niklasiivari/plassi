@@ -230,7 +230,7 @@ fn tablet_chart_keeps_room_for_unseated_people_and_inspector() {
     assert!(ui.app().chart.floating_inspector);
     assert!(ui.canvas().width() >= 320.0);
     ui.app_mut().chart.floating_inspector = false;
-    ui.click("Menu");
+    ui.click("Expand sidebar");
     ui.open_project_menu();
     assert!(ui.has("New project"));
 }
@@ -272,7 +272,7 @@ fn tablet_rail_controls_share_the_navigation_centerline() {
         } else {
             "Light mode"
         };
-        for label in ["Menu", theme, "EN", "About Plassi"] {
+        for label in ["Expand sidebar", theme, "EN", "About Plassi"] {
             assert!(
                 (ui.node(label).rect().center().x - center).abs() < 1.0,
                 "width={width}, control={label}, rect={:?}, expected center={center}",
@@ -462,5 +462,30 @@ fn resizing_the_window_keeps_the_room_fitted_after_navigation_settles() {
             canvas.expand(1.0).contains_rect(room),
             "width={width}, room={room:?}, canvas={canvas:?}"
         );
+    }
+}
+
+#[test]
+fn tablet_expands_the_existing_sidebar_without_duplicate_navigation() {
+    let mut ui = Ui::with_example();
+    for width in [768.0, 1024.0] {
+        ui.h.set_size(egui::vec2(width, 900.0));
+        ui.settle();
+        assert_eq!(ui.count("Seating chart"), 1);
+        ui.click("Expand sidebar");
+        assert!(ui.has("Collapse sidebar"));
+        assert!(!ui.has("Menu"));
+        assert_eq!(ui.count("Seating chart"), 1);
+        let expanded = ui.node("Seating chart").rect().width();
+        assert!(expanded > 200.0);
+        ui.open_project_menu();
+        assert!(ui.has("New project"));
+        ui.key(Modifiers::NONE, egui::Key::Escape);
+        ui.click("People & wishes");
+        assert!(ui.app().page == Page::People);
+        assert_eq!(ui.count("Seating chart"), 1);
+        ui.click("Collapse sidebar");
+        assert!(ui.has("Expand sidebar"));
+        assert!(ui.node("Seating chart").rect().width() < expanded);
     }
 }

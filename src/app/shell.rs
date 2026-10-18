@@ -188,29 +188,6 @@ impl PlassiApp {
             });
     }
 
-    /// Opens the compact rail's full navigation without widening the workspace.
-    pub(super) fn open_navigation_window(&mut self, ui: &mut egui::Ui, _p: Palette) {
-        ui.ctx()
-            .data_mut(|data| data.insert_temp(egui::Id::new("tablet-navigation-open"), true));
-    }
-
-    pub(super) fn navigation_window(&mut self, ctx: &egui::Context, p: Palette) {
-        let id = egui::Id::new("tablet-navigation-open");
-        let mut open = ctx.data(|data| data.get_temp::<bool>(id)).unwrap_or(false);
-        if open {
-            egui::Window::new(tr("Menu"))
-                .id(egui::Id::new("tablet-navigation"))
-                .open(&mut open)
-                .collapsible(false)
-                .resizable(false)
-                .show(ctx, |ui| {
-                    self.project_switcher(ui, p);
-                    self.navigation_menu_contents(ui, p);
-                });
-        }
-        ctx.data_mut(|data| data.insert_temp(id, open));
-    }
-
     /// Page navigation, and file status and view controls at the bottom.
     pub(super) fn sidebar(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
         if !expanded {
@@ -253,8 +230,6 @@ impl PlassiApp {
     fn collapse_toggle(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
         let tip = if expanded {
             tr("Collapse sidebar")
-        } else if ui.ctx().content_rect().width() < theme::SIDEBAR_EXPANDED_MIN {
-            tr("Menu")
         } else {
             tr("Expand sidebar")
         };

@@ -157,4 +157,4 @@ On **People & wishes**, tap a person to open their editor and **Back to people**
 
 ## Tablets and smaller desktop windows
 
-Medium windows keep the desktop navigation as an icon rail. The People page keeps its list beside the editor when there is room for both. The chart toolbar uses two rows; the inspector opens in a floating window when docking it would leave too little canvas. Use the rail's menu button for the project switcher and file controls. Only phone-sized windows replace the rail with a top menu.
+Medium windows keep the desktop navigation as an icon rail. The People page keeps its list beside the editor when there is room for both. The chart toolbar uses two rows; the inspector opens in a floating window when docking it would leave too little canvas. Expand the sidebar to reach the project switcher and file controls. Only phone-sized windows replace the rail with a top menu.
