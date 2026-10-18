@@ -4,10 +4,82 @@ use super::*;
 
 impl PlassiApp {
     pub(super) fn chart_toolbar(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
+        if self.chart.single_pane {
+            ui.horizontal_wrapped(|ui| {
+                self.solve_buttons(ui, p);
+                let more = ui.button(tr("More"));
+                egui::Popup::menu(&more)
+                    .style(theme::menu_style)
+                    .show(|ui| {
+                        ui.horizontal_wrapped(|ui| {
+                            if theme::icon_button(
+                                ui,
+                                p,
+                                theme::Icon::Fit,
+                                tr("Fit the room to the window (F)"),
+                                false,
+                            )
+                            .clicked()
+                            {
+                                self.chart.view.fit_pending = true;
+                            }
+                            if theme::icon_button(
+                                ui,
+                                p,
+                                theme::Icon::ZoomOut,
+                                tr("Zoom out (scroll wheel)"),
+                                false,
+                            )
+                            .clicked()
+                            {
+                                self.chart.view.camera.zoom_by(0.8);
+                            }
+                            if theme::icon_button(
+                                ui,
+                                p,
+                                theme::Icon::ZoomIn,
+                                tr("Zoom in (scroll wheel)"),
+                                false,
+                            )
+                            .clicked()
+                            {
+                                self.chart.view.camera.zoom_by(1.25);
+                            }
+                        });
+                        self.comparison_chip(ui, p);
+                        crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Chart);
+                    });
+            });
+            ui.horizontal(|ui| {
+                self.person_search(ui, p, scene);
+                self.history_buttons(ui, p);
+            });
+            if !self.project.candidates.is_empty() {
+                ui.horizontal(|ui| self.option_chips(ui, p, ui.available_width()));
+            }
+            return;
+        }
+        if ui.available_width() < 1100.0 {
+            ui.horizontal(|ui| {
+                self.solve_buttons(ui, p);
+                self.option_chips(ui, p, ui.available_width() - 52.0);
+                if crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Chart) {
+                    self.tour.start();
+                }
+            });
+            ui.horizontal_wrapped(|ui| {
+                self.person_search(ui, p, scene);
+                ui.horizontal(|ui| self.history_buttons(ui, p));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    self.view_controls(ui, p)
+                });
+            });
+            return;
+        }
         ui.horizontal(|ui| {
             self.solve_buttons(ui, p);
             ui.add_space(theme::space::L);
-            self.option_chips(ui, p);
+            self.option_chips(ui, p, ui.available_width() - 600.0);
             ui.add_space(theme::space::S);
             if crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Chart) {
                 self.tour.start();
@@ -95,14 +167,22 @@ impl PlassiApp {
 
     /// Panel toggle and zoom (laid out right to left).
     fn view_controls(&mut self, ui: &mut egui::Ui, p: Palette) {
-        let open = !self.chart.hide_inspector;
+        let open = if self.chart.inspector_floats {
+            self.chart.floating_inspector
+        } else {
+            !self.chart.hide_inspector
+        };
         let tip = if open {
             tr("Hide side panel")
         } else {
             tr("Show side panel")
         };
         if theme::icon_button(ui, p, theme::Icon::SidePanel, tip, open).clicked() {
-            self.chart.hide_inspector = open;
+            if self.chart.inspector_floats {
+                self.chart.floating_inspector = !open;
+            } else {
+                self.chart.hide_inspector = open;
+            }
         }
         if theme::icon_button(
             ui,
@@ -161,37 +241,56 @@ impl PlassiApp {
     }
 
     fn history_buttons(&mut self, ui: &mut egui::Ui, p: Palette) {
-        let redo = !self.file.redo_stack.is_empty();
-        let tip = self
-            .file
-            .redo_stack
-            .last()
-            .map_or(tr("Redo (Ctrl+Shift+Z)").into(), |s| {
-                fill("Redo: {} (Ctrl+Shift+Z)", &[&s.change])
-            });
-        if theme::icon_button_enabled(ui, p, theme::Icon::Redo, &tip, false, redo).clicked() {
-            self.undo(true);
-        }
-        let undo = !self.file.undo_stack.is_empty();
-        let tip = self
+        let undo_tip = self
             .file
             .undo_stack
             .last()
             .map_or(tr("Undo (Ctrl+Z)").into(), |s| {
                 fill("Undo: {} (Ctrl+Z)", &[&s.change])
             });
-        if theme::icon_button_enabled(ui, p, theme::Icon::Undo, &tip, false, undo).clicked() {
-            self.undo(false);
+        let redo_tip = self
+            .file
+            .redo_stack
+            .last()
+            .map_or(tr("Redo (Ctrl+Shift+Z)").into(), |s| {
+                fill("Redo: {} (Ctrl+Shift+Z)", &[&s.change])
+            });
+        let mut actions = [
+            (
+                theme::Icon::Undo,
+                undo_tip,
+                false,
+                !self.file.undo_stack.is_empty(),
+            ),
+            (
+                theme::Icon::Redo,
+                redo_tip,
+                true,
+                !self.file.redo_stack.is_empty(),
+            ),
+        ];
+        if ui.layout().main_dir() == egui::Direction::RightToLeft {
+            actions.reverse();
+        }
+        for (icon, tip, redo, enabled) in actions {
+            if theme::icon_button_enabled(ui, p, icon, &tip, false, enabled).clicked() {
+                self.undo(redo);
+            }
         }
     }
 
     /// A search field with a list of matching people (name or organization).
     /// Arrow keys pick, Enter selects and centres; Ctrl+F focuses it.
     fn person_search(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
+        let search_width = if self.chart.single_pane {
+            (ui.available_width() - 112.0).max(80.0)
+        } else {
+            190.0
+        };
         let search = ui.add(
             theme::field(&mut self.chart.search)
                 .hint_text(tr("Find person (Ctrl+F)"))
-                .desired_width(190.0),
+                .desired_width(search_width),
         );
         if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::F)) {
             search.request_focus();
@@ -275,6 +374,7 @@ impl PlassiApp {
             self.selected_person = Some(id);
             self.focus_person(id, scene);
             self.chart.search.clear();
+            self.chart.mobile_view = MobileChart::Chart;
         }
     }
 

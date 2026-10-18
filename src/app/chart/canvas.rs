@@ -78,6 +78,11 @@ impl PlassiApp {
     /// Draws the chart and handles all interaction on it.
     pub(super) fn canvas(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
         let rect = ui.max_rect();
+        if ui.input(|i| i.multi_touch().is_some()) {
+            // A second finger changes a card drag into a camera gesture.
+            self.chart.drag = None;
+            self.chart.marquee = None;
+        }
         let background = ui.interact(rect, ui.id().with("canvas"), Sense::click_and_drag());
         let painter = ui.painter_at(rect);
         if scene.seats.is_empty() {
@@ -129,6 +134,14 @@ impl PlassiApp {
             .fold(Rect::NOTHING, Rect::union)
             .expand2(Vec2::new(30.0, 50.0));
         let view = &mut self.chart.view;
+        let screen_width = ui.ctx().content_rect().width();
+        if view
+            .screen_width
+            .is_some_and(|previous| (previous - screen_width).abs() > 1.0)
+        {
+            view.fit_pending = true;
+        }
+        view.screen_width = Some(screen_width);
         if let Some(previous) = view.canvas_rect {
             view.camera.resize(previous, rect);
         }

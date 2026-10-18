@@ -90,7 +90,7 @@ impl PlassiApp {
                     });
                 }
                 ui.add_space(theme::space::M);
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     let solve = ui.add_enabled(ready, theme::primary_button(tr("Solve"), p));
                     if solve
                         .on_disabled_hover_text(tr("Add people and enough seats first"))

@@ -69,7 +69,7 @@ fn parse(markdown: &str) -> Vec<Section> {
     out
 }
 
-/// The (i) button that opens the About window, and the window itself.
+/// The (i) button that opens the About window.
 pub(super) fn button(ui: &mut egui::Ui, p: Palette) {
     let id = egui::Id::new("about-plassi");
     let mut open = ui.ctx().data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
@@ -80,10 +80,17 @@ pub(super) fn button(ui: &mut egui::Ui, p: Palette) {
     if response.clicked() {
         open = !open;
     }
-    if open {
-        window(ui.ctx(), p, &mut open);
-    }
     ui.ctx().data_mut(|d| d.insert_temp(id, open));
+}
+
+/// Draw independently of navigation, including when its menu is closed.
+pub(super) fn show(ctx: &egui::Context, p: Palette) {
+    let id = egui::Id::new("about-plassi");
+    let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+    if open {
+        window(ctx, p, &mut open);
+    }
+    ctx.data_mut(|d| d.insert_temp(id, open));
 }
 
 fn window(ctx: &egui::Context, p: Palette, open: &mut bool) {

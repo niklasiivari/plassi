@@ -252,7 +252,11 @@ pub fn icon_button_enabled(
     enabled: bool,
 ) -> egui::Response {
     let (rect, response) = ui.allocate_exact_size(
-        Vec2::splat(CONTROL_HEIGHT),
+        Vec2::splat(if super::mobile(ui.ctx()) {
+            44.0
+        } else {
+            CONTROL_HEIGHT
+        }),
         if enabled {
             Sense::click()
         } else {
@@ -272,6 +276,7 @@ pub fn icon_button_enabled(
         _ => p.muted,
     };
     paint(ui.painter(), icon, rect.center(), color);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, tooltip));
     let response = response.on_hover_text(tooltip);
     if enabled {
         response.on_hover_cursor(egui::CursorIcon::PointingHand)

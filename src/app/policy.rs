@@ -25,7 +25,7 @@ impl PlassiApp {
             tr("Organizations"),
             tr("Neighbours for people without wishes."),
             |ui| {
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     for (value, label) in [
                         (
                             OrganizationMixing::SameOrganization,
@@ -38,7 +38,7 @@ impl PlassiApp {
                     }
                 });
                 if policy.organization != OrganizationMixing::Indifferent {
-                    ui.horizontal(|ui| {
+                    ui.horizontal_wrapped(|ui| {
                         ui.label(tr("Strength"));
                         let r = theme::slider(
                             ui,
@@ -56,7 +56,7 @@ impl PlassiApp {
             tr("People without wishes"),
             tr("Seat them among wish groups or separately."),
             |ui| {
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     theme::hint(ui, p, tr("Keep separate"));
                     let r = theme::slider(
                         ui,
@@ -80,7 +80,7 @@ impl PlassiApp {
             tr("Avoid sitting alone"),
             tr("Penalty for having nobody beside or opposite."),
             |ui| {
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     let r = theme::slider(
                         ui,
                         egui::Slider::new(&mut policy.isolation_penalty, 0..=2000),
@@ -96,7 +96,7 @@ impl PlassiApp {
             tr("At least one wish"),
             tr("Penalty if no wish is beside, opposite or diagonal."),
             |ui| {
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     let r = theme::slider(
                         ui,
                         egui::Slider::new(&mut policy.left_out_penalty, 0..=2000),
@@ -112,7 +112,7 @@ impl PlassiApp {
             tr("Table ends"),
             tr("Penalty for someone without wishes at a table end; groups take the ends instead."),
             |ui| {
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     let r = theme::slider(
                         ui,
                         egui::Slider::new(&mut policy.lone_end_penalty, 0..=2000),
@@ -128,7 +128,7 @@ impl PlassiApp {
             tr("Empty seats"),
             tr("Where spare seats go."),
             |ui| {
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     ui.selectable_value(
                         &mut policy.empty_seats,
                         EmptySeatPlacement::TableBottoms,
@@ -144,7 +144,7 @@ impl PlassiApp {
         );
 
         ui.add_space(theme::space::S);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if ui.button(tr("Reset to defaults")).clicked() {
                 *policy = SeatingPolicy::default();
             }

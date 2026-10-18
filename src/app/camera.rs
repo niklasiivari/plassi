@@ -141,6 +141,17 @@ impl Camera {
         can_pan: bool,
     ) -> bool {
         let mut moved = false;
+        if let Some(touch) = ui.input(|i| i.multi_touch())
+            && rect.contains(touch.start_pos)
+        {
+            let new_zoom = (self.zoom * touch.zoom_delta).clamp(self.min_zoom, self.max_zoom);
+            let anchor = touch.center_pos - touch.translation_delta - rect.center() - self.pan;
+            self.pan += touch.translation_delta - anchor * (new_zoom / self.zoom - 1.0);
+            self.zoom = new_zoom;
+            self.goal = None;
+            self.fresh = false;
+            return true;
+        }
         if can_pan && background.dragged() {
             self.pan += background.drag_delta();
             moved = true;

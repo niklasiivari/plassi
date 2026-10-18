@@ -16,22 +16,20 @@ struct RowInfo {
 
 impl PlassiApp {
     pub(super) fn people_list(&mut self, ui: &mut egui::Ui, p: Palette) {
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label(
                 RichText::new(tr("People & wishes"))
                     .size(theme::text::TITLE)
                     .strong(),
             );
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui
-                    .add(theme::secondary_button(tr("+ Add person")))
-                    .on_hover_text(tr("Add a person"))
-                    .clicked()
-                {
-                    self.people.import_open = false;
-                    self.people.roster = Some(roster::RosterEdit::Add(Default::default()));
-                }
-            });
+            if ui
+                .add(theme::secondary_button(tr("+ Add person")))
+                .on_hover_text(tr("Add a person"))
+                .clicked()
+            {
+                self.people.import_open = false;
+                self.people.roster = Some(roster::RosterEdit::Add(Default::default()));
+            }
         });
         if ui
             .add(theme::secondary_button(tr("Import people")))
@@ -52,7 +50,7 @@ impl PlassiApp {
         );
         ui.add_space(theme::space::XS);
         self.filter_chips(ui, p);
-        self.bulk_bar(ui, p);
+        self.bulk_bar(ui);
         ui.add_space(theme::space::XS);
         ui.separator();
         let active = self.project.active_people();
@@ -99,7 +97,10 @@ impl PlassiApp {
                     };
                     shown.push(person.id);
                     let row = person_row(ui, p, person, &info);
-                    if row.clicked() && ui.input(|i| i.modifiers.command || i.modifiers.shift) {
+                    if row.clicked()
+                        && (self.people.selecting
+                            || ui.input(|i| i.modifiers.command || i.modifiers.shift))
+                    {
                         pick = Some(person.id);
                     } else if row.clicked() {
                         self.people.import_open = false;

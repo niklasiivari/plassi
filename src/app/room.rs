@@ -85,7 +85,7 @@ impl PlassiApp {
     fn room_header(&self, ui: &mut egui::Ui, p: Palette) {
         let seats = self.project.layout.seat_count();
         let people = self.project.attendees.len();
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label(
                 RichText::new(tr("Room layout"))
                     .size(theme::text::PAGE)
@@ -101,8 +101,10 @@ impl PlassiApp {
                 std::cmp::Ordering::Greater => (fill("{} spare", &[&(seats - people)]), p.muted),
             };
             theme::status_pill(ui, p, text, color);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Room);
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Room);
+                });
             });
         });
         ui.label(RichText::new(tr("Long tables with seats on both sides.")).color(p.muted));
@@ -120,7 +122,7 @@ impl PlassiApp {
                     .size(theme::text::LEAD),
             );
             ui.add_space(theme::space::XS);
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.add(egui::DragValue::new(&mut self.room.quick_tables).range(1..=40));
                 ui.label(tr("tables with"));
                 ui.add(egui::DragValue::new(&mut self.room.quick_seats).range(1..=100));
@@ -213,7 +215,7 @@ impl PlassiApp {
                     RichText::new(tr("Replaces the entire project. To update people, use Import on People & wishes."))
                         .color(p.warn),
                 );
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     ui.text_edit_singleline(&mut self.room.import_input);
                     if ui.button(tr("Import TSV")).clicked() {
                         self.import_tsv();
@@ -356,35 +358,39 @@ fn row_card(
     let mut remove_row = false;
     theme::card(p).show(ui, |ui| {
         ui.set_width(ui.available_width());
-        ui.horizontal(|ui| {
+        theme::responsive_row(ui, |ui| {
             let label = theme::field(&mut row.label)
                 .font(egui::TextStyle::Heading)
                 .desired_width(220.0);
             edit.labels |= ui.add(label).changed();
             ui.label(RichText::new(fill("{} tables", &[&row.tables.len()])).color(p.muted));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                remove_row =
-                    removable && ui.add(theme::ghost_button(tr("Remove row"), p)).clicked();
-                if ui.add(theme::secondary_button(tr("+ Add table"))).clicked() {
-                    add_table(row, table_ids);
-                    edit.geometry = true;
-                }
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    remove_row =
+                        removable && ui.add(theme::ghost_button(tr("Remove row"), p)).clicked();
+                    if ui.add(theme::secondary_button(tr("+ Add table"))).clicked() {
+                        add_table(row, table_ids);
+                        edit.geometry = true;
+                    }
+                });
             });
         });
         ui.add_space(theme::space::S);
         let mut remove_table = None;
-        ui.with_layout(
-            egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(true),
-            |ui| {
-                for (index, table) in row.tables.iter_mut().enumerate() {
-                    let (table_edit, remove) = table_card(ui, p, table);
-                    edit.merge(table_edit);
-                    if remove {
-                        remove_table = Some(index);
-                    }
+        let layout = if ui.available_width() < 540.0 {
+            egui::Layout::top_down(egui::Align::Min)
+        } else {
+            egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(true)
+        };
+        ui.with_layout(layout, |ui| {
+            for (index, table) in row.tables.iter_mut().enumerate() {
+                let (table_edit, remove) = table_card(ui, p, table);
+                edit.merge(table_edit);
+                if remove {
+                    remove_table = Some(index);
                 }
-            },
-        );
+            }
+        });
         if let Some(index) = remove_table {
             row.tables.remove(index);
             edit.geometry = true;
@@ -419,7 +425,7 @@ fn table_card(ui: &mut egui::Ui, p: Palette, table: &mut TableSpec) -> (RoomEdit
                 theme::inset(p).show(ui, |ui| {
                     theme::inset_controls(ui, p);
                     ui.set_width(192.0);
-                    ui.horizontal(|ui| {
+                    ui.horizontal_wrapped(|ui| {
                         edit.labels |= ui
                             .add(theme::field(&mut table.label).desired_width(110.0))
                             .changed();
@@ -428,7 +434,7 @@ fn table_card(ui: &mut egui::Ui, p: Palette, table: &mut TableSpec) -> (RoomEdit
                             .on_hover_text(tr("Remove table"))
                             .clicked();
                     });
-                    ui.horizontal(|ui| {
+                    ui.horizontal_wrapped(|ui| {
                         table_preview(ui, p, table.left, table.right);
                         ui.vertical(|ui| {
                             ui.label(
@@ -455,7 +461,7 @@ fn table_card(ui: &mut egui::Ui, p: Palette, table: &mut TableSpec) -> (RoomEdit
 /// "−  n  +" control; returns whether the value changed.
 fn stepper(ui: &mut egui::Ui, value: &mut usize) -> bool {
     let before = *value;
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = theme::space::XS;
         if ui.add(theme::glyph_button("−")).clicked() {
             *value = value.saturating_sub(1);

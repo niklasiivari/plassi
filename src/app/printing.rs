@@ -39,7 +39,7 @@ impl PlassiApp {
         }
         ui.add_space(theme::space::L);
         let mut start = None;
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let ready = !self.project.candidates.is_empty() && self.printing.job.is_none();
             if ui
                 .add_enabled(
@@ -69,14 +69,23 @@ impl PlassiApp {
         });
         ui.add_space(theme::space::S);
         ui.spacing_mut().item_spacing.x = theme::space::L;
-        ui.columns(2, |cols| {
-            for (i, kind) in PrintKind::ALL.into_iter().enumerate() {
-                if let Some(open) = self.print_card(&mut cols[i % 2], p, kind) {
+        if theme::narrow(ui) {
+            for kind in PrintKind::ALL {
+                if let Some(open) = self.print_card(ui, p, kind) {
                     start = Some((vec![kind], open));
                 }
-                cols[i % 2].add_space(theme::space::S);
+                ui.add_space(theme::space::S);
             }
-        });
+        } else {
+            ui.columns(2, |cols| {
+                for (i, kind) in PrintKind::ALL.into_iter().enumerate() {
+                    if let Some(open) = self.print_card(&mut cols[i % 2], p, kind) {
+                        start = Some((vec![kind], open));
+                    }
+                    cols[i % 2].add_space(theme::space::S);
+                }
+            });
+        }
         if let Some((kinds, open)) = start {
             self.start_print(kinds, open);
         }
@@ -88,8 +97,10 @@ impl PlassiApp {
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(RichText::new(tr("Event")).strong());
+            let mobile = theme::narrow(ui);
+            let field_width = if mobile { ui.available_width() } else { 380.0 };
             egui::Grid::new("event")
-                .num_columns(2)
+                .num_columns(if mobile { 1 } else { 2 })
                 .spacing([12.0, 8.0])
                 .show(ui, |ui| {
                     let event = &mut self.project.event;
@@ -98,12 +109,20 @@ impl PlassiApp {
                         (tr("Subtitle"), &mut event.subtitle, tr("Date and venue")),
                     ] {
                         ui.label(RichText::new(label).color(p.muted));
-                        let field = theme::field(value).hint_text(hint).desired_width(380.0);
+                        if mobile {
+                            ui.end_row();
+                        }
+                        let field = theme::field(value)
+                            .hint_text(hint)
+                            .desired_width(field_width);
                         changed |= ui.add(field).lost_focus();
                         ui.end_row();
                     }
                     ui.label(RichText::new(tr("Language")).color(p.muted));
-                    ui.horizontal(|ui| {
+                    if mobile {
+                        ui.end_row();
+                    }
+                    ui.horizontal_wrapped(|ui| {
                         use crate::model::PrintLanguage;
                         for (value, label) in [
                             (PrintLanguage::SameAsApp, tr("App language")),
@@ -117,6 +136,9 @@ impl PlassiApp {
                     });
                     ui.end_row();
                     ui.label(RichText::new(tr("Option")).color(p.muted));
+                    if mobile {
+                        ui.end_row();
+                    }
                     ui.vertical(|ui| {
                         self.option_picker(ui, p);
                         self.option_check(ui, p);
@@ -191,7 +213,7 @@ impl PlassiApp {
                 };
                 ui.label(RichText::new(text).size(theme::text::SMALL).color(p.warn));
             }
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 if ui
                     .add_enabled(
                         ready,

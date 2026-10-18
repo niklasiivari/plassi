@@ -31,7 +31,7 @@ impl PlassiApp {
             ui.push_id(index, |ui| {
                 theme::card(p).show(ui, |ui| {
                     ui.set_width(ui.available_width());
-                    ui.horizontal(|ui| {
+                    ui.horizontal_wrapped(|ui| {
                         changed |= ui
                             .add(theme::field(&mut category.name).desired_width(260.0))
                             .lost_focus();
@@ -51,7 +51,7 @@ impl PlassiApp {
                         theme::hint(ui, p, tr("Added to the ticket total. Use 0 if included."));
                     }
                     if matches!(kind, Kind::Food | Kind::Drink) {
-                        ui.horizontal(|ui| {
+                        ui.horizontal_wrapped(|ui| {
                             ui.label(tr("Print mark"));
                             changed |= ui
                                 .add(theme::field(&mut category.mark).desired_width(60.0))

@@ -1,4 +1,4 @@
-//! Actions on several people at once: Ctrl-click them in the list.
+//! Actions on several people at once, selected by tapping or Ctrl-clicking.
 
 use super::*;
 use crate::i18n::{fill, tr};
@@ -6,16 +6,17 @@ use crate::i18n::{fill, tr};
 impl PlassiApp {
     /// With people picked: review, pin, unpin, group, remove, clear.
     /// Otherwise a hint and tr("Select all shown").
-    pub(super) fn bulk_bar(&mut self, ui: &mut egui::Ui, p: Palette) {
+    pub(super) fn bulk_bar(&mut self, ui: &mut egui::Ui) {
         let picked: Vec<usize> = self.people.picked.iter().copied().collect();
         if picked.is_empty() {
-            ui.horizontal(|ui| {
-                theme::hint(ui, p, tr("Ctrl-click to select multiple people."));
+            ui.horizontal_wrapped(|ui| {
+                ui.toggle_value(&mut self.people.selecting, tr("Select people"));
                 if ui
                     .add(theme::small_button(tr("Select all shown")))
                     .clicked()
                 {
                     self.people.picked = self.people.shown.iter().copied().collect();
+                    self.people.selecting = true;
                 }
             });
             return;
@@ -52,6 +53,7 @@ impl PlassiApp {
             }
             if ui.add(theme::small_button(tr("Clear"))).clicked() {
                 self.people.picked.clear();
+                self.people.selecting = false;
             }
         });
     }

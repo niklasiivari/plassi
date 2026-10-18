@@ -1,6 +1,10 @@
 //! Finnish text: common.
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
+    ("Menu", "Valikko"),
+    ("Select people", "Valitse henkilöitä"),
+    ("Chart", "Kartta"),
+    ("Back to people", "Takaisin henkilöihin"),
     ("Price", "Hinta"),
     ("Print mark", "Merkintä"),
     (

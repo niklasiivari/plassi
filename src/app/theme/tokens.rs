@@ -51,3 +51,21 @@ pub const CONTENT_WIDTH: f32 = 920.0;
 pub const WIDE_WIDTH: f32 = 1480.0;
 /// Below this width, two-column layouts stack into one column.
 pub const TWO_COLUMN_MIN: f32 = 1100.0;
+
+/// Width below which pages show one task at a time.
+pub const MOBILE_MAX: f32 = 600.0;
+/// Keep navigation as a rail until there is room for its labels and the workspace.
+pub const SIDEBAR_EXPANDED_MIN: f32 = 1200.0;
+/// Minimum workspace width for a list and editor side by side.
+pub const SPLIT_MIN: f32 = 640.0;
+/// Below this workspace width the chart inspector floats over the canvas.
+pub const DOCKED_INSPECTOR_MIN: f32 = 900.0;
+
+pub fn mobile(ctx: &eframe::egui::Context) -> bool {
+    ctx.content_rect().width() < MOBILE_MAX
+}
+
+/// Form layout follows the width of its own panel, independently of navigation.
+pub fn narrow(ui: &eframe::egui::Ui) -> bool {
+    ui.available_width() < MOBILE_MAX
+}

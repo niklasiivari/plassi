@@ -146,3 +146,15 @@ Manual edits may violate hard rules; the report shows them rather than silently 
 ## Backups
 
 Earlier versions of each project are kept automatically: one every few minutes while editing, and one right before the project is deleted, replaced by an import or a loaded file, or overwritten by an external edit. On desktop they are in the project's `backups/` folder (the newest 20, plus one per day for two weeks); in the browser only the newest three per project are kept, and older backups make room if storage is full. The project menu's "Earlier versions…" lists them with Restore, which is an ordinary change that Undo can take back. "Deleted projects…" brings back a deleted project from its latest backup.
+
+## On a phone
+
+The menu at the top contains all pages, language and appearance controls. Tap the project name to switch projects or download a backup in the browser.
+
+The seating chart has three tabs: **Chart**, **Details**, and **Not seated**. Drag the background to pan, or use two fingers to pan and pinch to zoom. **More** contains zoom and fit controls. Tap a person, then open **Details** for their wishes, pins and suggested moves. To seat someone manually, choose them under **Not seated**, then tap an empty seat on **Chart**.
+
+On **People & wishes**, tap a person to open their editor and **Back to people** to return to the list. Use **Select people** to tap several people for bulk actions. Room settings and print forms stack into a single column on smaller screens.
+
+## Tablets and smaller desktop windows
+
+Medium windows keep the desktop navigation as an icon rail. The People page keeps its list beside the editor when there is room for both. The chart toolbar uses two rows; the inspector opens in a floating window when docking it would leave too little canvas. Use the rail's menu button for the project switcher and file controls. Only phone-sized windows replace the rail with a top menu.

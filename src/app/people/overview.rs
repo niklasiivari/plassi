@@ -58,7 +58,7 @@ impl PlassiApp {
         let pending = self.project.notes.iter().filter(|n| !n.reviewed).count();
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
+            theme::responsive_row(ui, |ui| {
                 ui.vertical(|ui| {
                     ui.label(
                         RichText::new(tr("Sign-up notes"))
@@ -74,20 +74,22 @@ impl PlassiApp {
                     };
                     theme::hint(ui, p, status);
                 });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if pending > 0
-                        && ui
-                            .add(theme::primary_button(tr("Review notes"), p))
-                            .clicked()
-                    {
-                        self.people.filter = PeopleFilter::ToReview;
-                        self.selected_person = self
-                            .project
-                            .notes
-                            .iter()
-                            .find(|n| !n.reviewed)
-                            .map(|n| n.person);
-                    }
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if pending > 0
+                            && ui
+                                .add(theme::primary_button(tr("Review notes"), p))
+                                .clicked()
+                        {
+                            self.people.filter = PeopleFilter::ToReview;
+                            self.selected_person = self
+                                .project
+                                .notes
+                                .iter()
+                                .find(|n| !n.reviewed)
+                                .map(|n| n.person);
+                        }
+                    });
                 });
             });
             if total > 0 {
@@ -120,7 +122,7 @@ impl PlassiApp {
             .collect();
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
+            theme::responsive_row(ui, |ui| {
                 ui.vertical(|ui| {
                     ui.label(
                         RichText::new(fill("{} suggested wishes", &[&suggestions.len()]))
@@ -136,23 +138,25 @@ impl PlassiApp {
                         ),
                     );
                 });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let label = fill("Add {}", &[&sure.len()]);
-                    let add = theme::primary_button(&label, p);
-                    if !sure.is_empty()
-                        && ui
-                            .add(add)
-                            .on_hover_text(tr("Add wishes for all full-name matches"))
-                            .clicked()
-                    {
-                        for s in &sure {
-                            crate::suggest::accept(&mut self.project, s);
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let label = fill("Add {}", &[&sure.len()]);
+                        let add = theme::primary_button(&label, p);
+                        if !sure.is_empty()
+                            && ui
+                                .add(add)
+                                .on_hover_text(tr("Add wishes for all full-name matches"))
+                                .clicked()
+                        {
+                            for s in &sure {
+                                crate::suggest::accept(&mut self.project, s);
+                            }
+                            self.commit(&fill(
+                                "Added {} wishes from full-name matches",
+                                &[&sure.len()],
+                            ));
                         }
-                        self.commit(&fill(
-                            "Added {} wishes from full-name matches",
-                            &[&sure.len()],
-                        ));
-                    }
+                    });
                 });
             });
         });

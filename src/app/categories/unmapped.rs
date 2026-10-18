@@ -19,7 +19,7 @@ impl PlassiApp {
         let mut apply_all = false;
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label(
                     RichText::new(tr("Suggested merges"))
                         .size(theme::text::LEAD)
@@ -32,7 +32,7 @@ impl PlassiApp {
             theme::hint(ui, p, tr("Similar names and combined entries."));
             ui.add_space(theme::space::S);
             for (index, merge) in suggestions.iter().enumerate() {
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     ui.label(RichText::new(&merge.spelling).strong());
                     let relation = if merge.targets.len() > 1 {
                         tr("belongs to")
@@ -87,7 +87,7 @@ impl PlassiApp {
         let mut create_all = false;
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label(
                     RichText::new(tr("Uncategorized"))
                         .size(theme::text::LEAD)
@@ -139,7 +139,7 @@ fn unmapped_row(
     names: &[String],
 ) -> Option<Option<usize>> {
     let mut chosen = None;
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.set_min_height(theme::CONTROL_HEIGHT);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if !names.is_empty() {

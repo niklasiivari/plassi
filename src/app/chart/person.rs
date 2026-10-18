@@ -13,6 +13,9 @@ impl PlassiApp {
         id: usize,
     ) {
         self.person_heading(ui, p, scene, id);
+        if self.chart.single_pane && ui.button(tr("Edit wishes")).clicked() {
+            self.page = crate::app::Page::People;
+        }
         ui.add_space(theme::space::L);
         self.pin_buttons(ui, p, scene, id);
         self.suggestions_ui(ui, p, id);
@@ -48,6 +51,7 @@ impl PlassiApp {
                     .clicked()
                 {
                     self.focus_person(id, scene);
+                    self.chart.mobile_view = MobileChart::Chart;
                 }
             });
         });
@@ -93,7 +97,7 @@ impl PlassiApp {
             );
         }
         let seat = scene.seat_of.get(&id).cloned();
-        ui.horizontal(|ui| match (scene.pins.get(&id), seat) {
+        ui.horizontal_wrapped(|ui| match (scene.pins.get(&id), seat) {
             (Some(_), _) => {
                 if ui.add(theme::secondary_button(tr("Unpin"))).clicked() {
                     self.set_pin(id, None);

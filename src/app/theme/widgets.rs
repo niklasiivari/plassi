@@ -15,7 +15,15 @@ pub fn page_header(
     trailing: impl FnOnce(&mut egui::Ui),
 ) {
     ui.horizontal(|ui| {
-        ui.label(RichText::new(title).size(text::PAGE).strong());
+        let title_width = (ui.available_width() - 52.0).max(80.0);
+        ui.allocate_ui_with_layout(
+            egui::vec2(title_width, 0.0),
+            egui::Layout::left_to_right(egui::Align::Center),
+            |ui| {
+                ui.set_min_width(title_width);
+                ui.add(egui::Label::new(RichText::new(title).size(text::PAGE).strong()).wrap());
+            },
+        );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), trailing);
     });
     if let Some(subtitle) = subtitle {
@@ -23,6 +31,18 @@ pub fn page_header(
         ui.label(RichText::new(subtitle).size(text::BODY).color(p.muted));
     }
     ui.add_space(space::XL);
+}
+
+/// Keep text and trailing actions on separate rows when the panel is narrow.
+pub fn responsive_row<R>(
+    ui: &mut egui::Ui,
+    add: impl FnOnce(&mut egui::Ui) -> R,
+) -> egui::InnerResponse<R> {
+    if super::narrow(ui) {
+        ui.vertical(add)
+    } else {
+        ui.horizontal(add)
+    }
 }
 
 /// A small uppercase label above a group of content.

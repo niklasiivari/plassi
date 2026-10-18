@@ -115,8 +115,10 @@ fn attendee_form(
     theme::raised_card(p).show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.label(RichText::new(title).strong().size(theme::text::LEAD));
+        let mobile = theme::narrow(ui);
+        let field_width = if mobile { ui.available_width() } else { 340.0 };
         egui::Grid::new("attendee-form")
-            .num_columns(2)
+            .num_columns(if mobile { 1 } else { 2 })
             .spacing([12.0, 8.0])
             .show(ui, |ui| {
                 let none: &[String] = &[];
@@ -137,7 +139,10 @@ fn attendee_form(
                     (tr("Allergies / diet"), &mut person.allergies, none),
                 ] {
                     ui.label(RichText::new(label).color(p.muted));
-                    field_with_choices(ui, label, value, options, 340.0);
+                    if mobile {
+                        ui.end_row();
+                    }
+                    field_with_choices(ui, label, value, options, field_width);
                     ui.end_row();
                 }
             });
@@ -167,6 +172,12 @@ pub(super) fn field_with_choices(
     choices: &[String],
     width: f32,
 ) -> bool {
+    let width = if theme::narrow(ui) {
+        let reserve = if choices.is_empty() { 0.0 } else { 64.0 };
+        width.min((ui.available_width() - reserve).max(40.0))
+    } else {
+        width
+    };
     ui.horizontal(|ui| {
         let mut changed = ui
             .add(theme::field(value).desired_width(width))

@@ -152,38 +152,49 @@ impl eframe::App for PlassiApp {
                 self.undo(true);
             }
         }
-        let frame = theme::floating_panel_frame(p);
-        let was_compact = self.sidebar_compact;
-        let mut expanded = !was_compact;
-        let mut toggle_sidebar = false;
-        egui::Panel::show_switched(
-            ui,
-            &mut expanded,
-            egui::Panel::left("nav-compact")
-                .resizable(false)
-                .exact_size(84.0)
-                .show_separator_line(true)
-                .frame(frame),
-            egui::Panel::left("nav")
-                .resizable(false)
-                .exact_size(244.0)
-                .show_separator_line(true)
-                .frame(frame),
-            |ui, expanded| {
-                let padding = if expanded {
-                    theme::space::M
+        let mobile = theme::mobile(ui.ctx());
+        if mobile {
+            ui.spacing_mut().interact_size.y = 44.0;
+            ui.spacing_mut().button_padding.y = 10.0;
+            ui.spacing_mut().slider_width = (ui.available_width() - 130.0).clamp(100.0, 280.0);
+            self.mobile_header(ui, p);
+        } else {
+            let frame = theme::floating_panel_frame(p);
+            let auto_compact = ui.ctx().content_rect().width() < theme::SIDEBAR_EXPANDED_MIN;
+            let mut expanded = !self.sidebar_compact && !auto_compact;
+            let mut toggle_sidebar = false;
+            egui::Panel::show_switched(
+                ui,
+                &mut expanded,
+                egui::Panel::left("nav-compact")
+                    .resizable(false)
+                    .exact_size(84.0)
+                    .show_separator_line(true)
+                    .frame(frame),
+                egui::Panel::left("nav")
+                    .resizable(false)
+                    .exact_size(244.0)
+                    .show_separator_line(true)
+                    .frame(frame),
+                |ui, expanded| {
+                    let padding = if expanded {
+                        theme::space::M
+                    } else {
+                        theme::space::S
+                    };
+                    theme::panel_card(ui, p, padding, |ui| {
+                        toggle_sidebar = self.sidebar(ui, p, expanded);
+                    });
+                },
+            );
+            if toggle_sidebar {
+                if auto_compact {
+                    self.open_navigation_window(ui, p);
                 } else {
-                    theme::space::S
-                };
-                theme::panel_card(ui, p, padding, |ui| {
-                    toggle_sidebar = self.sidebar(ui, p, expanded);
-                });
-            },
-        );
-        if toggle_sidebar {
-            expanded = !expanded;
+                    self.sidebar_compact = expanded;
+                }
+            }
         }
-        self.sidebar_compact = !expanded;
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg))
             .show(ui, |ui| match self.page {
@@ -200,6 +211,8 @@ impl eframe::App for PlassiApp {
         if self.status != previous_status {
             self.status_at = Instant::now();
         }
+        self.navigation_window(ui.ctx(), p);
+        about::show(ui.ctx(), p);
         self.backups_window(ui.ctx(), p);
         self.toast(ui.ctx(), p);
         ui.ctx()

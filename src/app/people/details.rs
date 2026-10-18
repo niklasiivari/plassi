@@ -74,12 +74,16 @@ impl PlassiApp {
         if !tags.is_empty() {
             rows.push((tr("Tags"), tags.as_str()));
         }
+        let mobile = theme::narrow(ui);
         egui::Grid::new("details")
-            .num_columns(2)
+            .num_columns(if mobile { 1 } else { 2 })
             .spacing([theme::space::XL, theme::space::S])
             .show(ui, |ui| {
                 for (label, value) in rows {
                     ui.label(RichText::new(label).color(p.muted));
+                    if mobile {
+                        ui.end_row();
+                    }
                     if value.trim().is_empty() {
                         ui.label(RichText::new("—").color(p.muted));
                     } else {
@@ -97,11 +101,16 @@ impl PlassiApp {
             return false;
         };
         let mut changed = false;
+        let mobile = theme::narrow(ui);
+        let field_width = if mobile { ui.available_width() } else { 360.0 };
         egui::Grid::new("details-edit")
-            .num_columns(2)
+            .num_columns(if mobile { 1 } else { 2 })
             .spacing([theme::space::XL, theme::space::S])
             .show(ui, |ui| {
                 ui.label(RichText::new(tr("Price")).color(p.muted));
+                if mobile {
+                    ui.end_row();
+                }
                 changed |= theme::price_input(ui, tr("Custom price"), &mut a.price_override_cents);
                 ui.end_row();
                 for (label, value, choices) in [
@@ -110,7 +119,11 @@ impl PlassiApp {
                     (tr("Allergies / diet"), &mut a.allergies, &[][..]),
                 ] {
                     ui.label(RichText::new(label).color(p.muted));
-                    changed |= super::roster::field_with_choices(ui, label, value, choices, 360.0);
+                    if mobile {
+                        ui.end_row();
+                    }
+                    changed |=
+                        super::roster::field_with_choices(ui, label, value, choices, field_width);
                     ui.end_row();
                 }
             });

@@ -130,7 +130,7 @@ pub(super) fn help_button(ui: &mut egui::Ui, p: Palette, page: HelpPage) -> bool
                 theme::floating(p)
                     .inner_margin(egui::Margin::same(theme::space::M as i8))
                     .show(ui, |ui| {
-                        ui.set_width(320.0);
+                        ui.set_width(320.0_f32.min(ui.ctx().content_rect().width() - 64.0));
                         tour = panel(ui, p, page);
                     });
             });
@@ -165,7 +165,7 @@ fn panel(ui: &mut egui::Ui, p: Palette, page: HelpPage) -> bool {
             }
         });
     }
-    page == HelpPage::Chart && {
+    page == HelpPage::Chart && ui.ctx().content_rect().width() >= theme::SPLIT_MIN + 84.0 && {
         ui.add_space(theme::space::M);
         ui.add(theme::small_button(tr("Show the tour"))).clicked()
     }

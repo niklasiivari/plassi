@@ -74,14 +74,14 @@ impl PlassiApp {
     }
 
     /// One chip per option with its score; the best is green, broken hard rules red.
-    pub(super) fn option_chips(&mut self, ui: &mut egui::Ui, p: Palette) {
+    pub(super) fn option_chips(&mut self, ui: &mut egui::Ui, p: Palette, max_width: f32) {
         let scores = self.option_scores();
         let best = scores.iter().map(OptionSummary::rank).min();
         let mut selected = self.selected_candidate;
         let mut action = None;
         let chips = egui::ScrollArea::horizontal()
             .id_salt("option-chips")
-            .max_width((ui.available_width() - 600.0).max(120.0))
+            .max_width(max_width.max(80.0))
             .show(ui, |ui| {
                 for (index, candidate) in self.project.candidates.iter().enumerate() {
                     let active = index == self.selected_candidate;

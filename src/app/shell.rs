@@ -54,7 +54,14 @@ fn nav_item(
     badge: Option<(usize, Color32)>,
 ) -> egui::Response {
     let (rect, response) = ui.allocate_exact_size(
-        egui::vec2(ui.available_width(), theme::CONTROL_HEIGHT),
+        egui::vec2(
+            ui.available_width(),
+            if theme::mobile(ui.ctx()) {
+                44.0
+            } else {
+                theme::CONTROL_HEIGHT
+            },
+        ),
         egui::Sense::click(),
     );
     let fill = if selected {
@@ -119,8 +126,13 @@ pub(super) fn page_scroll(ui: &mut egui::Ui, width: f32, add: impl FnOnce(&mut e
         .auto_shrink([false, false])
         .show(ui, |ui| {
             let available = ui.available_width();
-            let content = width.min(available - 2.0 * theme::space::XXL);
-            let side = ((available - content) / 2.0).max(theme::space::XXL);
+            let padding = if theme::narrow(ui) {
+                theme::space::L
+            } else {
+                theme::space::XXL
+            };
+            let content = width.min((available - 2.0 * padding).max(0.0));
+            let side = ((available - content) / 2.0).max(padding);
             egui::Frame::new()
                 .inner_margin(egui::Margin {
                     left: side as i8,
@@ -136,38 +148,103 @@ pub(super) fn page_scroll(ui: &mut egui::Ui, width: f32, add: impl FnOnce(&mut e
 }
 
 impl PlassiApp {
-    /// Page navigation, and file status and view controls at the bottom.
-    pub(super) fn sidebar(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
-        ui.add_space(theme::space::M);
-        if expanded {
-            self.project_switcher(ui, p);
-            ui.add_space(theme::space::S);
-        }
-        self.navigation(ui, p, expanded);
-        let align = if !expanded {
-            egui::Align::Center
-        } else {
-            egui::Align::Min
-        };
-        ui.with_layout(egui::Layout::bottom_up(align), |ui| {
-            let mut toggle = false;
-            if !expanded {
-                toggle = self.collapse_toggle(ui, p, expanded);
-                theme_toggle(ui, p);
-                language_toggle(self, ui);
-                super::about::button(ui, p);
-                ui.add_space(theme::space::S);
-                self.sync_dot(ui, p).on_hover_text(self.sync_text());
-            } else {
+    /// Compact navigation retains project and file actions without taking canvas width.
+    pub(super) fn mobile_header(&mut self, ui: &mut egui::Ui, p: Palette) {
+        egui::Panel::top("mobile-header")
+            .frame(theme::panel_frame(p).inner_margin(egui::Margin::same(8)))
+            .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    toggle = self.collapse_toggle(ui, p, expanded);
+                    let button = ui.button(tr("Menu"));
+                    egui::Popup::menu(&button)
+                        .style(theme::menu_style)
+                        .show(|ui| {
+                            self.navigation_menu_contents(ui, p);
+                        });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+                        self.project_switcher(ui, p);
+                    });
+                });
+            });
+    }
+
+    fn navigation_menu_contents(&mut self, ui: &mut egui::Ui, p: Palette) {
+        ui.set_width((ui.ctx().content_rect().width() - 48.0).min(320.0));
+        egui::ScrollArea::vertical()
+            .max_height((ui.ctx().content_rect().height() - 100.0).max(100.0))
+            .show(ui, |ui| {
+                let before = self.page;
+                self.navigation(ui, p, true);
+                if self.page != before {
+                    ui.close();
+                }
+                ui.separator();
+                ui.horizontal(|ui| {
                     theme_toggle(ui, p);
                     language_toggle(self, ui);
                     super::about::button(ui, p);
                 });
-                ui.add_space(theme::space::M);
                 self.file_controls(ui, p);
-            }
+            });
+    }
+
+    /// Opens the compact rail's full navigation without widening the workspace.
+    pub(super) fn open_navigation_window(&mut self, ui: &mut egui::Ui, _p: Palette) {
+        ui.ctx()
+            .data_mut(|data| data.insert_temp(egui::Id::new("tablet-navigation-open"), true));
+    }
+
+    pub(super) fn navigation_window(&mut self, ctx: &egui::Context, p: Palette) {
+        let id = egui::Id::new("tablet-navigation-open");
+        let mut open = ctx.data(|data| data.get_temp::<bool>(id)).unwrap_or(false);
+        if open {
+            egui::Window::new(tr("Menu"))
+                .id(egui::Id::new("tablet-navigation"))
+                .open(&mut open)
+                .collapsible(false)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    self.project_switcher(ui, p);
+                    self.navigation_menu_contents(ui, p);
+                });
+        }
+        ctx.data_mut(|data| data.insert_temp(id, open));
+    }
+
+    /// Page navigation, and file status and view controls at the bottom.
+    pub(super) fn sidebar(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
+        if !expanded {
+            return egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    self.navigation(ui, p, false);
+                    ui.separator();
+                    ui.vertical_centered(|ui| {
+                        let toggle = self.collapse_toggle(ui, p, false);
+                        theme_toggle(ui, p);
+                        language_toggle(self, ui);
+                        super::about::button(ui, p);
+                        self.sync_dot(ui, p).on_hover_text(self.sync_text());
+                        toggle
+                    })
+                    .inner
+                })
+                .inner;
+        }
+        ui.add_space(theme::space::M);
+        self.project_switcher(ui, p);
+        ui.add_space(theme::space::S);
+        self.navigation(ui, p, true);
+        ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+            let mut toggle = false;
+            ui.horizontal(|ui| {
+                toggle = self.collapse_toggle(ui, p, true);
+                theme_toggle(ui, p);
+                language_toggle(self, ui);
+                super::about::button(ui, p);
+            });
+            ui.add_space(theme::space::M);
+            self.file_controls(ui, p);
             toggle
         })
         .inner
@@ -176,6 +253,8 @@ impl PlassiApp {
     fn collapse_toggle(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
         let tip = if expanded {
             tr("Collapse sidebar")
+        } else if ui.ctx().content_rect().width() < theme::SIDEBAR_EXPANDED_MIN {
+            tr("Menu")
         } else {
             tr("Expand sidebar")
         };
@@ -336,7 +415,7 @@ impl PlassiApp {
             .show(ctx, |ui| {
                 ui.set_opacity(alpha);
                 theme::toast_frame(p).show(ui, |ui| {
-                    ui.set_max_width(420.0);
+                    ui.set_max_width(420.0_f32.min(ui.ctx().content_rect().width() - 72.0));
                     let color = p.text;
                     ui.visuals_mut().override_text_color = Some(color);
                     let mut stop = false;

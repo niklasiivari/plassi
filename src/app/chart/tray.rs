@@ -30,7 +30,7 @@ impl PlassiApp {
         self.chart.tray_rect = panel.filter(|_| shown).map(|panel| panel.response.rect);
     }
 
-    fn tray_contents(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
+    pub(super) fn tray_contents(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
         theme::section_title(ui, p, &fill("Not seated · {}", &[&scene.unseated.len()]));
         let on_chart = scene.unseated.len() - scene.listed.len();
         if on_chart > 0 {
@@ -163,6 +163,9 @@ impl PlassiApp {
         } else if response.clicked() {
             self.selected_person = Some(person);
             self.focus_person(person, scene);
+            if self.chart.single_pane {
+                self.chart.mobile_view = MobileChart::Chart;
+            }
         }
     }
 }

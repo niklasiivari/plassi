@@ -39,6 +39,7 @@ struct Graph {
 
 /// State of the Connections page.
 pub(in crate::app) struct GraphState {
+    mobile_details: bool,
     graph: Option<Graph>,
     layout: Option<ForceLayout>,
     /// Revision and settings the graph was built for.
@@ -61,6 +62,7 @@ pub(in crate::app) struct GraphState {
 impl Default for GraphState {
     fn default() -> Self {
         Self {
+            mobile_details: false,
             graph: None,
             layout: None,
             built_for: None,
@@ -150,9 +152,37 @@ fn build_layout(
 impl PlassiApp {
     pub(in crate::app) fn graph_page(&mut self, ui: &mut egui::Ui, p: Palette) {
         self.refresh_graph();
+        if ui.available_width() < theme::SPLIT_MIN {
+            egui::Panel::top("graph-mobile-tabs").show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.selectable_value(
+                        &mut self.graph.mobile_details,
+                        false,
+                        crate::i18n::tr("Connections"),
+                    );
+                    ui.selectable_value(
+                        &mut self.graph.mobile_details,
+                        true,
+                        crate::i18n::tr("Details"),
+                    );
+                });
+            });
+            egui::CentralPanel::default()
+                .frame(egui::Frame::new().fill(p.canvas))
+                .show(ui, |ui| {
+                    if self.graph.mobile_details {
+                        crate::app::shell::page_scroll(ui, theme::CONTENT_WIDTH, |ui| {
+                            self.graph_panel(ui, p)
+                        });
+                    } else {
+                        self.graph_canvas(ui, p);
+                    }
+                });
+            return;
+        }
         egui::Panel::right("graph-panel")
             .resizable(false)
-            .exact_size(theme::PANEL_WIDTH + 2.0 * theme::space::M)
+            .exact_size((ui.available_width() * 0.4).clamp(280.0, theme::PANEL_WIDTH + 24.0))
             .show_separator_line(true)
             .frame(theme::floating_panel_frame(p))
             .show(ui, |ui| {

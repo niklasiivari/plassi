@@ -52,6 +52,7 @@ pub(in crate::app) struct ChartView {
     pub(in crate::app) fit_pending: bool,
     /// Previous canvas bounds, used to keep cards stationary when panels resize it.
     canvas_rect: Option<Rect>,
+    screen_width: Option<f32>,
     /// Person to centre on when the chart is next shown.
     pub(in crate::app) focus_person: Option<usize>,
 }
@@ -62,14 +63,28 @@ impl Default for ChartView {
             camera: crate::app::camera::Camera::new(0.2, 3.0),
             fit_pending: true,
             canvas_rect: None,
+            screen_width: None,
             focus_person: None,
         }
     }
 }
 
+/// One full-width chart workspace on a phone.
+#[derive(Default, PartialEq, Eq)]
+pub(in crate::app) enum MobileChart {
+    #[default]
+    Chart,
+    Details,
+    Unseated,
+}
+
 /// State of the chart page.
 #[derive(Default)]
 pub(in crate::app) struct ChartState {
+    pub(in crate::app) mobile_view: MobileChart,
+    pub(in crate::app) floating_inspector: bool,
+    pub(in crate::app) inspector_floats: bool,
+    pub(in crate::app) single_pane: bool,
     pub(in crate::app) view: ChartView,
     pub(in crate::app) search: String,
     /// Text currently being edited in the zoom control.
@@ -184,33 +199,52 @@ impl PlassiApp {
         }
         if let Some(id) = self.chart.view.focus_person.take() {
             self.selected_person = Some(id);
+            self.chart.mobile_view = MobileChart::Chart;
             self.focus_person(id, &scene);
         }
 
         // Where the tour points; recorded while drawing this frame.
         self.tour.anchors = Default::default();
+        let workspace_width = ui.available_width();
+        self.chart.inspector_floats = workspace_width < theme::DOCKED_INSPECTOR_MIN;
+        self.chart.single_pane = workspace_width < theme::SPLIT_MIN;
         egui::Panel::top("chart-toolbar")
             .frame(theme::panel_frame(p).inner_margin(egui::Margin::symmetric(
                 theme::space::L as i8,
                 theme::space::M as i8,
             )))
             .show(ui, |ui| self.chart_toolbar(ui, p, &scene));
-        let mut open = !self.chart.hide_inspector;
-        let inspector = egui::Panel::right("chart-inspector")
-            .resizable(true)
-            .default_size(theme::PANEL_WIDTH + 2.0 * theme::space::M)
-            .size_range(300.0..=540.0)
-            .show_separator_line(true)
-            .frame(theme::floating_panel_frame(p))
-            .show_collapsible(ui, &mut open, |ui| {
-                theme::panel_card(ui, p, theme::space::L, |ui| {
-                    egui::ScrollArea::vertical()
-                        .auto_shrink([false, false])
-                        .show(ui, |ui| self.inspector(ui, p, &scene));
+        if self.chart.single_pane {
+            self.mobile_chart(ui, p, &scene);
+            return;
+        }
+        if !self.chart.inspector_floats {
+            let mut open = !self.chart.hide_inspector;
+            let inspector = egui::Panel::right("chart-inspector")
+                .resizable(true)
+                .default_size(theme::PANEL_WIDTH + 2.0 * theme::space::M)
+                .size_range(
+                    300.0
+                        ..=(workspace_width
+                            - if scene.unseated.is_empty() {
+                                320.0
+                            } else {
+                                560.0
+                            })
+                        .clamp(300.0, 540.0),
+                )
+                .show_separator_line(true)
+                .frame(theme::floating_panel_frame(p))
+                .show_collapsible(ui, &mut open, |ui| {
+                    theme::panel_card(ui, p, theme::space::L, |ui| {
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| self.inspector(ui, p, &scene));
+                    });
                 });
-            });
-        self.tour.anchors.panel = inspector.map(|r| r.response.rect);
-        self.chart.hide_inspector = !open;
+            self.tour.anchors.panel = inspector.map(|r| r.response.rect);
+            self.chart.hide_inspector = !open;
+        }
         self.tray(ui, p, &scene);
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.canvas))
@@ -220,7 +254,67 @@ impl PlassiApp {
                 self.canvas(ui, p, &scene);
                 theme::panel_edge_shadows(ui, p, rect);
             });
+        if self.chart.inspector_floats && self.chart.floating_inspector {
+            let mut open = true;
+            egui::Window::new(tr("Details"))
+                .id(egui::Id::new("floating-chart-inspector"))
+                .open(&mut open)
+                .resizable(false)
+                .collapsible(false)
+                .default_width(320.0)
+                .show(ui.ctx(), |ui| {
+                    egui::ScrollArea::vertical()
+                        .max_height((ui.ctx().content_rect().height() - 140.0).max(100.0))
+                        .show(ui, |ui| self.inspector(ui, p, &scene));
+                });
+            self.chart.floating_inspector = open;
+        }
         self.chart_tour(ui.ctx(), p);
+    }
+
+    fn mobile_chart(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
+        egui::Panel::top("chart-mobile-tabs")
+            .frame(theme::panel_frame(p).inner_margin(8))
+            .show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.selectable_value(
+                        &mut self.chart.mobile_view,
+                        MobileChart::Chart,
+                        tr("Chart"),
+                    );
+                    ui.selectable_value(
+                        &mut self.chart.mobile_view,
+                        MobileChart::Details,
+                        tr("Details"),
+                    );
+                    ui.selectable_value(
+                        &mut self.chart.mobile_view,
+                        MobileChart::Unseated,
+                        fill("Not seated · {}", &[&scene.unseated.len()]),
+                    );
+                });
+            });
+        self.chart.tray_rect = None;
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(p.canvas))
+            .show(ui, |ui| match self.chart.mobile_view {
+                MobileChart::Chart => {
+                    let rect = ui.max_rect();
+                    self.tour.anchors.canvas = Some(rect);
+                    self.canvas(ui, p, scene);
+                }
+                MobileChart::Details => {
+                    crate::app::shell::page_scroll(ui, theme::CONTENT_WIDTH, |ui| {
+                        self.inspector(ui, p, scene)
+                    });
+                }
+                MobileChart::Unseated => {
+                    egui::Frame::new().inner_margin(16).show(ui, |ui| {
+                        self.chart.tray_rect = Some(ui.max_rect());
+                        self.tray_contents(ui, p, scene);
+                    });
+                }
+            });
     }
 
     /// The chart's colouring by category, if one is chosen.

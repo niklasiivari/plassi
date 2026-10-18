@@ -190,6 +190,9 @@ impl PlassiApp {
         place: Place,
         actions: &mut CardActions,
     ) {
+        if ui.input(|i| i.multi_touch().is_some()) {
+            return;
+        }
         let person = place.person(paint.scene);
         let adding = ui.input(|i| i.modifiers.command || i.modifiers.shift);
         if response.clicked() && adding {

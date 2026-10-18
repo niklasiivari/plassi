@@ -137,9 +137,9 @@ impl PlassiApp {
             .frame(theme::card(p))
             .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
             .show(ctx, |ui| {
-                ui.set_min_width(360.0);
+                ui.set_width(360.0_f32.min(ctx.content_rect().width() - 72.0));
                 egui::ScrollArea::vertical()
-                    .max_height(420.0)
+                    .max_height(420.0_f32.min((ctx.content_rect().height() - 140.0).max(80.0)))
                     .show(ui, |ui| {
                         action = match view {
                             View::Versions(versions) => versions_list(ui, p, versions),
