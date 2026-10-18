@@ -1,8 +1,7 @@
 //! Pan and zoom for the chart and graph canvases.
 //!
-//! The view is anchored at the canvas centre, so opening or closing panels
-//! (which resizes the canvas) keeps what you are looking at in place. Fit,
-//! focus and button zooms glide to their target instead of jumping.
+//! Fit, focus and button zooms glide to their target. Resizing the chart's
+//! canvas preserves screen positions so panels never move the room.
 
 use eframe::egui::{self, Pos2, Rect, Vec2};
 
@@ -45,6 +44,16 @@ impl Viewport {
 }
 
 impl Camera {
+    /// Keep world points at their screen positions when panels resize the canvas,
+    /// including the destination of a move that is still animating.
+    pub(super) fn resize(&mut self, previous: Rect, current: Rect) {
+        let offset = previous.center() - current.center();
+        self.pan += offset;
+        if let Some((_, pan)) = &mut self.goal {
+            *pan += offset;
+        }
+    }
+
     /// The transform for a canvas occupying `rect`.
     pub(super) fn viewport(&self, rect: Rect) -> Viewport {
         Viewport {
@@ -101,6 +110,7 @@ impl Camera {
     }
 
     /// The zoom and pan the view is moving toward, or showing.
+    #[cfg(test)]
     pub(super) fn target(&self) -> (f32, Vec2) {
         self.goal.unwrap_or((self.zoom, self.pan))
     }
@@ -166,5 +176,31 @@ impl Camera {
             self.goal = None;
         }
         ctx.request_repaint();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resizing_preserves_screen_positions_and_pending_animation() {
+        let mut camera = Camera::new(0.2, 3.0);
+        let full = Rect::from_min_size(Pos2::ZERO, Vec2::new(1000.0, 700.0));
+        let smaller = Rect::from_min_max(Pos2::new(220.0, 0.0), full.max);
+        camera.fit(full, full, 1.4);
+        camera.zoom_by(1.5);
+        let point = Pos2::new(60.0, 90.0);
+        let before = camera.to_screen(full, point);
+        let (zoom, pan) = camera.target();
+        camera.resize(full, smaller);
+        assert_eq!(camera.to_screen(smaller, point), before);
+        assert_eq!(
+            camera.target(),
+            (zoom, pan + (full.center() - smaller.center()))
+        );
+        camera.resize(smaller, full);
+        assert_eq!(camera.to_screen(full, point), before);
+        assert_eq!(camera.target(), (zoom, pan));
     }
 }

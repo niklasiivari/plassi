@@ -11,29 +11,23 @@ const SEARCH_FROM: usize = 8;
 impl PlassiApp {
     /// The list panel, shown while anyone in the option has no seat.
     pub(super) fn tray(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
-        let shown = !scene.unseated.is_empty() && !self.project.candidates.is_empty();
-        // The canvas changes width; fit the room again so no table ends up
-        // out of view, unless the user has zoomed or panned since the last fit.
-        let view = &mut self.chart.view;
-        if shown != self.chart.tray_rect.is_some() && view.fitted == Some(view.camera.target()) {
-            view.fit_pending = true;
-        }
+        let mut shown = !scene.unseated.is_empty() && !self.project.candidates.is_empty();
         if !shown {
-            self.chart.tray_rect = None;
             self.chart.tray_hover = None;
             self.chart.tray_reveal = None;
-            return;
         }
         let panel = egui::Panel::left("chart-tray")
             .resizable(false)
             .exact_size(CARD_W + 2.0 * theme::space::XL)
             .frame(theme::floating_panel_frame(p))
-            .show(ui, |ui| {
-                theme::panel_card(ui, p, theme::space::L, |ui| {
-                    self.tray_contents(ui, p, scene)
-                });
+            .show_collapsible(ui, &mut shown, |ui| {
+                if !scene.unseated.is_empty() {
+                    theme::panel_card(ui, p, theme::space::L, |ui| {
+                        self.tray_contents(ui, p, scene)
+                    });
+                }
             });
-        self.chart.tray_rect = Some(panel.response.rect);
+        self.chart.tray_rect = panel.filter(|_| shown).map(|panel| panel.response.rect);
     }
 
     fn tray_contents(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {

@@ -9,6 +9,22 @@ use super::harness::Ui;
 use crate::model::{Pin, Spot};
 
 #[test]
+fn dragging_into_a_gap_snaps_to_the_nearer_chair() {
+    let mut ui = Ui::with_example();
+    ui.click("Seat by hand");
+    ui.key(Modifiers::NONE, Key::Escape);
+    ui.key(Modifiers::NONE, Key::F);
+    let first = ui.app().project.attendees[0].clone();
+    let seats = ui.app().project.layout.seats();
+    let top = ui.app().seat_card_on_screen(&seats[0].id).unwrap();
+    let next = ui.app().seat_card_on_screen(&seats[1].id).unwrap();
+    let gap = top.center().lerp(next.center(), 0.5) + egui::Vec2::Y;
+    assert!(!top.contains(gap) && !next.contains(gap));
+    ui.drag(ui.node(&first.name).rect().center(), gap);
+    assert_eq!(ui.seat_of(first.id), seats[1].id);
+}
+
+#[test]
 fn an_empty_option_is_seated_by_hand_and_then_the_rest() {
     let mut ui = Ui::with_example();
     ui.click("Seat by hand");

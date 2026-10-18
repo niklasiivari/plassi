@@ -11,6 +11,13 @@ pub(super) const CARD_H: f32 = 44.0;
 /// so the card lies just outside the table edge.
 pub(super) const CARD_OFFSET: f32 = CARD_W / 2.0 + 6.0;
 
+fn animate_position(ctx: &egui::Context, id: egui::Id, target: Pos2, duration: f32) -> Pos2 {
+    Pos2::new(
+        ctx.animate_value_with_time(id.with("x"), target.x, duration),
+        ctx.animate_value_with_time(id.with("y"), target.y, duration),
+    )
+}
+
 /// What every card on one frame of the canvas is painted with.
 pub(super) struct Paint<'a> {
     pub(super) painter: &'a egui::Painter,
@@ -49,6 +56,25 @@ fn paint_grid(painter: &egui::Painter, view: &Viewport, p: Palette) {
 }
 
 impl PlassiApp {
+    /// Briefly settle hand edits and released cards, while a grabbed card
+    /// tracks the pointer immediately. World coordinates keep zooming smooth.
+    pub(super) fn card_centre_animated(
+        &self,
+        ctx: &egui::Context,
+        person: usize,
+        target: Pos2,
+        immediate: bool,
+    ) -> Pos2 {
+        let id = egui::Id::new((
+            "chart-card-motion",
+            &self.file.name,
+            self.selected_candidate,
+            person,
+        ));
+        let duration = if immediate { 0.0 } else { 0.18 };
+        animate_position(ctx, id, target, duration)
+    }
+
     /// Draws the chart and handles all interaction on it.
     pub(super) fn canvas(&mut self, ui: &mut egui::Ui, p: Palette, scene: &Scene) {
         let rect = ui.max_rect();
@@ -103,10 +129,13 @@ impl PlassiApp {
             .fold(Rect::NOTHING, Rect::union)
             .expand2(Vec2::new(30.0, 50.0));
         let view = &mut self.chart.view;
+        if let Some(previous) = view.canvas_rect {
+            view.camera.resize(previous, rect);
+        }
+        view.canvas_rect = Some(rect);
         if view.fit_pending && rect.width() > 50.0 {
             view.camera.fit(rect, world, 1.4);
             view.fit_pending = false;
-            view.fitted = Some(view.camera.target());
         }
         let before = view.camera.viewport(rect);
         self.start_marquee(ui, background, &before);
@@ -324,5 +353,39 @@ impl PlassiApp {
             }
             None => paint_empty_seat(painter, p, rect, look),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cards_settle_between_positions_but_dragging_has_no_lag() {
+        let ctx = egui::Context::default();
+        let id = egui::Id::new("card-motion-test");
+        let frame = |time, target, duration| {
+            let mut at = Pos2::ZERO;
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    time: Some(time),
+                    ..Default::default()
+                },
+                |ui| {
+                    at = animate_position(ui.ctx(), id, target, duration);
+                },
+            );
+            output.textures_delta.clear();
+            at
+        };
+        let start = Pos2::new(10.0, 20.0);
+        let end = Pos2::new(110.0, 220.0);
+        assert_eq!(frame(0.0, start, 0.18), start);
+        frame(0.01, end, 0.18);
+        let between = frame(0.1, end, 0.18);
+        assert!(start.x < between.x && between.x < end.x);
+        assert!(start.y < between.y && between.y < end.y);
+        assert_eq!(frame(0.3, end, 0.18), end);
+        assert_eq!(frame(0.31, start, 0.0), start);
     }
 }
