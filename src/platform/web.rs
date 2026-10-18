@@ -414,18 +414,49 @@ pub fn system_locale() -> Option<String> {
 pub struct DroppedRead(Slot<Result<Vec<u8>, String>>);
 
 impl DroppedRead {
-    pub fn start(file: eframe::egui::DroppedFileHandle) -> Self {
+    pub fn start(file: eframe::egui::DroppedFileHandle, ctx: eframe::egui::Context) -> Self {
         let slot: Slot<Result<Vec<u8>, String>> = std::rc::Rc::new(std::cell::RefCell::new(None));
         let result = slot.clone();
         wasm_bindgen_futures::spawn_local(async move {
             let read = file.bytes_async().await;
             *result.borrow_mut() = Some(read);
+            ctx.request_repaint();
         });
         Self(slot)
     }
 
     /// The file's bytes, once read.
     pub fn poll(&self) -> Option<Result<Vec<u8>, String>> {
+        self.0.borrow_mut().take()
+    }
+}
+
+/// Browser file selection uses the same result shape as the desktop picker.
+pub struct SheetPick(Slot<std::result::Result<Option<super::SheetFile>, String>>);
+
+impl SheetPick {
+    pub fn start(ctx: eframe::egui::Context) -> Self {
+        let slot = Slot::default();
+        let result = slot.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            let picked = rfd::AsyncFileDialog::new()
+                .add_filter(crate::i18n::tr("Spreadsheets"), super::SHEET_EXTENSIONS)
+                .pick_file()
+                .await;
+            let file = match picked {
+                Some(file) => Some(super::SheetFile {
+                    name: file.file_name(),
+                    bytes: file.read().await,
+                }),
+                None => None,
+            };
+            *result.borrow_mut() = Some(Ok(file));
+            ctx.request_repaint();
+        });
+        Self(slot)
+    }
+
+    pub fn poll(&self) -> Option<std::result::Result<Option<super::SheetFile>, String>> {
         self.0.borrow_mut().take()
     }
 }

@@ -56,6 +56,13 @@ pub(in crate::app) struct PeopleState {
     pub(in crate::app) import_text: String,
     /// Column meanings chosen for the pasted sheet.
     pub(in crate::app) import_mapping: import::ImportMapping,
+    /// A bulk import can be opened even while a person is selected.
+    pub(in crate::app) import_open: bool,
+    pub(in crate::app) import_mode: crate::import::ImportMode,
+    pub(in crate::app) sheet_picker: Option<crate::platform::SheetPick>,
+    /// Worksheet text retained while choosing a tab in an uploaded workbook.
+    pub(in crate::app) import_sheets: Vec<(String, String)>,
+    pub(in crate::app) import_sheet: usize,
     /// A dropped sheet being read: its name and the read.
     pub(in crate::app) dropped: Option<(String, crate::platform::DroppedRead)>,
     /// Suggested wishes, keyed by project revision.
@@ -66,6 +73,19 @@ pub(in crate::app) struct PeopleState {
     pub(in crate::app) editing_rule: Option<u64>,
     /// Food, drinks and allergies are being edited.
     pub(in crate::app) editing_details: bool,
+}
+
+impl PeopleState {
+    pub(in crate::app) fn clear_import(&mut self) {
+        self.import_text.clear();
+        self.import_mapping = Default::default();
+        self.import_open = false;
+        self.import_mode = Default::default();
+        self.import_sheets.clear();
+        self.import_sheet = 0;
+        self.sheet_picker = None;
+        self.dropped = None;
+    }
 }
 
 /// Who a new wish is about.
@@ -107,6 +127,14 @@ impl PlassiApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg))
             .show(ui, |ui| {
+                if self.people.import_open {
+                    ui.push_id("bulk-import", |ui| {
+                        crate::app::shell::page_scroll(ui, theme::CONTENT_WIDTH, |ui| {
+                            self.import_panel(ui, p);
+                        });
+                    });
+                    return;
+                }
                 crate::app::shell::page_scroll(ui, theme::CONTENT_WIDTH, |ui| {
                     if self.roster_form(ui, p) {
                         return;

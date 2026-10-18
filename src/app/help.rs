@@ -41,7 +41,7 @@ impl HelpPage {
                 "Select a person to see wishes, or a table for its summary.",
             ],
             HelpPage::People => &[
-                "Paste rows or drop a CSV/TSV file.",
+                "Import people from another file or paste rows at any time.",
                 "Select a person to edit wishes.",
                 "Review notes and add wishes.",
             ],

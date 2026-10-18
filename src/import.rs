@@ -1,11 +1,13 @@
-//! Attendee import from TSV files or spreadsheet text pasted from Excel.
+//! Attendee import from spreadsheet files or pasted rows.
 //!
 //! The template's column names ([`Column::TEMPLATE`], English or Finnish) are
-//! recognised exactly; other headers are guessed from keywords, and the
-//! person importing can change any column's meaning before applying. Unknown
-//! columns are kept per attendee in `extra`. Importing can create a fresh project or
-//! merge into an existing one, matching attendees by name so rules, layout and
-//! options survive a re-import with more columns.
+//! recognised exactly, and every sheet's column mapping can be edited before
+//! applying. Unknown columns are kept per attendee in `extra`. Imports can add
+//! distinct attendees or update matching names while preserving rules, layout
+//! and seating options.
+
+mod workbook;
+pub use workbook::read_sheets;
 
 use crate::catalog::normalize;
 use crate::i18n::{fill, tr};
@@ -160,6 +162,14 @@ pub struct Sheet {
     pub rows: Vec<Vec<String>>,
 }
 
+/// Whether another sheet adds distinct attendees or updates existing names.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub enum ImportMode {
+    #[default]
+    Add,
+    UpdateMatching,
+}
+
 impl Sheet {
     /// Applies the column choices made on earlier imports into this project.
     pub fn remember(&mut self, choices: &BTreeMap<String, Column>) {
@@ -190,13 +200,19 @@ impl Sheet {
 pub fn parse_sheet(text: &str) -> Result<Sheet> {
     // A byte-order mark from a saved file isn't part of the first header.
     let text = text.trim_start_matches('\u{feff}');
-    let first = text.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
-    // The most frequent separator in the header row; a single column is tab-separated.
+    // Parse the header with each separator so punctuation inside quoted
+    // headers does not get mistaken for additional columns.
     let delimiter = b"\t;,"
         .iter()
         .copied()
-        .map(|d| (first.bytes().filter(|b| *b == d).count(), d))
-        .filter(|(count, _)| *count > 0)
+        .map(|d| {
+            let fields = csv::ReaderBuilder::new()
+                .delimiter(d)
+                .from_reader(text.trim_start().as_bytes())
+                .headers()
+                .map_or(0, |headers| headers.len());
+            (fields, d)
+        })
         .max_by_key(|(count, _)| *count)
         .map_or(b'\t', |(_, d)| d);
     let mut reader = csv::ReaderBuilder::new()
@@ -311,6 +327,24 @@ pub struct MergeSummary {
 /// Adds or updates attendees from a sheet, matching by name. Existing rules,
 /// layout and options are kept; new sign-up text becomes unreviewed notes.
 pub fn merge(project: &mut Project, sheet: &Sheet) -> Result<MergeSummary> {
+    let (next, summary) = prepare(project, sheet, ImportMode::UpdateMatching)?;
+    *project = next;
+    Ok(summary)
+}
+
+/// Prepares an entire import without changing the current project. The same
+/// result can be previewed, then applied as one undoable edit.
+pub fn prepare(
+    project: &Project,
+    sheet: &Sheet,
+    mode: ImportMode,
+) -> Result<(Project, MergeSummary)> {
+    let mut next = project.clone();
+    let summary = apply(&mut next, sheet, mode)?;
+    Ok((next, summary))
+}
+
+fn apply(project: &mut Project, sheet: &Sheet, mode: ImportMode) -> Result<MergeSummary> {
     if !sheet.has_name() {
         bail!(fill(
             "Choose a “{}” column (found: {})",
@@ -331,7 +365,7 @@ pub fn merge(project: &mut Project, sheet: &Sheet) -> Result<MergeSummary> {
     let mut claimed = HashSet::new();
     let ids: Vec<usize> = rows
         .iter()
-        .map(|row| upsert_attendee(project, row, &mut claimed, &mut summary))
+        .map(|row| upsert_attendee(project, row, mode, &mut claimed, &mut summary))
         .collect();
     let mut name_map: HashMap<String, Vec<usize>> = HashMap::new();
     for p in &project.attendees {
@@ -355,6 +389,7 @@ pub fn merge(project: &mut Project, sheet: &Sheet) -> Result<MergeSummary> {
 fn upsert_attendee(
     project: &mut Project,
     row: &Row,
+    mode: ImportMode,
     claimed: &mut HashSet<usize>,
     summary: &mut MergeSummary,
 ) -> usize {
@@ -367,10 +402,14 @@ fn upsert_attendee(
     {
         summary.duplicate_names.push(row.name.clone());
     }
-    let existing = project
-        .attendees
-        .iter()
-        .position(|a| same_name(a) && !claimed.contains(&a.id));
+    let existing = (mode == ImportMode::UpdateMatching)
+        .then(|| {
+            project
+                .attendees
+                .iter()
+                .position(|a| same_name(a) && !claimed.contains(&a.id))
+        })
+        .flatten();
     let index = match existing {
         Some(index) => {
             summary.updated += 1;
