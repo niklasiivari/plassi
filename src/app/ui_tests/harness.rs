@@ -49,12 +49,17 @@ pub(super) struct Ui {
 impl Ui {
     /// The app on an empty library, in English.
     pub(super) fn open() -> Self {
+        Self::open_with_step_dt(0.25)
+    }
+
+    pub(super) fn open_with_step_dt(step_dt: f32) -> Self {
         let serial = SERIAL
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let dir = TempDir::new();
         let library = platform::Library::at(dir.path());
         let h = Harness::builder()
+            .with_step_dt(step_dt)
             .with_size(egui::vec2(1440.0, 900.0))
             .build_eframe(move |cc| build(cc, library));
         let mut ui = Self {

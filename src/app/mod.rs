@@ -162,36 +162,28 @@ impl eframe::App for PlassiApp {
         } else {
             let frame = theme::floating_panel_frame(p);
             let auto_compact = ui.ctx().content_rect().width() < theme::SIDEBAR_EXPANDED_MIN;
-            let mut expanded = if auto_compact {
+            let expanded = if auto_compact {
                 self.tablet_sidebar_expanded
             } else {
                 !self.sidebar_compact
             };
             let mut toggle_sidebar = false;
-            egui::Panel::show_switched(
-                ui,
-                &mut expanded,
-                egui::Panel::left("nav-compact")
-                    .resizable(false)
-                    .exact_size(84.0)
-                    .show_separator_line(true)
-                    .frame(frame),
-                egui::Panel::left("nav")
-                    .resizable(false)
-                    .exact_size(244.0)
-                    .show_separator_line(true)
-                    .frame(frame),
-                |ui, expanded| {
-                    let padding = if expanded {
-                        theme::space::M
-                    } else {
-                        theme::space::S
-                    };
-                    theme::panel_card(ui, p, padding, |ui| {
-                        toggle_sidebar = self.sidebar(ui, p, expanded);
-                    });
-                },
+            let openness = ui.ctx().animate_bool_with_time_and_easing(
+                egui::Id::new("sidebar-width"),
+                expanded,
+                0.24,
+                egui::emath::easing::cubic_in_out,
             );
+            egui::Panel::left("sidebar")
+                .resizable(false)
+                .exact_size(egui::lerp(84.0..=244.0, openness))
+                .show_separator_line(true)
+                .frame(frame)
+                .show(ui, |ui| {
+                    theme::panel_card(ui, p, theme::space::S, |ui| {
+                        toggle_sidebar = self.sidebar(ui, p, expanded, openness);
+                    });
+                });
             if toggle_sidebar {
                 if auto_compact {
                     self.tablet_sidebar_expanded = !expanded;

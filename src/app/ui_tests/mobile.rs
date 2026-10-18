@@ -489,3 +489,51 @@ fn tablet_expands_the_existing_sidebar_without_duplicate_navigation() {
         assert!(ui.node("Seating chart").rect().width() < expanded);
     }
 }
+
+#[test]
+fn sidebar_controls_stay_pinned_through_the_width_animation() {
+    let mut ui = Ui::open_with_step_dt(1.0 / 60.0);
+    ui.click("Try example");
+    for size in [egui::vec2(1024.0, 768.0), egui::vec2(844.0, 390.0)] {
+        ui.h.set_size(size);
+        ui.settle();
+        let theme = if ui.has("Dark mode") {
+            "Dark mode"
+        } else {
+            "Light mode"
+        };
+        let controls = [theme, "EN", "About Plassi"];
+        let positions: Vec<_> = controls
+            .iter()
+            .map(|label| ui.node(label).rect().center())
+            .collect();
+        let toggle = ui.node("Expand sidebar").rect().center();
+        assert!((size.y - 26.0 - toggle.y).abs() < 1.0);
+        let nav_y = ui.node("Seating chart").rect().top();
+        for (click, next) in [
+            ("Expand sidebar", "Collapse sidebar"),
+            ("Collapse sidebar", "Expand sidebar"),
+        ] {
+            ui.node(click).click();
+            let mut widths = Vec::new();
+            for _ in 0..25 {
+                ui.h.step();
+                let nav = ui.node("Seating chart").rect();
+                widths.push(nav.width());
+                assert!((nav.top() - nav_y).abs() < 1.0);
+                let button = if ui.has(next) { next } else { click };
+                assert!(ui.node(button).rect().center().distance(toggle) < 1.0);
+                for (label, position) in controls.iter().zip(&positions) {
+                    assert!(ui.node(label).rect().center().distance(*position) < 1.0);
+                }
+            }
+            assert!(
+                widths
+                    .windows(2)
+                    .all(|pair| (pair[1] - pair[0]).abs() < 40.0),
+                "{widths:?}"
+            );
+            assert!(ui.has(next));
+        }
+    }
+}

@@ -73,11 +73,8 @@ fn nav_item(
     };
     ui.painter().rect_filled(rect, theme::radius::MD, fill);
     let fg = if selected { p.text } else { p.muted };
-    let icon_at = if label.is_some() {
-        rect.left_center() + egui::vec2(theme::space::M + 8.0, 0.0)
-    } else {
-        rect.center()
-    };
+    // The rail's icon column stays fixed while its labels are revealed.
+    let icon_at = rect.left_center() + egui::vec2(34.0, 0.0);
     theme::paint_icon(
         ui.painter(),
         icon,
@@ -85,15 +82,17 @@ fn nav_item(
         if selected { p.accent } else { p.muted },
     );
     if let Some(label) = label {
+        let opacity = ((rect.width() - 68.0) / 160.0).clamp(0.0, 1.0);
+        let fg = fg.gamma_multiply(opacity);
         let label = RichText::new(label).size(theme::text::BODY).color(fg);
         let label = if selected { label.strong() } else { label };
         let galley = egui::WidgetText::from(label).into_galley(
             ui,
             Some(egui::TextWrapMode::Truncate),
-            rect.width(),
+            (rect.width() - 68.0 - if badge.is_some() { 36.0 } else { 0.0 }).max(0.0),
             egui::TextStyle::Body,
         );
-        let at = rect.left_center() + egui::vec2(theme::space::XXL + 8.0, -galley.size().y / 2.0);
+        let at = rect.left_center() + egui::vec2(60.0, -galley.size().y / 2.0);
         ui.painter().galley(at, galley, fg);
     }
     if let Some((count, color)) = badge {
@@ -188,43 +187,62 @@ impl PlassiApp {
             });
     }
 
-    /// Page navigation, and file status and view controls at the bottom.
-    pub(super) fn sidebar(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
-        if !expanded {
-            return egui::ScrollArea::vertical()
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    self.navigation(ui, p, false);
-                    ui.separator();
-                    ui.vertical_centered(|ui| {
-                        let toggle = self.collapse_toggle(ui, p, false);
-                        theme_toggle(ui, p);
-                        language_toggle(self, ui);
-                        super::about::button(ui, p);
-                        self.sync_dot(ui, p).on_hover_text(self.sync_text());
-                        toggle
-                    })
-                    .inner
-                })
-                .inner;
+    /// Navigation scrolls independently of the controls pinned to the bottom.
+    pub(super) fn sidebar(
+        &mut self,
+        ui: &mut egui::Ui,
+        p: Palette,
+        expanded: bool,
+        openness: f32,
+    ) -> bool {
+        let bounds = ui.max_rect();
+        let footer_top = (bounds.bottom() - 176.0).max(bounds.top());
+        let navigation_rect = egui::Rect::from_min_max(
+            bounds.min,
+            egui::pos2(bounds.right(), footer_top - theme::space::S),
+        );
+        let mut navigation = ui.new_child(
+            egui::UiBuilder::new()
+                .id_salt("sidebar-navigation")
+                .max_rect(navigation_rect),
+        );
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(&mut navigation, |ui| self.navigation(ui, p, openness > 0.0));
+
+        let controls_rect = egui::Rect::from_min_max(
+            egui::pos2(bounds.left(), footer_top),
+            egui::pos2(bounds.left() + 68.0, bounds.bottom()),
+        );
+        let mut controls = ui.new_child(
+            egui::UiBuilder::new()
+                .id_salt("sidebar-controls")
+                .max_rect(controls_rect)
+                .layout(egui::Layout::bottom_up(egui::Align::Center)),
+        );
+        // This order and column are identical in both widths.
+        let toggle = self.collapse_toggle(&mut controls, p, expanded);
+        super::about::button(&mut controls, p);
+        language_toggle(self, &mut controls);
+        theme_toggle(&mut controls, p);
+        self.sync_dot(&mut controls, p)
+            .on_hover_text(self.sync_text());
+
+        if openness > 0.0 {
+            let mut project =
+                ui.new_child(egui::UiBuilder::new().id_salt("sidebar-project").max_rect(
+                    egui::Rect::from_min_max(
+                        egui::pos2(bounds.left() + 76.0, footer_top),
+                        egui::pos2(bounds.left() + 228.0, bounds.bottom()),
+                    ),
+                ));
+            project.set_opacity(openness);
+            project.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+            self.project_switcher(&mut project, p);
+            project.add_space(theme::space::M);
+            self.file_controls(&mut project, p);
         }
-        ui.add_space(theme::space::M);
-        self.project_switcher(ui, p);
-        ui.add_space(theme::space::S);
-        self.navigation(ui, p, true);
-        ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-            let mut toggle = false;
-            ui.horizontal(|ui| {
-                toggle = self.collapse_toggle(ui, p, true);
-                theme_toggle(ui, p);
-                language_toggle(self, ui);
-                super::about::button(ui, p);
-            });
-            ui.add_space(theme::space::M);
-            self.file_controls(ui, p);
-            toggle
-        })
-        .inner
+        toggle
     }
 
     fn collapse_toggle(&mut self, ui: &mut egui::Ui, p: Palette, expanded: bool) -> bool {
