@@ -50,9 +50,8 @@ pub(in crate::app) struct ChartView {
     pub(in crate::app) camera: crate::app::camera::Camera,
     /// Fit the whole room into view on the next frame.
     pub(in crate::app) fit_pending: bool,
-    /// The view the last fit headed to; while the camera is still there,
-    /// the room is fitted again when the canvas changes width.
-    pub(in crate::app) fitted: Option<(f32, Vec2)>,
+    /// Previous canvas bounds, used to keep cards stationary when panels resize it.
+    canvas_rect: Option<Rect>,
     /// Person to centre on when the chart is next shown.
     pub(in crate::app) focus_person: Option<usize>,
 }
@@ -62,7 +61,7 @@ impl Default for ChartView {
         Self {
             camera: crate::app::camera::Camera::new(0.2, 3.0),
             fit_pending: true,
-            fitted: None,
+            canvas_rect: None,
             focus_person: None,
         }
     }

@@ -45,8 +45,7 @@ impl PlassiApp {
         if !view.clip.contains(pointer) {
             return None;
         }
-        // The grabbed card follows the pointer; it takes a seat only when its
-        // centre is over that seat's card, not as soon as the pointer is.
+        // Snap around the grabbed card's centre, keeping the original grip.
         let anchor = view.world(pointer) - drag.grip;
         let mut targets = landing(scene, &drag.people, anchor);
         clear_of_obstacles(scene, &mut targets);
@@ -78,6 +77,9 @@ impl PlassiApp {
         let size = Vec2::new(CARD_W, CARD_H) * view.zoom;
         let anchor = view.world(pointer) - drag.grip;
         for (person, centre) in follow_pointer(scene, &drag.people, anchor) {
+            // Remember the actual release position so the placed card glides
+            // from here to its seat or its adjusted floor position.
+            self.card_centre_animated(ui.ctx(), person, centre, true);
             let at = view.point(centre);
             let look = CardLook {
                 status: scene.status(person),
@@ -272,9 +274,23 @@ fn clear_of_obstacles(scene: &Scene, targets: &mut Targets) {
     }
 }
 
-/// The seat whose card covers a point, or that point on the floor.
+/// Snap to the closest seat card within a forgiving margin, including chair
+/// gaps. Table centres and open floor remain floating drops.
 fn spot_at(scene: &Scene, at: Pos2) -> Spot {
-    match scene.seat_at(at) {
+    const SNAP_MARGIN: f32 = 24.0;
+    let nearest = scene.seat_at(at).or_else(|| {
+        scene
+            .seats
+            .iter()
+            .filter(|seat| card_rect(seat).distance_sq_to_pos(at) <= SNAP_MARGIN * SNAP_MARGIN)
+            .min_by(|a, b| {
+                card_rect(a)
+                    .center()
+                    .distance_sq(at)
+                    .total_cmp(&card_rect(b).center().distance_sq(at))
+            })
+    });
+    match nearest {
         Some(seat) => Spot::Seat(seat.id.clone()),
         None => Spot::Loose(Point { x: at.x, y: at.y }),
     }
@@ -313,13 +329,12 @@ mod tests {
     }
 
     #[test]
-    fn floating_cards_clear_table_centres_chair_gaps_and_partial_overlaps() {
+    fn floating_cards_clear_table_centres_and_partial_overlaps() {
         let scene = scene();
         let body = scene.table_body("table-1").unwrap();
         let chair = card_rect(&scene.seats[0]);
         for at in [
             body.center(),
-            chair.center() + Vec2::new(0.0, SEAT_PITCH / 2.0),
             chair.left_center() - Vec2::new(CARD_W / 2.0 - 1.0, 0.0),
         ] {
             let mut targets = landing(&scene, &[0], at);
@@ -328,6 +343,27 @@ mod tests {
             assert_ne!(targets[0].1, loose(at));
             assert_clear(&scene, &targets);
         }
+    }
+
+    #[test]
+    fn chair_gaps_and_nearby_drops_snap_to_the_closest_seat() {
+        let scene = scene();
+        let first = &scene.seats[0];
+        let second = &scene.seats[1];
+        let card = card_rect(first);
+        let gap = card.center() + Vec2::new(0.0, SEAT_PITCH / 2.0);
+        assert_eq!(spot_at(&scene, gap - Vec2::Y), Spot::Seat(first.id.clone()));
+        assert_eq!(
+            spot_at(&scene, gap + Vec2::Y),
+            Spot::Seat(second.id.clone())
+        );
+        assert_eq!(
+            spot_at(&scene, card.left_center() - Vec2::new(16.0, 0.0)),
+            Spot::Seat(first.id.clone()),
+        );
+        // Outside the snap margin, the floor remains available.
+        let floor = card.left_center() - Vec2::new(30.0, 0.0);
+        assert_eq!(spot_at(&scene, floor), loose(floor));
     }
 
     #[test]

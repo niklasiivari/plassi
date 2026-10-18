@@ -98,11 +98,22 @@ impl PlassiApp {
             p,
             scene,
         } = *paint;
-        let screen = view.rect(place.world_rect());
+        let person = place.person(scene);
+        let mut world = place.world_rect();
+        let dragged = person.is_some_and(|person| {
+            self.chart
+                .drag
+                .as_ref()
+                .is_some_and(|drag| drag.people.contains(&person))
+        });
+        if let Some(person) = person.filter(|_| !dragged) {
+            let centre = self.card_centre_animated(ui.ctx(), person, world.center(), false);
+            world = Rect::from_center_size(centre, world.size());
+        }
+        let screen = view.rect(world);
         if !screen.intersects(view.clip) {
             return;
         }
-        let person = place.person(scene);
         let id = match place {
             Place::Seat(seat) => ui.id().with(("seat", &seat.id)),
             Place::Loose(person, _) => ui.id().with(("loose", person)),
@@ -196,7 +207,7 @@ impl PlassiApp {
             let pressed = ui
                 .input(|i| i.pointer.press_origin())
                 .unwrap_or(response.rect.center());
-            let grip = paint.view.world(pressed) - place.world_rect().center();
+            let grip = paint.view.world(pressed) - paint.view.world(response.rect.center());
             actions.drag_start = Some((person, grip));
         }
     }

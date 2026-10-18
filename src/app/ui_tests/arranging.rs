@@ -95,7 +95,7 @@ fn people_dragged_off_their_seat_stay_loose_until_dropped_on_one() {
     assert_eq!(ui.seat_of(b), seat_b);
     assert!(!ui.option().assignment.values().any(|s| *s == seat_a));
     // Dropped on a taken seat, its occupant takes the loose spot. The list
-    // panel now takes room, so the room is fitted again first.
+    // panel now takes room; fitting explicitly includes the loose card.
     ui.key(Modifiers::NONE, Key::F);
     let loose = ui.option().spot_of(a);
     ui.drag(ui.card_of(a).center(), ui.card_of(b).center());
@@ -294,6 +294,9 @@ fn p_on_a_selection_with_someone_unseated_pins_the_seated() {
         Modifiers::NONE,
     );
     ui.click("Take off the seat");
+    // The list overlays part of the previous view; fit explicitly before
+    // selecting a card that may now be behind it.
+    ui.key(Modifiers::NONE, Key::F);
     ui.click_at(ui.card_of(a).center(), primary, Modifiers::COMMAND);
     ui.key(Modifiers::NONE, Key::P);
     assert!(ui.app().project.pins().contains_key(&a));
@@ -306,23 +309,28 @@ fn p_on_a_selection_with_someone_unseated_pins_the_seated() {
 }
 
 #[test]
-fn the_list_appearing_keeps_a_zoomed_in_view() {
+fn opening_and_closing_the_list_keeps_cards_at_the_same_screen_position() {
     let mut ui = solved();
     let [a, b] = ui.two_unpinned();
-    let primary = PointerButton::Primary;
-    // Fitted, the room is fitted again when the list appears.
-    let fitted = ui.app().chart.view.camera.target();
-    ui.click_at(ui.card_of(a).center(), primary, Modifiers::NONE);
-    ui.key(Modifiers::NONE, Key::Delete);
-    assert_ne!(ui.app().chart.view.camera.target(), fitted);
-    // Zoomed in by hand, the view stays when the list appears.
-    ui.key(Modifiers::COMMAND, Key::Z);
-    ui.app_mut().chart.view.camera.zoom_by(2.0);
-    ui.settle();
-    let zoomed = ui.app().chart.view.camera.target();
-    ui.click_at(ui.card_of(b).center(), primary, Modifiers::NONE);
-    ui.key(Modifiers::NONE, Key::Delete);
-    assert_eq!(ui.app().chart.view.camera.target(), zoomed);
+    for factor in [1.0, 2.0] {
+        ui.app_mut().chart.view.camera.zoom_by(factor);
+        ui.settle();
+        let before = ui.card_of(b);
+        let zoom = ui.app().chart.view.camera.zoom;
+        let app = ui.app_mut();
+        app.project.candidates[app.selected_candidate].place(a, Spot::Unseated);
+        app.commit("unseat");
+        for _ in 0..12 {
+            ui.h.step();
+            assert!(ui.card_of(b).center().distance(before.center()) < 0.01);
+            assert_eq!(ui.app().chart.view.camera.zoom, zoom);
+        }
+        assert!(ui.app().chart.tray_rect.is_some());
+        ui.key(Modifiers::COMMAND, Key::Z);
+        assert!(ui.app().chart.tray_rect.is_none());
+        assert!(ui.card_of(b).center().distance(before.center()) < 0.01);
+        assert_eq!(ui.app().chart.view.camera.zoom, zoom);
+    }
 }
 
 #[test]
