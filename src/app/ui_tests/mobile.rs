@@ -89,6 +89,43 @@ fn phone_project_menu_rename_and_about_fit_with_a_long_project_name() {
 }
 
 #[test]
+fn expanded_third_party_notices_fit_phone_and_tablet_screens() {
+    let mut ui = phone(320.0);
+    ui.click("Menu");
+    ui.click("About Plassi");
+    for lang in [crate::i18n::Lang::En, crate::i18n::Lang::Fi] {
+        crate::i18n::set(lang);
+        for size in [
+            egui::vec2(320.0, 568.0),
+            egui::vec2(390.0, 844.0),
+            egui::vec2(844.0, 390.0),
+            egui::vec2(768.0, 1024.0),
+        ] {
+            ui.h.set_size(size);
+            ui.settle();
+            for section in include_str!("../../../THIRD_PARTY_NOTICES.md")
+                .lines()
+                .filter_map(|line| line.strip_prefix("## "))
+            {
+                let label = crate::i18n::tr_any(section);
+                ui.click(label);
+                let overflow = overflowing_controls(&ui, size.x);
+                assert!(
+                    overflow.is_empty(),
+                    "size={size:?}, section={section}, {overflow:?}"
+                );
+                let close = ui.node(crate::i18n::tr("Close about window")).rect();
+                assert!(
+                    egui::Rect::from_min_size(egui::Pos2::ZERO, size).contains_rect(close),
+                    "close={close:?}, size={size:?}"
+                );
+                ui.click(label);
+            }
+        }
+    }
+}
+
+#[test]
 fn chart_group_actions_wrap_inside_the_canvas() {
     let mut ui = phone(320.0);
     ui.click("Seat by hand");
