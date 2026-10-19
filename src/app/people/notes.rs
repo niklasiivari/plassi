@@ -32,7 +32,7 @@ impl PlassiApp {
         let mut changed = false;
         theme::tinted_card(p, p.warn).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 let field = match note.field {
                     ImportField::Avec => tr("Avec"),
                     ImportField::Wish => tr("Seating wish"),
@@ -52,7 +52,7 @@ impl PlassiApp {
                     changed = true;
                 }
             }
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 if ui.button(tr("+ Create wish")).clicked() {
                     self.people.draft_picker_filter.clear();
                     self.people.wish_draft = Some(WishDraft {
@@ -105,7 +105,7 @@ impl PlassiApp {
         };
         let text = format!("“{}”", note.text);
         let mut reopen = false;
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             theme::status_dot(ui, p.good);
             ui.label(RichText::new(field).size(theme::text::SMALL).color(p.muted));
             ui.label(RichText::new(text).size(theme::text::SMALL));

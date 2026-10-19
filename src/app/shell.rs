@@ -406,12 +406,18 @@ impl PlassiApp {
         } else {
             (6.0 - age).clamp(0.0, 1.0)
         };
+        let undoable = self
+            .file
+            .undo_stack
+            .last()
+            .is_some_and(|s| s.change == self.status);
         egui::Area::new(egui::Id::new("toast"))
             .anchor(
                 egui::Align2::RIGHT_BOTTOM,
                 egui::vec2(-theme::space::XL, -theme::space::XL),
             )
-            .interactable(true)
+            .movable(false)
+            .interactable(self.solving.is_some() || undoable)
             .show(ctx, |ui| {
                 ui.set_opacity(alpha);
                 theme::toast_frame(p).show(ui, |ui| {
@@ -430,7 +436,7 @@ impl PlassiApp {
                             ],
                         ));
                         ui.add(egui::ProgressBar::new(done.min(1.0)).desired_height(6.0));
-                        ui.horizontal(|ui| {
+                        ui.horizontal_wrapped(|ui| {
                             if let Some((score, hard)) = job.runner.progress() {
                                 let best = if hard > 0 {
                                     fill("Best: score {} · {} hard rules broken", &[&score, &hard])
@@ -447,17 +453,13 @@ impl PlassiApp {
                                 .clicked();
                         });
                     } else {
-                        ui.horizontal(|ui| {
+                        ui.horizontal_wrapped(|ui| {
                             if self.file.external_invalid {
                                 theme::status_dot(ui, p.warn);
                             }
-                            ui.label(RichText::new(&self.status).color(color));
-                            // The message of the change that Undo would revert.
-                            let undoable = self
-                                .file
-                                .undo_stack
-                                .last()
-                                .is_some_and(|s| s.change == self.status);
+                            ui.add(
+                                egui::Label::new(RichText::new(&self.status).color(color)).wrap(),
+                            );
                             let undo =
                                 egui::Button::new(RichText::new(tr("Undo")).color(color).strong())
                                     .frame(false);

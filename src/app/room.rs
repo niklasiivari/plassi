@@ -85,13 +85,14 @@ impl PlassiApp {
     fn room_header(&self, ui: &mut egui::Ui, p: Palette) {
         let seats = self.project.layout.seat_count();
         let people = self.project.attendees.len();
+        crate::app::help::page_header(
+            ui,
+            p,
+            crate::app::help::HelpPage::Room,
+            tr("Room layout"),
+            Some(tr("Long tables with seats on both sides.")),
+        );
         ui.horizontal_wrapped(|ui| {
-            ui.label(
-                RichText::new(tr("Room layout"))
-                    .size(theme::text::PAGE)
-                    .strong(),
-            );
-            ui.add_space(theme::space::S);
             theme::pill(ui, fill("{} seats", &[&seats]), p.text, p.surface_hi);
             theme::pill(ui, fill("{} people", &[&people]), p.text, p.surface_hi);
             let (text, color) = match seats.cmp(&people) {
@@ -101,13 +102,7 @@ impl PlassiApp {
                 std::cmp::Ordering::Greater => (fill("{} spare", &[&(seats - people)]), p.muted),
             };
             theme::status_pill(ui, p, text, color);
-            ui.horizontal(|ui| {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Room);
-                });
-            });
         });
-        ui.label(RichText::new(tr("Long tables with seats on both sides.")).color(p.muted));
     }
 
     /// "N tables with M seats per side" in one click. Returns true if the room was replaced.

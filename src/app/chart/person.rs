@@ -61,7 +61,7 @@ impl PlassiApp {
                 .strong(),
         );
         ui.label(RichText::new(self.project.affiliation(&attendee)).color(p.muted));
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let place = match scene.seat_of.get(&id) {
                 Some(seat) => self.project.seat_label(seat),
                 None => tr("Not seated").into(),

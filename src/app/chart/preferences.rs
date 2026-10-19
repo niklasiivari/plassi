@@ -14,69 +14,73 @@ impl PlassiApp {
         if picked < 2 {
             return;
         }
-        let size = Vec2::new(720.0_f32.min(rect.width() - 2.0 * theme::space::L), 52.0);
-        let area = Rect::from_center_size(
-            Pos2::new(
-                rect.center().x,
-                rect.max.y - theme::space::XL - size.y / 2.0,
-            ),
-            size,
-        );
+        let width = 720.0_f32.min(rect.width() - 2.0 * theme::space::L);
         let mut chosen: Option<PreferenceKind> = None;
         let mut keep: Option<String> = None;
         let mut clear = false;
-        ui.scope_builder(egui::UiBuilder::new().max_rect(area), |ui| {
-            theme::floating(p)
-                .inner_margin(egui::Margin::symmetric(
-                    theme::space::L as i8,
-                    theme::space::S as i8,
-                ))
-                .show(ui, |ui| {
-                    ui.horizontal_centered(|ui| {
-                        ui.label(RichText::new(fill("{} people", &[&picked])).strong());
-                        ui.add_space(theme::space::S);
-                        let people: Vec<usize> = self.chart.multi.iter().copied().collect();
-                        if ui
-                            .add(theme::primary_button(tr("Group together"), p))
-                            .on_hover_text(tr("Keep the selected people together (G)"))
-                            .clicked()
-                        {
-                            chosen = Some(PreferenceKind::together(people.clone()));
-                        }
-                        egui::containers::menu::MenuButton::new(tr("Keep apart"))
-                            .config(
-                                egui::containers::menu::MenuConfig::new().style(theme::menu_style),
-                            )
-                            .ui(ui, |ui| {
-                                if ui.button(tr("Not at the same table")).clicked() {
-                                    chosen = Some(PreferenceKind::Apart {
-                                        people: people.clone(),
-                                        closeness: Closeness::Table,
-                                    });
-                                    ui.close();
-                                }
-                                if ui.button(tr("Not beside or opposite")).clicked() {
-                                    chosen = Some(PreferenceKind::Apart {
-                                        people: people.clone(),
-                                        closeness: Closeness::Neighbours,
-                                    });
-                                    ui.close();
-                                }
-                            });
-                        keep = self.keep_at_table_menu(ui, &people);
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            clear = theme::icon_button(
-                                ui,
-                                p,
-                                theme::Icon::Close,
-                                tr("Clear selection (Esc)"),
-                                false,
-                            )
-                            .clicked();
+        egui::Area::new(egui::Id::new("preference-bar"))
+            .order(egui::Order::Foreground)
+            .movable(false)
+            .pivot(egui::Align2::CENTER_BOTTOM)
+            .fixed_pos(rect.center_bottom() - Vec2::new(0.0, theme::space::XL))
+            .constrain_to(rect)
+            .show(ui.ctx(), |ui| {
+                theme::floating(p)
+                    .inner_margin(egui::Margin::symmetric(
+                        theme::space::L as i8,
+                        theme::space::S as i8,
+                    ))
+                    .show(ui, |ui| {
+                        ui.set_width((width - 2.0 * theme::space::L).max(0.0));
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label(RichText::new(fill("{} people", &[&picked])).strong());
+                            ui.add_space(theme::space::S);
+                            let people: Vec<usize> = self.chart.multi.iter().copied().collect();
+                            if ui
+                                .add(theme::primary_button(tr("Group together"), p))
+                                .on_hover_text(tr("Keep the selected people together (G)"))
+                                .clicked()
+                            {
+                                chosen = Some(PreferenceKind::together(people.clone()));
+                            }
+                            egui::containers::menu::MenuButton::new(tr("Keep apart"))
+                                .config(
+                                    egui::containers::menu::MenuConfig::new()
+                                        .style(theme::menu_style),
+                                )
+                                .ui(ui, |ui| {
+                                    if ui.button(tr("Not at the same table")).clicked() {
+                                        chosen = Some(PreferenceKind::Apart {
+                                            people: people.clone(),
+                                            closeness: Closeness::Table,
+                                        });
+                                        ui.close();
+                                    }
+                                    if ui.button(tr("Not beside or opposite")).clicked() {
+                                        chosen = Some(PreferenceKind::Apart {
+                                            people: people.clone(),
+                                            closeness: Closeness::Neighbours,
+                                        });
+                                        ui.close();
+                                    }
+                                });
+                            keep = self.keep_at_table_menu(ui, &people);
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    clear = theme::icon_button(
+                                        ui,
+                                        p,
+                                        theme::Icon::Close,
+                                        tr("Clear selection (Esc)"),
+                                        false,
+                                    )
+                                    .clicked();
+                                },
+                            );
                         });
                     });
-                });
-        });
+            });
         if let Some(table) = keep {
             let people: Vec<usize> = std::mem::take(&mut self.chart.multi).into_iter().collect();
             self.keep_at_table(&people, &table);

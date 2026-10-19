@@ -29,27 +29,34 @@ pub(super) fn field_visuals(ui: &mut egui::Ui) {
 
 /// A dropdown that looks like a [`super::field`]: same height, corners and
 /// outline, with the app's chevron.
-pub struct Combo(egui::ComboBox);
+pub struct Combo {
+    widget: egui::ComboBox,
+    width: Option<f32>,
+}
 
 pub fn combo(id_salt: impl Hash + Debug, selected: impl Into<egui::WidgetText>) -> Combo {
-    Combo(
-        egui::ComboBox::from_id_salt(id_salt)
+    Combo {
+        widget: egui::ComboBox::from_id_salt(id_salt)
             .selected_text(selected)
+            .truncate()
             .icon(|ui, rect, visuals, _open| {
                 let color = super::blend(visuals.text_color(), ui.visuals().panel_fill, 0.35);
                 paint(ui.painter(), Icon::ChevronDown, rect.center(), color);
             }),
-    )
+        width: None,
+    }
 }
 
 impl Combo {
-    pub fn width(self, width: f32) -> Self {
-        Self(self.0.width(width))
+    pub fn width(mut self, width: f32) -> Self {
+        self.width = Some(width);
+        self
     }
 
     /// Maximum height of the open list.
-    pub fn height(self, height: f32) -> Self {
-        Self(self.0.height(height))
+    pub fn height(mut self, height: f32) -> Self {
+        self.widget = self.widget.height(height);
+        self
     }
 
     pub fn show_ui<R>(
@@ -67,7 +74,14 @@ impl Combo {
                 ((super::CONTROL_HEIGHT - text) / 2.0).max(0.0),
             );
             ui.spacing_mut().button_padding = padding;
-            self.0.show_ui(ui, add)
+            let width = self
+                .width
+                .unwrap_or(ui.spacing().combo_width)
+                .min(ui.available_width());
+            self.widget.width(width).show_ui(ui, |ui| {
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                add(ui)
+            })
         })
         .inner
     }

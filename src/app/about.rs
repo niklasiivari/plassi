@@ -159,7 +159,19 @@ fn window(ctx: &egui::Context, p: Palette, open: &mut bool) {
                     theme::hint(ui, p, tr("Software and fonts"));
                     ui.add_space(theme::space::S);
                     for section in sections() {
-                        egui::CollapsingHeader::new(crate::i18n::tr_any(&section.title))
+                        let width = (ui.available_width()
+                            - ui.spacing().indent
+                            - ui.spacing().button_padding.x)
+                            .max(0.0);
+                        let title = egui::WidgetText::from(crate::i18n::tr_any(&section.title))
+                            .into_galley(
+                                ui,
+                                Some(egui::TextWrapMode::Wrap),
+                                width,
+                                egui::TextStyle::Button,
+                            );
+                        egui::CollapsingHeader::new(title)
+                            .id_salt(&section.title)
                             .show(ui, |ui| section_body(ui, section));
                     }
                 });

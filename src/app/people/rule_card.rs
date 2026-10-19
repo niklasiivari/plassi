@@ -144,7 +144,7 @@ fn rule_header(
     rule: &mut Rule,
     result: Option<&RuleResult>,
 ) -> (bool, bool) {
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         let changed = ui
             .checkbox(&mut rule.enabled, "")
             .on_hover_text(tr("Enabled"))
@@ -195,7 +195,7 @@ fn placement_editor(ui: &mut egui::Ui, kind: &mut RuleKind) -> bool {
         },
         &[&area_text],
     ));
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         let mut changed = ui.checkbox(hard, tr("Hard rule")).changed();
         if !*hard {
             ui.label(tr("Penalty"));
@@ -258,7 +258,7 @@ fn wish_editor(ui: &mut egui::Ui, rule: &mut Rule, names: &Names, filter: &mut S
         return false;
     };
     let kind_changed = ui
-        .horizontal(|ui| {
+        .horizontal_wrapped(|ui| {
             ui.selectable_value(wish, WishKind::Seating, tr("Seating wish"))
                 .changed()
                 | ui.selectable_value(wish, WishKind::Avec, tr("Avec"))
@@ -314,7 +314,7 @@ fn target_editor(
 }
 
 fn importance_editor(ui: &mut egui::Ui, importance: &mut Importance) -> bool {
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.label(tr("Importance"));
         let mut changed = false;
         for value in Importance::ALL {
@@ -329,7 +329,7 @@ fn importance_editor(ui: &mut egui::Ui, importance: &mut Importance) -> bool {
 
 /// Optional hard maximum distance.
 fn limit_editor(ui: &mut egui::Ui, max_class: &mut Option<DistanceClass>) -> bool {
-    ui.horizontal(|ui| {
+    theme::responsive_row(ui, |ui| {
         ui.label(tr("Maximum distance"));
         let mut changed = false;
         theme::combo(
