@@ -27,9 +27,13 @@ impl PlassiApp {
         if self.projects.editing_name && (!sidebar || ui.available_width() >= 210.0) {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = theme::space::XS;
+                let control_width = if theme::mobile(ui.ctx()) {
+                    44.0
+                } else {
+                    theme::CONTROL_HEIGHT
+                };
                 let field_width =
-                    (ui.available_width() - 2.0 * theme::CONTROL_HEIGHT - theme::space::XS)
-                        .max(80.0);
+                    (ui.available_width() - 2.0 * control_width - 2.0 * theme::space::XS).max(40.0);
                 let field =
                     ui.add(theme::field(&mut self.projects.rename).desired_width(field_width));
                 if self.projects.focus_name {
@@ -81,7 +85,10 @@ impl PlassiApp {
                     .close_behavior(config.close_behavior)
                     .style(theme::menu_style)
                     .show(|ui| {
-                        ui.set_min_width(240.0);
+                        let width = (ui.ctx().content_rect().width() - 48.0).max(0.0);
+                        ui.set_max_width(width);
+                        ui.set_min_width(240.0_f32.min(width));
+                        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
                         theme::section_title(ui, p, tr("Projects"));
                         for name in self.file.library.projects() {
                             if ui.selectable_label(name == current, &name).clicked()

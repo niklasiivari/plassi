@@ -89,7 +89,7 @@ impl PlassiApp {
         theme::section_title(ui, p, tr("Selected"));
         ui.label(RichText::new(&person.name).strong().size(theme::text::LEAD));
         ui.label(RichText::new(self.project.affiliation(person)).color(p.muted));
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if ui
                 .add(theme::secondary_button(tr("Show on chart")))
                 .clicked()

@@ -118,7 +118,7 @@ impl PlassiApp {
 
 /// Avec or wish, and whether it is about people, a tag or an organization.
 fn draft_kind(ui: &mut egui::Ui, draft: &mut WishDraft) {
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.selectable_value(&mut draft.wish, WishKind::Seating, tr("Seating wish"));
         ui.selectable_value(&mut draft.wish, WishKind::Avec, tr("Avec"));
     });
@@ -126,7 +126,7 @@ fn draft_kind(ui: &mut egui::Ui, draft: &mut WishDraft) {
         draft.near = DraftTarget::People;
         return;
     }
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.label(tr("Near"));
         let is = |d: &DraftTarget, n: u8| {
             matches!(
@@ -178,7 +178,7 @@ fn people_targets(
 
 /// A dropdown of known values.
 fn choice(ui: &mut egui::Ui, label: &str, value: &mut String, options: &[String], empty: &str) {
-    ui.horizontal(|ui| {
+    theme::responsive_row(ui, |ui| {
         ui.label(label);
         if options.is_empty() {
             ui.label(empty);

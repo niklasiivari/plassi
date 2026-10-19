@@ -53,7 +53,7 @@ impl PlassiApp {
 
     /// One tab per kind; the count shows spellings still to map.
     fn kind_tabs(&mut self, ui: &mut egui::Ui, p: Palette) {
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             for kind in Kind::ALL {
                 let unmapped = self
                     .project

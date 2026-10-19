@@ -130,7 +130,7 @@ impl PlassiApp {
             .show_separator_line(true)
             .frame(theme::floating_panel_frame(p))
             .show(ui, |ui| {
-                theme::panel_card(ui, p, theme::space::L, |ui| self.people_list(ui, p))
+                theme::panel_card(ui, p, theme::space::L, |ui| self.people_list(ui, p, true))
             });
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(p.bg))
@@ -167,9 +167,15 @@ impl PlassiApp {
             .frame(egui::Frame::new().fill(p.bg))
             .show(ui, |ui| {
                 if !editing {
-                    egui::Frame::new()
-                        .inner_margin(16)
-                        .show(ui, |ui| self.people_list(ui, p));
+                    // Short screens need to scroll the filters and bulk actions too.
+                    egui::ScrollArea::vertical()
+                        .id_salt("people-mobile-list")
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            egui::Frame::new()
+                                .inner_margin(16)
+                                .show(ui, |ui| self.people_list(ui, p, false));
+                        });
                     return;
                 }
                 if ui.button(tr("Back to people")).clicked() {

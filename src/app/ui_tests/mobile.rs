@@ -27,6 +27,278 @@ fn fits(ui: &Ui, label: &str, width: f32) {
     );
 }
 
+fn overflowing_controls(ui: &Ui, width: f32) -> Vec<String> {
+    ui.h.query_all_by(|n| {
+        matches!(
+            n.role(),
+            egui::accesskit::Role::Button
+                | egui::accesskit::Role::TextInput
+                | egui::accesskit::Role::ComboBox
+                | egui::accesskit::Role::CheckBox
+                | egui::accesskit::Role::Slider
+                | egui::accesskit::Role::RadioButton
+                | egui::accesskit::Role::Label
+        )
+    })
+    .filter_map(|node| {
+        let rect = node.rect();
+        (rect.left() < -1.0 || rect.right() > width + 1.0).then(|| {
+            format!(
+                "label={:?}, value={:?}, rect={rect:?}",
+                node.accesskit_node().label(),
+                node.accesskit_node().value()
+            )
+        })
+    })
+    .collect()
+}
+
+#[test]
+fn phone_project_menu_rename_and_about_fit_with_a_long_project_name() {
+    let mut ui = phone(320.0);
+    ui.app_mut().rename_project(&"<project> ".repeat(12));
+    ui.settle();
+    for width in [320.0, 390.0] {
+        ui.h.set_size(egui::vec2(width, 844.0));
+        ui.settle();
+        ui.open_project_menu();
+        assert!(
+            overflowing_controls(&ui, width).is_empty(),
+            "{:?}",
+            overflowing_controls(&ui, width)
+        );
+        ui.click("Rename project");
+        fits(&ui, "Save project name", width);
+        fits(&ui, "Cancel rename", width);
+        assert!(
+            overflowing_controls(&ui, width).is_empty(),
+            "{:?}",
+            overflowing_controls(&ui, width)
+        );
+        ui.click("Cancel rename");
+        ui.click("Menu");
+        ui.click("About Plassi");
+        fits(&ui, "Close about window", width);
+        assert!(
+            overflowing_controls(&ui, width).is_empty(),
+            "{:?}",
+            overflowing_controls(&ui, width)
+        );
+        ui.click("Close about window");
+    }
+}
+
+#[test]
+fn chart_group_actions_wrap_inside_the_canvas() {
+    let mut ui = phone(320.0);
+    ui.click("Seat by hand");
+    ui.key(Modifiers::NONE, egui::Key::Escape);
+    ui.app_mut().chart.multi = ui
+        .app()
+        .project
+        .attendees
+        .iter()
+        .take(2)
+        .map(|a| a.id)
+        .collect();
+    for lang in [crate::i18n::Lang::En, crate::i18n::Lang::Fi] {
+        crate::i18n::set(lang);
+        for width in [320.0, 390.0, 768.0] {
+            ui.h.set_size(egui::vec2(width, 844.0));
+            ui.settle();
+            for label in [
+                "Group together",
+                "Keep apart",
+                "Keep at table",
+                "Clear selection (Esc)",
+            ] {
+                let rect = ui.node(crate::i18n::tr(label)).rect();
+                assert!(
+                    ui.canvas().contains_rect(rect),
+                    "width={width}, label={label}, rect={rect:?}, canvas={:?}",
+                    ui.canvas()
+                );
+            }
+        }
+    }
+    crate::i18n::set(crate::i18n::Lang::En);
+    ui.settle();
+    ui.click("Clear selection (Esc)");
+    assert!(ui.app().chart.multi.is_empty());
+}
+
+#[test]
+fn phone_import_maps_long_headers_and_adds_people() {
+    let mut ui = phone(320.0);
+    ui.app_mut().page = Page::People;
+    let before = ui.app().project.attendees.len();
+    let sheet = format!(
+        "{},{}\nX,ABC\nY,XYZ",
+        "Column 1 ".repeat(12),
+        "Column 2 ".repeat(12)
+    );
+    ui.app_mut().load_sheet_file("import.csv", sheet.as_bytes());
+    ui.settle();
+    ui.click("Columns");
+    assert!(
+        overflowing_controls(&ui, 320.0).is_empty(),
+        "{:?}",
+        overflowing_controls(&ui, 320.0)
+    );
+    ui.open_combo("Kept as extra info");
+    assert!(
+        overflowing_controls(&ui, 320.0).is_empty(),
+        "{:?}",
+        overflowing_controls(&ui, 320.0)
+    );
+    ui.choose("Name");
+    ui.open_combo("Kept as extra info");
+    ui.choose("Organization");
+    assert!(ui.has_text("To add: 2 · to update: 0"), "{:?}", ui.dump());
+    ui.click("Import");
+    assert_eq!(
+        ui.app().project.attendees.len(),
+        before + 2,
+        "status={}, widgets={:?}",
+        ui.app().status,
+        ui.dump()
+    );
+    assert_eq!(ui.app().project.attendees[before].organization, "ABC");
+}
+
+#[test]
+fn short_phone_keeps_people_reachable_with_bulk_actions_open() {
+    let mut ui = Ui::with_example();
+    let people: Vec<_> = ui
+        .app()
+        .project
+        .attendees
+        .iter()
+        .take(3)
+        .map(|a| (a.id, a.name.clone()))
+        .collect();
+    let app = ui.app_mut();
+    app.page = Page::People;
+    app.people.selecting = true;
+    app.people.picked = people.iter().map(|(id, _)| *id).collect();
+    ui.h.set_size(egui::vec2(320.0, 568.0));
+    ui.settle();
+    ui.node(&people[0].1).scroll_to_me();
+    ui.settle();
+    let row = ui.node(&people[0].1).rect();
+    assert!(row.top() >= 0.0 && row.bottom() <= 568.0, "{row:?}");
+    ui.click(&people[0].1);
+    assert!(!ui.app().people.picked.contains(&people[0].0));
+    ui.click("Clear");
+    assert!(ui.app().people.picked.is_empty());
+}
+
+#[test]
+fn phone_editors_keep_controls_inside_the_viewport() {
+    let mut ui = Ui::with_example();
+    let first = ui
+        .app()
+        .project
+        .rules
+        .iter()
+        .find(|r| matches!(r.kind, crate::model::RuleKind::Proximity { .. }))
+        .expect("a wish")
+        .owner();
+    ui.app_mut()
+        .project
+        .notes
+        .extend([false, true].map(|reviewed| crate::model::ImportNote {
+            person: first,
+            field: crate::model::ImportField::Wish,
+            text: "Guest 02".into(),
+            reviewed,
+        }));
+    let mut overflows = Vec::new();
+    for lang in [crate::i18n::Lang::En, crate::i18n::Lang::Fi] {
+        crate::i18n::set(lang);
+        for width in [320.0, 390.0, 599.0, 768.0] {
+            ui.h.set_size(egui::vec2(width, 1000.0));
+            for state in 0..7 {
+                let app = ui.app_mut();
+                app.page = Page::People;
+                app.people.import_open = state == 0;
+                app.people.import_text =
+                    "Name,Organization,Food,Drinks\nX,ABC,V,0\nY,XYZ,V,0".into();
+                app.selected_person = (1..=3).contains(&state).then_some(first);
+                app.people.editing_details = state == 1;
+                app.people.editing_rule = if state == 2 {
+                    app.project
+                        .rules
+                        .iter()
+                        .find(|r| r.owner() == first)
+                        .map(|r| r.id)
+                } else {
+                    None
+                };
+                app.people.wish_draft = (state == 3).then(|| crate::app::people::WishDraft {
+                    person: first,
+                    wish: crate::model::WishKind::Seating,
+                    near: Default::default(),
+                    targets: vec![],
+                    source: String::new(),
+                    note: None,
+                });
+                if state == 4 {
+                    app.page = Page::Graph;
+                }
+                if state >= 5 {
+                    app.page = Page::Chart;
+                    app.chart.mobile_view = crate::app::chart::MobileChart::Details;
+                    if state == 6 {
+                        app.selected_person = Some(first);
+                    }
+                }
+                ui.settle();
+                if state == 4 && ui.has(crate::i18n::tr("Details")) {
+                    ui.click(crate::i18n::tr("Details"));
+                }
+                for overflow in overflowing_controls(&ui, width) {
+                    overflows.push(format!(
+                        "lang={lang:?}, width={width}, state={state}, {overflow}"
+                    ));
+                }
+            }
+        }
+    }
+    assert!(overflows.is_empty(), "{}", overflows.join("\n"));
+}
+
+#[test]
+fn phone_pages_keep_controls_inside_the_viewport() {
+    let mut ui = Ui::with_example();
+    let mut overflows = Vec::new();
+    for lang in [crate::i18n::Lang::En, crate::i18n::Lang::Fi] {
+        crate::i18n::set(lang);
+        for width in [320.0, 360.0, 390.0, 430.0, 599.0] {
+            ui.h.set_size(egui::vec2(width, 844.0));
+            for page in [
+                Page::Chart,
+                Page::People,
+                Page::Graph,
+                Page::Categories,
+                Page::Policy,
+                Page::Room,
+                Page::Print,
+            ] {
+                ui.app_mut().page = page;
+                ui.settle();
+                for overflow in overflowing_controls(&ui, width) {
+                    overflows.push(format!(
+                        "lang={lang:?}, width={width}, page={}, {overflow}",
+                        page as u8
+                    ));
+                }
+            }
+        }
+    }
+    assert!(overflows.is_empty(), "{}", overflows.join("\n"));
+}
+
 #[test]
 fn phone_navigation_and_people_editor() {
     let mut ui = phone(390.0);

@@ -46,7 +46,7 @@ impl PlassiApp {
                 self.people.sheet_picker = Some(crate::platform::SheetPick::start(ui.ctx().clone()));
             }
             if self.people.import_sheets.len() > 1 {
-                ui.horizontal(|ui| {
+                theme::responsive_row(ui, |ui| {
                     ui.label(tr("Worksheet"));
                     let previous = self.people.import_sheet;
                     theme::combo("import-worksheet", &self.people.import_sheets[previous].0)
@@ -282,8 +282,33 @@ impl PlassiApp {
 /// sample values. Returns whether a choice changed.
 fn column_rows(ui: &mut egui::Ui, p: Palette, sheet: &mut Sheet, detected: &[Column]) -> bool {
     let mut changed = false;
+    if theme::narrow(ui) {
+        for i in 0..sheet.headers.len() {
+            ui.push_id(i, |ui| {
+                theme::inset(p).show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.add(egui::Label::new(RichText::new(&sheet.headers[i]).strong()).wrap());
+                    changed |= column_picker(ui, i, &mut sheet.columns[i]);
+                    let set_by_you = detected.get(i) != Some(&sheet.columns[i]);
+                    match_pill(ui, p, sheet.matches[i], set_by_you);
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(samples(sheet, i))
+                                .size(theme::text::SMALL)
+                                .color(p.muted),
+                        )
+                        .wrap(),
+                    );
+                });
+            });
+            ui.add_space(theme::space::S);
+        }
+        return changed;
+    }
+    let column_width = (ui.available_width() - 3.0 * theme::space::M) / 4.0;
     egui::Grid::new("import-columns")
         .num_columns(4)
+        .max_col_width(column_width)
         .spacing([theme::space::M, theme::space::S])
         .show(ui, |ui| {
             for header in [tr("Source column"), tr("Imported as"), "", tr("Preview")] {
@@ -296,16 +321,7 @@ fn column_rows(ui: &mut egui::Ui, p: Palette, sheet: &mut Sheet, detected: &[Col
             ui.end_row();
             for i in 0..sheet.headers.len() {
                 ui.label(RichText::new(&sheet.headers[i]).strong());
-                let column = &mut sheet.columns[i];
-                theme::combo(("import-column", i), column.label())
-                    .width(180.0)
-                    .show_ui(ui, |ui| {
-                        for choice in Column::CHOICES {
-                            changed |= ui
-                                .selectable_value(column, choice, choice.label())
-                                .changed();
-                        }
-                    });
+                changed |= column_picker(ui, i, &mut sheet.columns[i]);
                 // Set by the person: differs from what was found in the header.
                 let set_by_you = detected.get(i) != Some(&sheet.columns[i]);
                 match_pill(ui, p, sheet.matches[i], set_by_you);
@@ -315,6 +331,20 @@ fn column_rows(ui: &mut egui::Ui, p: Palette, sheet: &mut Sheet, detected: &[Col
                         .color(p.muted),
                 );
                 ui.end_row();
+            }
+        });
+    changed
+}
+
+fn column_picker(ui: &mut egui::Ui, index: usize, column: &mut Column) -> bool {
+    let mut changed = false;
+    theme::combo(("import-column", index), column.label())
+        .width(180.0)
+        .show_ui(ui, |ui| {
+            for choice in Column::CHOICES {
+                changed |= ui
+                    .selectable_value(column, choice, choice.label())
+                    .changed();
             }
         });
     changed
@@ -351,6 +381,28 @@ fn samples(sheet: &Sheet, column: usize) -> String {
 fn template_table(ui: &mut egui::Ui, p: Palette) {
     theme::inset(p).show(ui, |ui| {
         ui.set_width(ui.available_width());
+        if theme::narrow(ui) {
+            for column in Column::TEMPLATE {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(RichText::new(column.header()).strong());
+                    theme::hint(
+                        ui,
+                        p,
+                        if column == Column::Name {
+                            tr("required")
+                        } else {
+                            tr("optional")
+                        },
+                    );
+                });
+                ui.add(
+                    egui::Label::new(RichText::new(column.explain()).size(theme::text::SMALL))
+                        .wrap(),
+                );
+                ui.add_space(theme::space::S);
+            }
+            return;
+        }
         theme::text_rows(ui, |ui| {
             egui::Grid::new("import-template")
                 .num_columns(3)

@@ -144,7 +144,7 @@ impl PlassiApp {
         );
 
         ui.add_space(theme::space::S);
-        ui.horizontal_wrapped(|ui| {
+        theme::responsive_row(ui, |ui| {
             if ui.button(tr("Reset to defaults")).clicked() {
                 *policy = SeatingPolicy::default();
             }

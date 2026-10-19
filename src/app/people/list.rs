@@ -15,7 +15,7 @@ struct RowInfo {
 }
 
 impl PlassiApp {
-    pub(super) fn people_list(&mut self, ui: &mut egui::Ui, p: Palette) {
+    pub(super) fn people_list(&mut self, ui: &mut egui::Ui, p: Palette, scroll_rows: bool) {
         ui.horizontal_wrapped(|ui| {
             ui.label(
                 RichText::new(tr("People & wishes"))
@@ -65,49 +65,54 @@ impl PlassiApp {
         let mut select = None;
         let mut pick = None;
         let mut shown = Vec::new();
-        egui::ScrollArea::vertical()
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                for person in &self.project.attendees {
-                    let unreviewed = self.unreviewed_notes(person.id);
-                    let keep = match self.people.filter {
-                        PeopleFilter::All => true,
-                        PeopleFilter::ToReview => unreviewed > 0,
-                        PeopleFilter::WithWishes => active.contains(&person.id),
-                        PeopleFilter::Unconstrained => !active.contains(&person.id),
-                        PeopleFilter::Unmet => unmet.contains(&person.id),
-                        PeopleFilter::NotSeated => {
-                            seated.as_ref().is_some_and(|s| !s.contains(&person.id))
-                        }
-                        PeopleFilter::Pinned => pinned.contains(&person.id),
-                    };
-                    let matches = needle.matches(&person.name)
-                        || needle.matches(&self.project.affiliation(person));
-                    if !keep || !matches {
-                        continue;
+        let mut rows = |ui: &mut egui::Ui| {
+            for person in &self.project.attendees {
+                let unreviewed = self.unreviewed_notes(person.id);
+                let keep = match self.people.filter {
+                    PeopleFilter::All => true,
+                    PeopleFilter::ToReview => unreviewed > 0,
+                    PeopleFilter::WithWishes => active.contains(&person.id),
+                    PeopleFilter::Unconstrained => !active.contains(&person.id),
+                    PeopleFilter::Unmet => unmet.contains(&person.id),
+                    PeopleFilter::NotSeated => {
+                        seated.as_ref().is_some_and(|s| !s.contains(&person.id))
                     }
-                    let info = RowInfo {
-                        subtitle: self.row_subtitle(person, pinned.contains(&person.id)),
-                        color_key: self
-                            .project
-                            .category_key(crate::catalog::Kind::Organization, person),
-                        unreviewed,
-                        selected: self.selected_person == Some(person.id)
-                            || self.people.picked.contains(&person.id),
-                    };
-                    shown.push(person.id);
-                    let row = person_row(ui, p, person, &info);
-                    if row.clicked()
-                        && (self.people.selecting
-                            || ui.input(|i| i.modifiers.command || i.modifiers.shift))
-                    {
-                        pick = Some(person.id);
-                    } else if row.clicked() {
-                        self.people.import_open = false;
-                        select = Some(person.id);
-                    }
+                    PeopleFilter::Pinned => pinned.contains(&person.id),
+                };
+                let matches = needle.matches(&person.name)
+                    || needle.matches(&self.project.affiliation(person));
+                if !keep || !matches {
+                    continue;
                 }
-            });
+                let info = RowInfo {
+                    subtitle: self.row_subtitle(person, pinned.contains(&person.id)),
+                    color_key: self
+                        .project
+                        .category_key(crate::catalog::Kind::Organization, person),
+                    unreviewed,
+                    selected: self.selected_person == Some(person.id)
+                        || self.people.picked.contains(&person.id),
+                };
+                shown.push(person.id);
+                let row = person_row(ui, p, person, &info);
+                if row.clicked()
+                    && (self.people.selecting
+                        || ui.input(|i| i.modifiers.command || i.modifiers.shift))
+                {
+                    pick = Some(person.id);
+                } else if row.clicked() {
+                    self.people.import_open = false;
+                    select = Some(person.id);
+                }
+            }
+        };
+        if scroll_rows {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, rows);
+        } else {
+            rows(ui);
+        }
         if let Some(id) = select {
             self.selected_person = Some(id);
             self.people.wish_draft = None;
