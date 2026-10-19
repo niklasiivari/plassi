@@ -190,7 +190,7 @@ impl PlassiApp {
         place: Place,
         actions: &mut CardActions,
     ) {
-        if ui.input(|i| i.multi_touch().is_some()) {
+        if self.chart.view.camera.is_touch_navigation() || ui.input(|i| i.multi_touch().is_some()) {
             return;
         }
         let person = place.person(paint.scene);
@@ -276,7 +276,10 @@ impl PlassiApp {
         if let Some(person) = actions.clicked {
             self.selected_person = person;
             self.chart.selected_table = None;
-        } else if background.clicked() && !actions.hovered_card {
+        } else if background.clicked()
+            && !actions.hovered_card
+            && !self.chart.view.camera.is_touch_navigation()
+        {
             self.selected_person = None;
             self.chart.selected_table = table;
         }

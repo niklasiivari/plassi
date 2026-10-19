@@ -75,6 +75,12 @@ impl PlassiApp {
             camera.fit(rect, bounds, 1.6);
             state.fit_pending = !layout.settled();
         }
+        if background.drag_started() {
+            // A node claims the drag before the camera can start panning.
+            layout.held = ui
+                .input(|i| i.pointer.press_origin())
+                .and_then(|pos| node_at(graph, layout, &camera.viewport(rect), pos));
+        }
         if camera.handle_input(ui, rect, &background, layout.held.is_none()) {
             state.fit_pending = false;
         }
@@ -119,7 +125,9 @@ impl PlassiApp {
                 .map(|z| z.seat_of.iter().map(|s| s.map(|(_, side)| side)).collect()),
         };
         paint_nodes(&painter, &view, p, &self.project, graph, layout, focus);
-        if let Some(clicked) = drag_nodes(
+        if camera.is_touch_navigation() {
+            layout.held = None;
+        } else if let Some(clicked) = drag_nodes(
             ui,
             &background,
             &view,

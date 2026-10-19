@@ -465,6 +465,212 @@ fn two_finger_pan_and_pinch_change_the_camera_without_moving_people() {
     assert!(ui.app().chart.drag.is_none());
 }
 
+/// Touch events and the mouse-like events emitted alongside them by the web backend.
+fn browser_touch(
+    ui: &mut Ui,
+    id: u64,
+    phase: egui::TouchPhase,
+    pos: egui::Pos2,
+    primary: egui::Pos2,
+) {
+    match phase {
+        egui::TouchPhase::Start | egui::TouchPhase::End => {
+            ui.h.event(egui::Event::PointerButton {
+                pos: primary,
+                button: PointerButton::Primary,
+                pressed: phase == egui::TouchPhase::Start,
+                modifiers: Modifiers::NONE,
+            });
+            if phase == egui::TouchPhase::End {
+                ui.h.event(egui::Event::PointerGone);
+            }
+        }
+        egui::TouchPhase::Move => ui.h.event(egui::Event::PointerMoved(primary)),
+        egui::TouchPhase::Cancel => ui.h.event(egui::Event::PointerGone),
+    }
+    ui.h.event(egui::Event::Touch {
+        device_id: egui::TouchDeviceId(0),
+        id: egui::TouchId(id),
+        phase,
+        pos,
+        force: None,
+    });
+}
+
+#[test]
+fn a_pan_can_turn_into_a_pinch_and_back_without_lifting_both_fingers() {
+    let mut ui = phone(390.0);
+    ui.click("Seat by hand");
+    let canvas = ui.canvas();
+    let mut first = canvas.left_bottom() + egui::vec2(5.0, -5.0);
+    ui.h.hover_at(first);
+    ui.h.step();
+    let initial_pan = ui.app().chart.view.camera.pan;
+    let initial_zoom = ui.app().chart.view.camera.zoom;
+    browser_touch(&mut ui, 1, egui::TouchPhase::Start, first, first);
+    ui.h.step();
+    for _ in 0..3 {
+        first += egui::vec2(15.0, -15.0);
+        browser_touch(&mut ui, 1, egui::TouchPhase::Move, first, first);
+        ui.h.step();
+    }
+    assert_ne!(ui.app().chart.view.camera.pan, initial_pan);
+    assert_eq!(ui.app().chart.view.camera.zoom, initial_zoom);
+
+    let before = ui.app().chart.view.camera.target();
+    let mut second = first + egui::vec2(90.0, -70.0);
+    browser_touch(&mut ui, 2, egui::TouchPhase::Start, second, first);
+    ui.h.step();
+    assert_eq!(
+        ui.app().chart.view.camera.target(),
+        before,
+        "adding a finger must not move the view"
+    );
+    for _ in 0..3 {
+        let previous_center = first.lerp(second, 0.5);
+        let camera = &ui.app().chart.view.camera;
+        let anchor = camera.viewport(canvas).world(previous_center);
+        let zoom = camera.zoom;
+        let distance = first.distance(second);
+        first += egui::vec2(-5.0, 5.0);
+        second += egui::vec2(15.0, -5.0);
+        browser_touch(&mut ui, 1, egui::TouchPhase::Move, first, first);
+        browser_touch(&mut ui, 2, egui::TouchPhase::Move, second, first);
+        ui.h.step();
+        let camera = &ui.app().chart.view.camera;
+        assert!((camera.zoom / zoom - first.distance(second) / distance).abs() < 0.001);
+        assert!(
+            camera
+                .to_screen(canvas, anchor)
+                .distance(first.lerp(second, 0.5))
+                < 0.01,
+            "the point under the fingers must follow their center"
+        );
+    }
+    let before = ui.app().chart.view.camera.target();
+    browser_touch(&mut ui, 2, egui::TouchPhase::End, second, first);
+    ui.h.step();
+    assert_eq!(ui.app().chart.view.camera.target(), before);
+    first += egui::vec2(10.0, -10.0);
+    browser_touch(&mut ui, 1, egui::TouchPhase::Move, first, first);
+    ui.h.step();
+    assert!(
+        (ui.app().chart.view.camera.pan - before.1 - egui::vec2(10.0, -10.0)).length() < 0.01,
+        "the remaining finger must resume panning"
+    );
+}
+
+#[test]
+fn pinch_keeps_the_canvas_captured_after_panning_over_its_edge() {
+    let mut ui = phone(390.0);
+    ui.click("Seat by hand");
+    let canvas = ui.canvas();
+    let mut first = canvas.left_top() + egui::vec2(5.0, 5.0);
+    ui.h.hover_at(first);
+    ui.h.step();
+    browser_touch(&mut ui, 1, egui::TouchPhase::Start, first, first);
+    ui.h.step();
+    for _ in 0..3 {
+        first.y -= 10.0;
+        browser_touch(&mut ui, 1, egui::TouchPhase::Move, first, first);
+        ui.h.step();
+    }
+    assert!(!canvas.contains(first));
+    let mut second = canvas.left_top() + egui::vec2(150.0, 100.0);
+    let before = ui.app().chart.view.camera.target();
+    browser_touch(&mut ui, 2, egui::TouchPhase::Start, second, first);
+    ui.h.step();
+    assert_eq!(ui.app().chart.view.camera.target(), before);
+    let anchor = ui
+        .app()
+        .chart
+        .view
+        .camera
+        .viewport(canvas)
+        .world(first.lerp(second, 0.5));
+    // Re-enter the canvas while the pinch center stays fixed. Falling back
+    // to mouse-style panning at this point would make the view jump.
+    first += egui::vec2(20.0, 50.0);
+    second -= egui::vec2(20.0, 50.0);
+    assert!(canvas.contains(first));
+    browser_touch(&mut ui, 1, egui::TouchPhase::Move, first, first);
+    browser_touch(&mut ui, 2, egui::TouchPhase::Move, second, first);
+    ui.h.step();
+    let camera = &ui.app().chart.view.camera;
+    assert!(camera.zoom < before.0);
+    assert!(
+        camera
+            .to_screen(canvas, anchor)
+            .distance(first.lerp(second, 0.5))
+            < 0.01
+    );
+}
+
+#[test]
+fn lifting_the_first_finger_keeps_panning_and_does_not_click_the_chart() {
+    let mut ui = phone(390.0);
+    ui.click("Seat by hand");
+    let selected = ui.app().project.attendees[0].id;
+    ui.app_mut().selected_person = Some(selected);
+    let mut first = ui.canvas().left_bottom() + egui::vec2(5.0, -5.0);
+    ui.h.hover_at(first);
+    ui.h.step();
+    browser_touch(&mut ui, 1, egui::TouchPhase::Start, first, first);
+    ui.h.step();
+    first += egui::vec2(20.0, -20.0);
+    browser_touch(&mut ui, 1, egui::TouchPhase::Move, first, first);
+    ui.h.step();
+    let mut second = first + egui::vec2(90.0, -70.0);
+    browser_touch(&mut ui, 2, egui::TouchPhase::Start, second, first);
+    ui.h.step();
+    // Only the second finger moves: the browser can mistake its release for
+    // a click because the synthetic pointer has stayed at the first finger.
+    second += egui::vec2(30.0, -10.0);
+    browser_touch(&mut ui, 2, egui::TouchPhase::Move, second, first);
+    ui.h.step();
+    let before = ui.app().chart.view.camera.target();
+    browser_touch(&mut ui, 1, egui::TouchPhase::End, first, first);
+    ui.h.step();
+    assert_eq!(ui.app().selected_person, Some(selected));
+    assert_eq!(ui.app().chart.view.camera.target(), before);
+    second += egui::vec2(12.0, -8.0);
+    browser_touch(&mut ui, 2, egui::TouchPhase::Move, second, second);
+    ui.h.step();
+    assert!((ui.app().chart.view.camera.pan - before.1 - egui::vec2(12.0, -8.0)).length() < 0.01);
+    let before = ui.app().chart.view.camera.target();
+    let third = second + egui::vec2(40.0, -20.0);
+    browser_touch(&mut ui, 3, egui::TouchPhase::Start, third, second);
+    ui.h.step();
+    assert_eq!(ui.app().chart.view.camera.target(), before);
+    browser_touch(&mut ui, 3, egui::TouchPhase::Cancel, third, second);
+    ui.h.step();
+    assert_eq!(ui.app().chart.view.camera.target(), before);
+    browser_touch(&mut ui, 2, egui::TouchPhase::End, second, second);
+    ui.h.step();
+    assert_eq!(ui.app().selected_person, Some(selected));
+    assert!(ui.option().assignment.is_empty());
+    let canvas = ui.canvas();
+    let seat = ui
+        .app()
+        .project
+        .layout
+        .seats()
+        .into_iter()
+        .find(|seat| canvas.contains(ui.app().seat_card_on_screen(&seat.id).unwrap().center()))
+        .expect("a visible empty seat")
+        .id;
+    let at = ui.app().seat_card_on_screen(&seat).unwrap().center();
+    browser_touch(&mut ui, 4, egui::TouchPhase::Start, at, at);
+    ui.h.step();
+    browser_touch(&mut ui, 4, egui::TouchPhase::End, at, at);
+    ui.h.step();
+    assert_eq!(
+        ui.seat_of(selected),
+        seat,
+        "a fresh tap still seats a person"
+    );
+}
+
 #[test]
 fn tablet_pages_keep_desktop_navigation_and_controls_inside_the_viewport() {
     let mut ui = Ui::with_example();

@@ -18,6 +18,7 @@ pub(super) struct Camera {
     max_zoom: f32,
     /// No view has been set yet; the first fit snaps instead of gliding.
     fresh: bool,
+    touch: super::input::TouchNavigation,
 }
 
 /// A frame's world-to-screen transform, taken from a `Camera`.
@@ -71,6 +72,7 @@ impl Camera {
             min_zoom,
             max_zoom,
             fresh: true,
+            touch: Default::default(),
         }
     }
 
@@ -141,12 +143,14 @@ impl Camera {
         can_pan: bool,
     ) -> bool {
         let mut moved = false;
-        if let Some(touch) = ui.input(|i| i.multi_touch())
-            && rect.contains(touch.start_pos)
-        {
-            let new_zoom = (self.zoom * touch.zoom_delta).clamp(self.min_zoom, self.max_zoom);
-            let anchor = touch.center_pos - touch.translation_delta - rect.center() - self.pan;
-            self.pan += touch.translation_delta - anchor * (new_zoom / self.zoom - 1.0);
+        if let Some(touch) = self.touch.update(ui, rect, can_pan && background.dragged()) {
+            if !touch.navigating {
+                return false;
+            }
+            let new_zoom = (self.zoom * touch.zoom).clamp(self.min_zoom, self.max_zoom);
+            let anchor = touch.previous_center - rect.center() - self.pan;
+            self.pan +=
+                touch.center - touch.previous_center - anchor * (new_zoom / self.zoom - 1.0);
             self.zoom = new_zoom;
             self.goal = None;
             self.fresh = false;
@@ -173,6 +177,12 @@ impl Camera {
             self.fresh = false;
         }
         moved
+    }
+
+    /// A navigation gesture owns its synthetic pointer events through the
+    /// last finger's release, so lifting one cannot click a seat or node.
+    pub(super) fn is_touch_navigation(&self) -> bool {
+        self.touch.suppresses_pointer()
     }
 
     /// Advances an animated move; keeps repainting until it arrives.
