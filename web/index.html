@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Plassi</title>
+  <meta name="description" content="Plan event seating and print table charts. Your data stays on your device.">
+  <meta name="theme-color" content="#F2F0EA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1A1914" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    :root { --bg: #F2F0EA; --text: #2B2A25; --muted: #6B685E; --accent: #666E4B; --track: #DCD9CF; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1A1914; --text: #ECEAE3; --muted: #A09D93; --accent: #8E9670; --track: #34332C; }
+    }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+    canvas#plassi {
+      display: block; position: fixed;
+      top: env(safe-area-inset-top, 0px); left: env(safe-area-inset-left, 0px);
+      width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+      height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      touch-action: none;
+    }
+    .screen {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      padding: 16px; box-sizing: border-box; background: var(--bg); color: var(--text); text-align: center;
+      font: 15px/1.5 "Source Sans 3", "Source Sans Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    .screen p { margin: 0 0 8px; max-width: 26rem; }
+    .screen .muted { color: var(--muted); }
+    .screen a { color: var(--accent); font-weight: 600; }
+    .spinner {
+      width: 28px; height: 28px; margin: 0 auto 16px; border-radius: 50%;
+      border: 3px solid var(--track); border-top-color: var(--accent);
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+    #failed { display: none; }
+    body.failed #loading { display: none; }
+    body.failed #failed { display: flex; }
+  </style>
+</head>
+<body>
+  <canvas id="plassi"></canvas>
+  <div id="loading" class="screen" role="status">
+    <div><div class="spinner"></div><p class="muted" data-copy="loading">Loading Plassi…</p></div>
+  </div>
+  <div id="failed" class="screen" role="alert">
+    <div>
+      <p data-copy="failed">This browser can't run Plassi.</p>
+      <p class="muted" data-copy="browser">Use an up-to-date browser with JavaScript and WebGL enabled.</p>
+    </div>
+  </div>
+  <noscript><div class="screen" style="z-index:2"><div><p lang="en">Enable JavaScript to use Plassi.</p><p lang="fi">Ota JavaScript käyttöön, jotta voit käyttää Plassia.</p></div></div></noscript>
+  <script>
+    let language = navigator.language || "en";
+    try { language = localStorage.getItem("plassi:language") || language; } catch {}
+    if (language.toLowerCase().startsWith("fi")) {
+      document.documentElement.lang = "fi";
+      const copy = {
+        loading: "Ladataan Plassia…",
+        failed: "Plassi ei toimi tässä selaimessa.",
+        browser: "Käytä ajantasaista selainta, jossa JavaScript ja WebGL ovat käytössä.",
+      };
+      for (const element of document.querySelectorAll("[data-copy]")) {
+        element.textContent = copy[element.dataset.copy];
+      }
+    }
+    const failed = () => document.body.classList.add("failed");
+    // Keep the app's search shortcut from moving focus to the browser's address bar.
+    document.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+      }
+    }, { capture: true });
+    const gl = document.createElement("canvas");
+    if (typeof WebAssembly !== "object" || !(gl.getContext("webgl2") || gl.getContext("webgl"))) failed();
+  </script>
+  <script nomodule>document.body.classList.add("failed");</script>
+  <script type="module">
+    import init from "./plassi.js";
+
+    // Printing lives in its own module, loaded the first time someone prints.
+    let typesetter;
+    window.plassiTypeset = async (data) => {
+      typesetter ??= import("./typeset/plassi_typeset.js").then(async (module) => {
+        await module.default();
+        return module;
+      });
+      return (await typesetter).typeset(data);
+    };
+
+    init().catch((error) => {
+      console.error(error);
+      document.body.classList.add("failed");
+    });
+  </script>
+</body>
+</html>

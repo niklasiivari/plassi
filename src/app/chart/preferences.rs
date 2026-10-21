@@ -1,0 +1,227 @@
+//! The planner's own preferences on the chart: pick several people
+//! (Ctrl/Shift-click), then group them or keep them apart; list and edit
+//! preferences in the side panel.
+
+use super::inspector::outcome_row;
+use super::*;
+use crate::preferences::{Closeness, PreferenceKind, Strength};
+use crate::score::PreferenceResult;
+
+impl PlassiApp {
+    /// Floating bar over the canvas while two or more people are picked.
+    pub(super) fn preference_bar(&mut self, ui: &mut egui::Ui, p: Palette, rect: Rect) {
+        let picked = self.chart.multi.len();
+        if picked < 2 {
+            return;
+        }
+        let width = 720.0_f32.min(rect.width() - 2.0 * theme::space::L);
+        let mut chosen: Option<PreferenceKind> = None;
+        let mut keep: Option<String> = None;
+        let mut clear = false;
+        egui::Area::new(egui::Id::new("preference-bar"))
+            .order(egui::Order::Foreground)
+            .movable(false)
+            .pivot(egui::Align2::CENTER_BOTTOM)
+            .fixed_pos(rect.center_bottom() - Vec2::new(0.0, theme::space::XL))
+            .constrain_to(rect)
+            .show(ui.ctx(), |ui| {
+                theme::floating(p)
+                    .inner_margin(egui::Margin::symmetric(
+                        theme::space::L as i8,
+                        theme::space::S as i8,
+                    ))
+                    .show(ui, |ui| {
+                        ui.set_width((width - 2.0 * theme::space::L).max(0.0));
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label(RichText::new(fill("{} people", &[&picked])).strong());
+                            ui.add_space(theme::space::S);
+                            let people: Vec<usize> = self.chart.multi.iter().copied().collect();
+                            if ui
+                                .add(theme::primary_button(tr("Group together"), p))
+                                .on_hover_text(tr("Keep the selected people together (G)"))
+                                .clicked()
+                            {
+                                chosen = Some(PreferenceKind::together(people.clone()));
+                            }
+                            egui::containers::menu::MenuButton::new(tr("Keep apart"))
+                                .config(
+                                    egui::containers::menu::MenuConfig::new()
+                                        .style(theme::menu_style),
+                                )
+                                .ui(ui, |ui| {
+                                    if ui.button(tr("Not at the same table")).clicked() {
+                                        chosen = Some(PreferenceKind::Apart {
+                                            people: people.clone(),
+                                            closeness: Closeness::Table,
+                                        });
+                                        ui.close();
+                                    }
+                                    if ui.button(tr("Not beside or opposite")).clicked() {
+                                        chosen = Some(PreferenceKind::Apart {
+                                            people: people.clone(),
+                                            closeness: Closeness::Neighbours,
+                                        });
+                                        ui.close();
+                                    }
+                                });
+                            keep = self.keep_at_table_menu(ui, &people);
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    clear = theme::icon_button(
+                                        ui,
+                                        p,
+                                        theme::Icon::Close,
+                                        tr("Clear selection (Esc)"),
+                                        false,
+                                    )
+                                    .clicked();
+                                },
+                            );
+                        });
+                    });
+            });
+        if let Some(table) = keep {
+            let people: Vec<usize> = std::mem::take(&mut self.chart.multi).into_iter().collect();
+            self.keep_at_table(&people, &table);
+        } else if let Some(kind) = chosen {
+            self.project.add_preference(kind, Strength::Important);
+            self.chart.multi.clear();
+            self.commit(tr("Preference added; solve again to apply"));
+        } else if clear {
+            self.chart.multi.clear();
+        }
+    }
+
+    /// "Your preferences" in the side panel, each with its result and controls.
+    pub(super) fn preferences_section(
+        &mut self,
+        ui: &mut egui::Ui,
+        p: Palette,
+        results: &[PreferenceResult],
+    ) {
+        ui.add_space(theme::space::XL);
+        theme::section_title(ui, p, tr("Your preferences"));
+        if self.project.preferences.is_empty() {
+            theme::hint(ui, p, tr("Ctrl-click to select a group."));
+            return;
+        }
+        self.chart.preference_preview = None;
+        let mut changed = false;
+        let mut delete = None;
+        for index in 0..self.project.preferences.len() {
+            let id = self.project.preferences[index].id;
+            let row = self.preference_row(ui, p, index, results.iter().find(|r| r.id == id));
+            changed |= row.changed;
+            if row.delete {
+                delete = Some(index);
+            }
+            if row.hovered {
+                self.chart.preference_preview = Some(id);
+            }
+        }
+        if let Some(index) = delete {
+            self.project.preferences.remove(index);
+            changed = true;
+        }
+        if changed {
+            self.commit(tr("Saved your preferences"));
+        }
+    }
+
+    /// One preference: who, how it fares, strength and delete.
+    fn preference_row(
+        &mut self,
+        ui: &mut egui::Ui,
+        p: Palette,
+        index: usize,
+        result: Option<&PreferenceResult>,
+    ) -> RowAction {
+        let names = self
+            .project
+            .names_of(self.project.preferences[index].kind.people(), None);
+        let preference = &mut self.project.preferences[index];
+        let title = format!("{}: {names}", kind_title(&preference.kind));
+        let color = theme::outcome_color(p, result.map(PreferenceResult::outcome));
+        let mut action = RowAction::default();
+        let response = theme::card(p)
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.horizontal(|ui| {
+                    theme::status_dot(ui, color);
+                    ui.add(egui::Label::new(RichText::new(title).strong()).wrap());
+                });
+                if let Some(result) = result {
+                    theme::hint(ui, p, &result.detail);
+                }
+                ui.horizontal(|ui| {
+                    theme::combo(("strength", preference.id), preference.strength.label()).show_ui(
+                        ui,
+                        |ui| {
+                            for strength in Strength::ALL {
+                                action.changed |=
+                                    ui.value(&mut preference.strength, strength, strength.label());
+                            }
+                        },
+                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        action.delete = ui.add(theme::ghost_button(tr("Delete"), p)).clicked();
+                    });
+                });
+            })
+            .response;
+        action.hovered = response.contains_pointer();
+        action
+    }
+
+    /// The planner's preferences this person is part of, read-only.
+    pub(super) fn person_preferences(
+        &self,
+        ui: &mut egui::Ui,
+        p: Palette,
+        scene: &Scene,
+        id: usize,
+    ) {
+        let results = scene
+            .evaluation
+            .as_ref()
+            .map_or(&[][..], |e| e.preferences.as_slice());
+        let mut mine = self.project.preferences_of(id).peekable();
+        if mine.peek().is_none() {
+            return;
+        }
+        ui.add_space(theme::space::XL);
+        theme::section_title(ui, p, tr("Your preferences"));
+        for preference in mine {
+            let label = fill(
+                "{} with {}",
+                &[
+                    &kind_title(&preference.kind),
+                    &self.project.names_of(preference.kind.people(), Some(id)),
+                ],
+            );
+            match results.iter().find(|r| r.id == preference.id) {
+                Some(r) => outcome_row(ui, p, &label, &r.detail, r.penalty, Some(r.outcome())),
+                None => theme::hint(ui, p, label),
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct RowAction {
+    changed: bool,
+    delete: bool,
+    hovered: bool,
+}
+
+fn kind_title(kind: &PreferenceKind) -> &'static str {
+    match kind {
+        PreferenceKind::Together { .. } => tr("Together"),
+        PreferenceKind::Apart {
+            closeness: Closeness::Table,
+            ..
+        } => tr("Different tables"),
+        PreferenceKind::Apart { .. } => tr("Not neighbours"),
+    }
+}

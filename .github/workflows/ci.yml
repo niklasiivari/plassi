@@ -1,0 +1,32 @@
+name: CI
+
+# Run by hand only (Actions → CI → Run workflow, or `gh workflow run ci.yml`),
+# to keep CI opt-in; Cloudflare builds the hosted app separately.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests and lints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: System libraries for the desktop app
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev
+      - name: Formatting
+        run: cargo fmt --all -- --check
+      - name: Tests (unit and UI)
+        run: cargo test --locked --workspace
+      - name: Clippy (desktop)
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Clippy (browser)
+        run: cargo clippy --locked --workspace --target wasm32-unknown-unknown -- -D warnings

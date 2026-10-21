@@ -1,0 +1,176 @@
+//! Regression coverage for large rooms and moving whole tables.
+use super::harness::Ui;
+use crate::model::Layout;
+use eframe::egui::{self, Key, Modifiers};
+use egui_kittest::kittest::{NodeT, Queryable};
+
+#[test]
+fn many_tables_stay_inside_the_room_editor_on_desktop_and_phone() {
+    let mut ui = Ui::with_example();
+    ui.app_mut().project.layout = Layout::simple(40, 4);
+    ui.go_to("Room layout");
+    for width in [1440.0, 1024.0, 850.0, 768.0, 390.0, 320.0] {
+        ui.h.set_size(egui::vec2(width, 900.0));
+        ui.settle();
+        ui.h.run_steps(4);
+        let outside: Vec<_> =
+            ui.h.query_all_by(|n| {
+                matches!(
+                    n.role(),
+                    egui::accesskit::Role::Button
+                        | egui::accesskit::Role::TextInput
+                        | egui::accesskit::Role::ComboBox
+                )
+            })
+            .filter_map(|n| {
+                let rect = n.rect();
+                (rect.right() > width + 1.0 || rect.left() < -1.0)
+                    .then(|| format!("{:?}: {rect:?}", n.accesskit_node().label()))
+            })
+            .collect();
+        assert!(outside.is_empty(), "width={width}: {outside:?}");
+    }
+}
+
+#[test]
+fn table_row_selector_keeps_seating_and_free_canvas_drag_is_saved() {
+    let mut ui = Ui::with_example();
+    ui.solve();
+    ui.key(Modifiers::NONE, Key::Escape);
+    let assignment = ui.option().assignment.clone();
+    ui.go_to("Room layout");
+    ui.click("+ Add row");
+    ui.open_combo("Row 1");
+    ui.choose("Row 2");
+    assert_eq!(ui.app().project.layout.rows[1].tables[0].id, "table-1");
+    assert_eq!(ui.option().assignment, assignment);
+    ui.click("Free layout");
+    let original = ui.app().project.layout.table_positions["table-1"];
+    let label = format!("Move {}", ui.app().project.table_label("table-1"));
+    ui.node(&label).scroll_to_me();
+    ui.settle();
+    let start = ui.node(&label).rect().center();
+    ui.drag(start, start + egui::vec2(73.0, 57.0));
+    let at = ui.app().project.layout.table_positions["table-1"];
+    assert_ne!(at, original);
+    assert_eq!(at.x % 40.0, 0.0);
+    assert_eq!(at.y % 40.0, 0.0);
+    assert_eq!(ui.option().assignment, assignment);
+    let disk: crate::model::Project =
+        crate::io::parse(&ui.app().file.store.read().unwrap()).unwrap();
+    assert_eq!(disk.layout.table_positions["table-1"], at);
+    assert!(disk.layout.free_layout);
+    ui.key(Modifiers::COMMAND, Key::Z);
+    assert_eq!(ui.app().project.layout.table_positions["table-1"], original);
+    ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
+    assert_eq!(ui.app().project.layout.table_positions["table-1"], at);
+    ui.click("Snap to grid");
+    let start = ui.node(&label).rect().center();
+    ui.drag(start, start + egui::vec2(31.0, 23.0));
+    let at = ui.app().project.layout.table_positions["table-1"];
+    assert!(at.x % 40.0 != 0.0 || at.y % 40.0 != 0.0);
+    let start = ui.node(&label).rect().center();
+    ui.h.drag_at(start);
+    ui.h.step();
+    ui.h.hover_at(start + egui::vec2(60.0, 30.0));
+    ui.h.step();
+    ui.key(Modifiers::NONE, Key::Escape);
+    ui.h.drop_at(start + egui::vec2(60.0, 30.0));
+    ui.settle();
+    assert_eq!(ui.app().project.layout.table_positions["table-1"], at);
+    ui.click("Rows");
+    assert!(!ui.app().project.layout.free_layout);
+    ui.click("Free layout");
+    assert_eq!(ui.app().project.layout.table_positions["table-1"], at);
+}
+
+#[test]
+fn free_canvas_has_local_editing_and_adds_tables_at_the_context_click() {
+    use crate::model::{SEAT_PITCH, TABLE_SPAN};
+    use egui::PointerButton;
+    let mut ui = Ui::with_example();
+    ui.go_to("Room layout");
+    ui.click("Free layout");
+    assert!(!ui.has("+ Add row"));
+    assert!(!ui.has("Quick setup"));
+    ui.click("Move Table 1");
+    assert!(ui.has("Table name"));
+    ui.click("+");
+    assert_eq!(
+        ui.app().project.layout.rows[0].tables[0].left,
+        ui.app().project.layout.rows[0].tables[0].right + 1
+    );
+    ui.click("Deselect");
+    ui.click("Snap to grid");
+    let table = &ui.app().project.layout.rows[0].tables[0];
+    let at = ui.app().project.layout.table_origins()[&table.id];
+    let middle = egui::pos2(
+        at.x + TABLE_SPAN / 2.0,
+        at.y + (table.left.max(table.right) - 1) as f32 * SEAT_PITCH / 2.0,
+    );
+    let table_rect = ui.node("Move Table 1").rect();
+    let zoom = (table_rect.width() - 16.0) / TABLE_SPAN;
+    let canvas = ui.node("Room canvas").rect();
+    let cursor = canvas.min + egui::vec2(35.0, 55.0);
+    let expected = middle + (cursor - table_rect.center()) / zoom;
+    let before = ui
+        .app()
+        .project
+        .layout
+        .rows
+        .iter()
+        .map(|r| r.tables.len())
+        .sum::<usize>();
+    ui.click_at(cursor, PointerButton::Secondary, Modifiers::NONE);
+    ui.click("Add table here");
+    let project = &ui.app().project;
+    assert_eq!(
+        project
+            .layout
+            .rows
+            .iter()
+            .map(|r| r.tables.len())
+            .sum::<usize>(),
+        before + 1
+    );
+    let added = project.layout.rows[0].tables.last().unwrap();
+    let position = project.layout.table_positions[&added.id];
+    assert!(
+        (position.x - expected.x).abs() < 0.1,
+        "{position:?} vs {expected:?}"
+    );
+    assert!(
+        (position.y - expected.y).abs() < 0.1,
+        "{position:?} vs {expected:?}"
+    );
+    assert!(ui.has("Table name"));
+    ui.click("Remove table");
+    assert_eq!(
+        ui.app()
+            .project
+            .layout
+            .rows
+            .iter()
+            .map(|r| r.tables.len())
+            .sum::<usize>(),
+        before
+    );
+    ui.click("+ Add table");
+    assert_eq!(
+        ui.app()
+            .project
+            .layout
+            .rows
+            .iter()
+            .map(|r| r.tables.len())
+            .sum::<usize>(),
+        before + 1
+    );
+    for width in [390.0, 320.0] {
+        ui.h.set_size(egui::vec2(width, 844.0));
+        ui.settle();
+        ui.h.run_steps(4);
+        let panel = ui.node("Remove table").rect();
+        assert!(panel.right() <= width && panel.left() >= 0.0, "{panel:?}");
+    }
+}

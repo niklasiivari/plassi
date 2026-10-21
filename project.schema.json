@@ -1,0 +1,1171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Project",
+  "type": "object",
+  "properties": {
+    "attendees": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Attendee"
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Candidate"
+      }
+    },
+    "catalog": {
+      "description": "Categories that free-text organizations, tickets, food and drinks map to.",
+      "$ref": "#/$defs/Catalog",
+      "default": {
+        "drinks": [],
+        "foods": [],
+        "organizations": [],
+        "tickets": []
+      }
+    },
+    "event": {
+      "$ref": "#/$defs/EventInfo",
+      "default": {
+        "print_language": "same_as_app",
+        "subtitle": "",
+        "title": ""
+      }
+    },
+    "import_columns": {
+      "description": "What spreadsheet columns outside the import template were imported as,\nby normalised header, so the next import of the same sheet maps them.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Column"
+      },
+      "default": {}
+    },
+    "layout": {
+      "$ref": "#/$defs/Layout"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ImportNote"
+      }
+    },
+    "policy": {
+      "$ref": "#/$defs/SeatingPolicy",
+      "default": {
+        "empty_seats": "TableBottoms",
+        "isolation_penalty": 400,
+        "left_out_penalty": 300,
+        "lone_end_penalty": 100,
+        "organization": "Indifferent",
+        "organization_weight": 15,
+        "sprinkle": 10
+      }
+    },
+    "preferences": {
+      "description": "The planner's own seating preferences, separate from attendees' wishes.",
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Preference"
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Rule"
+      }
+    },
+    "shown_option": {
+      "description": "The option (index into `candidates`) last shown, to reopen on.",
+      "type": "integer",
+      "format": "uint",
+      "default": 0,
+      "minimum": 0
+    },
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "version",
+    "attendees",
+    "layout",
+    "rules",
+    "notes"
+  ],
+  "$defs": {
+    "Area": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Seat": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Seat"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Table": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Table"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Row": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Row"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "RowCenter": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "RowCenter"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Tag": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Tag"
+          ]
+        }
+      ]
+    },
+    "Attendee": {
+      "type": "object",
+      "properties": {
+        "allergies": {
+          "type": "string",
+          "default": ""
+        },
+        "drink": {
+          "type": "string",
+          "default": ""
+        },
+        "extra": {
+          "description": "Other spreadsheet columns, by header.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "food": {
+          "type": "string",
+          "default": ""
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "organization": {
+          "type": "string"
+        },
+        "participant_group": {
+          "type": "string"
+        },
+        "price_override_cents": {
+          "description": "Override the attendee's total charge in euro cents.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "organization",
+        "participant_group",
+        "tags"
+      ]
+    },
+    "Candidate": {
+      "type": "object",
+      "properties": {
+        "assignment": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "type": "string"
+            }
+          }
+        },
+        "hand_placed": {
+          "description": "People placed by hand in this option; \"Improve around my edits\" keeps them.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "uniqueItems": true
+        },
+        "loose": {
+          "description": "People taken off the seats and left on the chart, by where their card is.",
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Point"
+            }
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "solver_status": {
+          "$ref": "#/$defs/SolverStatus"
+        }
+      },
+      "required": [
+        "name",
+        "assignment",
+        "solver_status"
+      ]
+    },
+    "Catalog": {
+      "type": "object",
+      "properties": {
+        "drinks": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Category"
+          }
+        },
+        "foods": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Category"
+          }
+        },
+        "organizations": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Category"
+          }
+        },
+        "tickets": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Category"
+          }
+        }
+      }
+    },
+    "Category": {
+      "description": "One canonical value, e.g. the organization \"ABC\".",
+      "type": "object",
+      "properties": {
+        "aliases": {
+          "description": "Spellings that mean this category (compared case- and space-insensitively).",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "mark": {
+          "description": "Short mark for the kitchen and bar prints, e.g. \"VG\". Empty prints the name.",
+          "type": "string",
+          "default": ""
+        },
+        "name": {
+          "type": "string"
+        },
+        "price_cents": {
+          "description": "Additive charge in euro cents; None means the price has not been set.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "Closeness": {
+      "oneOf": [
+        {
+          "description": "Nobody beside or opposite another.",
+          "type": "string",
+          "const": "Neighbours"
+        },
+        {
+          "description": "No two at the same table.",
+          "type": "string",
+          "const": "Table"
+        }
+      ]
+    },
+    "Column": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Name",
+            "FirstName",
+            "LastName",
+            "Organization",
+            "Group",
+            "Avec",
+            "Wish",
+            "Food",
+            "Drink",
+            "Allergies"
+          ]
+        },
+        {
+          "description": "Kept per attendee as extra info.",
+          "type": "string",
+          "const": "Other"
+        },
+        {
+          "description": "Left out of the import.",
+          "type": "string",
+          "const": "Ignore"
+        }
+      ]
+    },
+    "DistanceClass": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Beside",
+            "Opposite",
+            "Diagonal",
+            "SameTable",
+            "Far"
+          ]
+        },
+        {
+          "description": "Same table, at most `NEAR_ROWS` rows apart.",
+          "type": "string",
+          "const": "Near"
+        }
+      ]
+    },
+    "EmptySeatPlacement": {
+      "oneOf": [
+        {
+          "description": "Leave spare seats at the bottom of tables, as opposite pairs where possible.",
+          "type": "string",
+          "const": "TableBottoms"
+        },
+        {
+          "description": "Any seat may stay empty.",
+          "type": "string",
+          "const": "Anywhere"
+        }
+      ]
+    },
+    "EventInfo": {
+      "description": "Printed on exported charts and lists.",
+      "type": "object",
+      "properties": {
+        "print_language": {
+          "description": "Language of the prints.",
+          "$ref": "#/$defs/PrintLanguage",
+          "default": "same_as_app"
+        },
+        "subtitle": {
+          "description": "E.g. date and venue.",
+          "type": "string",
+          "default": ""
+        },
+        "title": {
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "ImportField": {
+      "type": "string",
+      "enum": [
+        "Avec",
+        "Wish"
+      ]
+    },
+    "ImportNote": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/ImportField"
+        },
+        "person": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "reviewed": {
+          "type": "boolean",
+          "default": false
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "person",
+        "field",
+        "text"
+      ]
+    },
+    "Importance": {
+      "type": "string",
+      "enum": [
+        "Normal",
+        "High"
+      ]
+    },
+    "Layout": {
+      "type": "object",
+      "properties": {
+        "free_layout": {
+          "description": "Use explicit table origins instead of the row geometry.",
+          "type": "boolean",
+          "default": false
+        },
+        "relations": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SeatRelation"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RowSpec"
+          }
+        },
+        "seat_tags": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": {}
+        },
+        "table_positions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/TablePosition"
+          },
+          "default": {}
+        }
+      },
+      "required": [
+        "rows"
+      ]
+    },
+    "OrganizationMixing": {
+      "type": "string",
+      "enum": [
+        "SameOrganization",
+        "Mixed",
+        "Indifferent"
+      ]
+    },
+    "Point": {
+      "description": "A position on the chart, in chart units.",
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "format": "float"
+        },
+        "y": {
+          "type": "number",
+          "format": "float"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "Preference": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/PreferenceKind"
+        },
+        "strength": {
+          "$ref": "#/$defs/Strength"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "strength",
+        "enabled"
+      ]
+    },
+    "PreferenceKind": {
+      "oneOf": [
+        {
+          "description": "These people sit as one compact block: everyone beside, opposite or\ndiagonal to someone else in it, over as few rows as they need.",
+          "type": "object",
+          "properties": {
+            "Together": {
+              "type": "object",
+              "properties": {
+                "people": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "uint",
+                    "minimum": 0
+                  }
+                }
+              },
+              "required": [
+                "people"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Together"
+          ]
+        },
+        {
+          "description": "These people don't sit within `closeness` of each other.",
+          "type": "object",
+          "properties": {
+            "Apart": {
+              "type": "object",
+              "properties": {
+                "closeness": {
+                  "$ref": "#/$defs/Closeness"
+                },
+                "people": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "uint",
+                    "minimum": 0
+                  }
+                }
+              },
+              "required": [
+                "people",
+                "closeness"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Apart"
+          ]
+        }
+      ]
+    },
+    "PrintLanguage": {
+      "description": "The language prints are made in.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "finnish",
+            "english"
+          ]
+        },
+        {
+          "description": "Whatever the app is showing when printing.",
+          "type": "string",
+          "const": "same_as_app"
+        }
+      ]
+    },
+    "RowSpec": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TableSpec"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "tables"
+      ]
+    },
+    "Rule": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/RuleKind"
+        },
+        "label": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "source",
+        "enabled",
+        "kind"
+      ]
+    },
+    "RuleKind": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Placement": {
+              "type": "object",
+              "properties": {
+                "area": {
+                  "$ref": "#/$defs/Area"
+                },
+                "hard": {
+                  "type": "boolean"
+                },
+                "must_be": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "penalty": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "person": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "person",
+                "area",
+                "hard",
+                "penalty"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Placement"
+          ]
+        },
+        {
+          "description": "Keep away from the ends of a table side: a larger penalty for an end\nseat (nobody beside on one side), a smaller one for the seat next to it.\nEnds follow who actually sits where, so spare seats move them.",
+          "type": "object",
+          "properties": {
+            "AvoidTableEnd": {
+              "type": "object",
+              "properties": {
+                "end_penalty": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "near_end_penalty": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "person": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "person",
+                "end_penalty",
+                "near_end_penalty"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "AvoidTableEnd"
+          ]
+        },
+        {
+          "description": "A wish to sit near someone. Its distance costs and weight follow\nfrom `wish` and `importance`, so every wish of a kind scores alike.",
+          "type": "object",
+          "properties": {
+            "Proximity": {
+              "type": "object",
+              "properties": {
+                "importance": {
+                  "$ref": "#/$defs/Importance"
+                },
+                "max_class": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/DistanceClass"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "requester": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                },
+                "target": {
+                  "$ref": "#/$defs/Target"
+                },
+                "wish": {
+                  "$ref": "#/$defs/WishKind"
+                }
+              },
+              "required": [
+                "requester",
+                "target",
+                "wish",
+                "importance"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Proximity"
+          ]
+        }
+      ]
+    },
+    "SeatRelation": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "type": "string"
+        },
+        "b": {
+          "type": "string"
+        },
+        "class": {
+          "$ref": "#/$defs/DistanceClass"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "class"
+      ]
+    },
+    "SeatingPolicy": {
+      "description": "Global rules for everyone, mainly shaping where unconstrained attendees sit.\nWeights use the same scale as rule penalties (see [`WishKind::far_penalty`]).",
+      "type": "object",
+      "properties": {
+        "empty_seats": {
+          "$ref": "#/$defs/EmptySeatPlacement",
+          "default": "TableBottoms"
+        },
+        "isolation_penalty": {
+          "description": "Cost for anyone with nobody beside or opposite them.",
+          "type": "integer",
+          "format": "int64",
+          "default": 400
+        },
+        "left_out_penalty": {
+          "description": "Extra cost for anyone with wishes of whom none is beside, opposite or\ndiagonal to them, so no\none loses all their wishes to save a little elsewhere.",
+          "type": "integer",
+          "format": "int64",
+          "default": 300
+        },
+        "lone_end_penalty": {
+          "description": "Cost for someone who neither wishes for anyone nor is wished for (nor\nis in a group) sitting at a table end, where they have the fewest\npeople to talk to; groups take the ends instead.",
+          "type": "integer",
+          "format": "int64",
+          "default": 100
+        },
+        "organization": {
+          "description": "Whether unconstrained attendees should sit with their own organization.",
+          "$ref": "#/$defs/OrganizationMixing",
+          "default": "Indifferent"
+        },
+        "organization_weight": {
+          "description": "Cost per beside/opposite pair that goes against `organization`.",
+          "type": "integer",
+          "format": "int64",
+          "default": 15
+        },
+        "sprinkle": {
+          "description": "Positive: spread unconstrained attendees among wish groups (cost per pair of\nadjacent unconstrained attendees). Negative: keep them apart from wish groups\n(cost per unconstrained attendee adjacent to a constrained one).",
+          "type": "integer",
+          "format": "int64",
+          "default": 10
+        }
+      }
+    },
+    "SolverStatus": {
+      "description": "How an option came about, stored as data and put into words in the\ncurrent language when shown.",
+      "oneOf": [
+        {
+          "description": "No seating can score better.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "optimal"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "The best seating found within the time.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "best_found"
+            },
+            "runs": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            },
+            "runs_at_best": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            },
+            "seconds": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seconds",
+            "runs_at_best",
+            "runs"
+          ]
+        },
+        {
+          "description": "Improved from another option, keeping people placed by hand.",
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "hand_placed": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "improved"
+            }
+          },
+          "required": [
+            "kind",
+            "from",
+            "hand_placed"
+          ]
+        },
+        {
+          "description": "A longer search continued from another option.",
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "continued"
+            },
+            "seconds": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "from",
+            "seconds"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "edited_by_hand"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Made empty, to be seated by hand.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "started_empty"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "People lost their seats when the room changed.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "room_changed"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      ]
+    },
+    "Strength": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "NiceToHave",
+            "Important"
+          ]
+        },
+        {
+          "description": "Never broken by the solver.",
+          "type": "string",
+          "const": "Must"
+        }
+      ]
+    },
+    "TablePosition": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "format": "float"
+        },
+        "y": {
+          "type": "number",
+          "format": "float"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "TableSpec": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "left": {
+          "description": "Seats down the left side, numbered from the top of the table.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "right": {
+          "description": "Seats down the right side, numbered from the top of the table.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "left",
+        "right"
+      ]
+    },
+    "Target": {
+      "oneOf": [
+        {
+          "description": "Every named person is part of the wish.",
+          "type": "object",
+          "properties": {
+            "People": {
+              "type": "object",
+              "properties": {
+                "ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "uint",
+                    "minimum": 0
+                  }
+                }
+              },
+              "required": [
+                "ids"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "People"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Tag": {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0
+                },
+                "tag": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tag",
+                "required"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Tag"
+          ]
+        },
+        {
+          "description": "Everyone whose organization matches (case-insensitive).\nEveryone in the organization counts, so there is no count to meet.",
+          "type": "object",
+          "properties": {
+            "Organization": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Organization"
+          ]
+        }
+      ]
+    },
+    "WishKind": {
+      "oneOf": [
+        {
+          "description": "A partner: beside is best, opposite fine, diagonal unwanted. Keeps its\nfull weight however many wishes the person has.",
+          "type": "string",
+          "const": "Avec"
+        },
+        {
+          "description": "Beside, opposite and diagonal are all good. A person's seating\nwishes are damped by how many they have (see `Project::wish_costs`).",
+          "type": "string",
+          "const": "Seating"
+        }
+      ]
+    }
+  }
+}

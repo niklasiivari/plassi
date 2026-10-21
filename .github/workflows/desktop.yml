@@ -1,0 +1,196 @@
+name: Desktop releases
+
+# Every main commit gets its own release; other branches never build.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  main:
+    name: Verify main and prepare release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Reject other branches
+        env:
+          BUILD_REF: ${{ github.ref }}
+        run: test "$BUILD_REF" = refs/heads/main
+      - uses: actions/checkout@v6
+      - name: Release metadata
+        id: release
+        run: |
+          python3 - <<'PYTHON'
+          import os, tomllib
+          with open("Cargo.toml", "rb") as source:
+              version = tomllib.load(source)["package"]["version"]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"version={version}\n")
+              output.write(f"tag=desktop-{os.environ['GITHUB_RUN_NUMBER']}\n")
+          PYTHON
+
+  windows:
+    name: Windows executable (x64)
+    needs: main
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      # A portable executable must not require a separate Visual C++ runtime.
+      # Match the larger main-thread stack used on Linux, including rendering and PDF layout.
+      RUSTFLAGS: -C target-feature=+crt-static -C link-arg=/STACK:8388608
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.97.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop-windows-static-stack8m
+          cache-on-failure: true
+      - name: Build standalone executable
+        run: cargo build --locked --release --target x86_64-pc-windows-msvc --bin plassi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-build-debug
+          path: target/x86_64-pc-windows-msvc/release/plassi.exe
+          retention-days: 7
+          if-no-files-found: error
+      # Hosted Windows runners expose OpenGL 1.1. Supply a software driver
+      # for the GUI check; the downloaded executable uses the user's drivers.
+      - uses: msys2/setup-msys2@v2
+        id: mesa
+        with:
+          msystem: UCRT64
+          install: mingw-w64-ucrt-x86_64-mesa
+      - name: Check packaged executable and GUI startup
+        env:
+          MESA_BIN: '${{ steps.mesa.outputs.msys2-location }}\ucrt64\bin'
+          GALLIUM_DRIVER: llvmpipe
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          # WGL also uses statically imported OpenGL functions. Put Mesa beside
+          # a test copy so context creation and GL calls use the same driver.
+          $testDir = Join-Path $env:RUNNER_TEMP 'plassi-gui-smoke'
+          New-Item -ItemType Directory -Path $testDir -Force
+          Copy-Item target/x86_64-pc-windows-msvc/release/plassi.exe $testDir/plassi.exe
+          Copy-Item "$env:MESA_BIN\*.dll" $testDir
+          $env:PATH = "$env:MESA_BIN;$env:PATH"
+          python scripts/smoke-desktop.py "$testDir/plassi.exe" --gui --log windows-gui.log
+      - name: Keep GUI diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-gui-log
+          path: windows-gui.log
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Prepare download
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path desktop-artifacts
+          Copy-Item target/x86_64-pc-windows-msvc/release/plassi.exe desktop-artifacts/Plassi-windows-x86_64.exe
+          Copy-Item LICENSE,THIRD_PARTY_NOTICES.md desktop-artifacts/
+          "Source: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/tree/$env:GITHUB_SHA" | Set-Content desktop-artifacts/SOURCE.txt
+          $file = 'desktop-artifacts/Plassi-windows-x86_64.exe'
+          $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+          "$hash  Plassi-windows-x86_64.exe" | Set-Content desktop-artifacts/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Plassi-windows-x86_64
+          path: desktop-artifacts/*
+          if-no-files-found: error
+          retention-days: 30
+
+  linux:
+    name: Linux AppImage (x64)
+    needs: main
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.97.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop-linux
+          cache-on-failure: true
+      - name: Install build and launch dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y file libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev xvfb xdotool
+      - name: Build executable
+        run: cargo build --locked --release --bin plassi
+      - name: Build AppImage
+        run: scripts/build-appimage.sh
+      - name: Check packaged AppImage and GUI startup without FUSE
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python3 scripts/smoke-desktop.py desktop-artifacts/Plassi-linux-x86_64.AppImage --gui
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Plassi-linux-x86_64
+          path: desktop-artifacts/*
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    needs: [main, windows, linux]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: Plassi-*
+          path: downloads
+      - name: Assemble release assets and check hashes
+        run: |
+          mkdir release-assets
+          cp downloads/Plassi-windows-x86_64/Plassi-windows-x86_64.exe release-assets/
+          cp downloads/Plassi-linux-x86_64/Plassi-linux-x86_64.AppImage release-assets/
+          cat downloads/Plassi-windows-x86_64/SHA256SUMS.txt downloads/Plassi-linux-x86_64/SHA256SUMS.txt > release-assets/SHA256SUMS.txt
+          (cd release-assets && sha256sum --check SHA256SUMS.txt)
+          cp LICENSE THIRD_PARTY_NOTICES.md downloads/Plassi-windows-x86_64/SOURCE.txt release-assets/
+          (cd downloads/Plassi-windows-x86_64 && zip -r ../../release-assets/Plassi-windows-x86_64.zip .)
+          (cd release-assets && sha256sum *.exe *.AppImage *.zip LICENSE THIRD_PARTY_NOTICES.md SOURCE.txt > SHA256SUMS.txt)
+      - name: Publish tested binaries with corresponding source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.main.outputs.tag }}
+          APP_VERSION: ${{ needs.main.outputs.version }}
+        run: |
+          cat > release-notes.md <<EOF_NOTES
+          Desktop build from main commit $GITHUB_SHA.
+
+          - Windows: download Plassi-windows-x86_64.exe, or the ZIP with license and notices. No installation required. The executable is unsigned.
+          - Linux: download Plassi-linux-x86_64.AppImage and make it executable. Requires a compatible x86_64 desktop (Ubuntu 22.04 or newer) and OpenGL drivers. Without FUSE, run with APPIMAGE_EXTRACT_AND_RUN=1.
+          - Both packaged programs passed schema, import, project validation and visible GUI startup checks.
+
+          Licensed under AGPL-3.0-or-later. Corresponding source and build scripts: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/tree/$GITHUB_SHA. GitHub also provides source archives for this release tag.
+          EOF_NOTES
+          # Concurrent main pushes each get a release. An older build finishing
+          # later must not replace the current main build as the latest release.
+          latest=false
+          if [ "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)" = "$GITHUB_SHA" ]; then
+            latest=true
+          fi
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$RELEASE_TAG" --json targetCommitish --jq .targetCommitish)" = "$GITHUB_SHA"
+            # A published release is immutable; a failed draft upload can resume.
+            if [ "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = false ]; then
+              exit 0
+            fi
+          else
+            gh release create "$RELEASE_TAG" --draft \
+              --target "$GITHUB_SHA" --title "Plassi $APP_VERSION — build $GITHUB_RUN_NUMBER" \
+              --notes-file release-notes.md
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest="$latest"

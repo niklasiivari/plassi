@@ -1,0 +1,28 @@
+# Licence notices for third-party code compiled into Plassi (native and web).
+# Regenerate THIRD_PARTY_NOTICES.md with scripts/notices.sh.
+# The workspace crates use this license; third-party notices omit them.
+accepted = [
+    "AGPL-3.0-or-later",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "MIT-0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "BSL-1.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+    "MPL-2.0",
+    "Unlicense",
+    "0BSD",
+    "CDLA-Permissive-2.0",
+    "NCSA",
+]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-darwin", "wasm32-unknown-unknown"]
+ignore-dev-dependencies = true
+ignore-build-dependencies = false

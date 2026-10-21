@@ -1,0 +1,57 @@
+[workspace]
+members = [".", "typeset"]
+
+[package]
+name = "plassi"
+version = "0.1.0"
+edition = "2024"
+description = "Seating planner for events: import sign-ups, seat guests by their wishes, print place lists."
+authors = ["Niklas Iivari <plassi@niklasiivari.fi>"]
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/niklasiivari/plassi"
+readme = "README.md"
+publish = false
+
+[dependencies]
+anyhow = "1"
+calamine = "0.36.1"
+csv = "1.4"
+eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "glow", "x11", "wayland"] }
+rand = "0.9"
+rfd = "0.17.2"
+rust_xlsxwriter = { version = "0.100.0", features = ["wasm"] }
+schemars = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+web-time = "1.1.0"
+
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+plassi-typeset = { path = "typeset" }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+egui_kittest = { version = "0.36.2", features = ["eframe"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+log = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Document", "Location", "Navigator", "Storage", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlCanvasElement", "Element", "console", "HtmlInputElement", "FileList", "File", "StorageManager", "HtmlElement", "DomTokenList"] }
+
+[profile.dev]
+opt-level = 1
+
+# The browser build: small rather than fast (see scripts/build-web.sh).
+[profile.web]
+inherits = "release"
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+
+# Dependencies in the browser build are optimised for size too.
+[profile.web.package."*"]
+opt-level = "z"

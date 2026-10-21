@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Plassi
+Comment=Plan seating and print guest lists
+Exec=plassi
+Icon=plassi
+Terminal=false
+Categories=Office;

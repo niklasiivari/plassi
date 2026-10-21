@@ -1,0 +1,15 @@
+/target
+/plassi.json
+/plassi.json.tmp
+/data/
+/dist
+/plassi-*.pdf
+
+/desktop-artifacts
+# Local credentials and agent scratch worktrees
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+.wrangler/
+.claude/worktrees/
