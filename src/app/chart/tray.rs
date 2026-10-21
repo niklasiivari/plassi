@@ -36,13 +36,6 @@ impl PlassiApp {
         if on_chart > 0 {
             theme::hint(ui, p, fill("{} of them on the chart", &[&on_chart]));
         }
-        theme::hint(
-            ui,
-            p,
-            tr(
-                "Drag people onto seats or anywhere on the chart, or select one and click an empty seat.",
-            ),
-        );
         ui.add_space(theme::space::S);
         let enough = self.project.layout.seat_count() >= self.project.attendees.len();
         if ui

@@ -342,6 +342,32 @@ impl DroppedRead {
     }
 }
 
+/// A file the user picked in the system's file dialog, read off the UI
+/// thread. A cancelled dialog delivers nothing.
+pub struct FilePick(Receiver<std::result::Result<Vec<u8>, String>>);
+
+impl FilePick {
+    /// Opens the file dialog for files matching `accept`, e.g. ".json".
+    pub fn open(accept: &str) -> Option<Self> {
+        let extension = accept.trim_start_matches('.').to_string();
+        let (send, receive) = mpsc::channel();
+        std::thread::spawn(move || {
+            let picked = rfd::FileDialog::new()
+                .add_filter(extension.to_uppercase(), &[extension.as_str()])
+                .pick_file();
+            if let Some(path) = picked {
+                let _ = send.send(fs::read(&path).map_err(|error| error.to_string()));
+            }
+        });
+        Some(Self(receive))
+    }
+
+    /// The file's bytes, once read.
+    pub fn poll(&self) -> Option<std::result::Result<Vec<u8>, String>> {
+        self.0.try_recv().ok()
+    }
+}
+
 /// File selection and reading run off the UI thread. `Ok(None)` means cancelled.
 pub struct SheetPick(Receiver<std::result::Result<Option<super::SheetFile>, String>>);
 

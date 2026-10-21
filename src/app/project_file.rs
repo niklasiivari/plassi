@@ -28,8 +28,7 @@ pub(super) struct ProjectFile {
     /// again. Its index is into the options of the last saved state, which
     /// is the state an undo step saves, so it needs no name to find it.
     pub(super) shown_option: Option<usize>,
-    /// A project file being uploaded in the browser.
-    #[cfg(target_arch = "wasm32")]
+    /// A project file being opened from outside the library.
     pub(super) upload: Option<platform::FilePick>,
 }
 
@@ -94,7 +93,6 @@ impl ProjectFile {
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
             shown_option: None,
-            #[cfg(target_arch = "wasm32")]
             upload: None,
             library,
             name,
@@ -115,17 +113,6 @@ impl ProjectFile {
 }
 
 impl PlassiApp {
-    pub(super) fn import_tsv(&mut self) {
-        match import::import_tsv(Path::new(&self.room.import_input)) {
-            Ok(project) => {
-                self.backup_now();
-                self.project = project;
-                self.commit(tr("Project replaced from TSV"));
-            }
-            Err(error) => self.status = fill("Import failed: {}", &[&format!("{error:#}")]),
-        }
-    }
-
     /// Offers the project as a JSON file.
     #[cfg(target_arch = "wasm32")]
     pub(super) fn download_project(&mut self) {
@@ -140,8 +127,7 @@ impl PlassiApp {
         };
     }
 
-    /// Replaces the project with an uploaded file, once it has been read.
-    #[cfg(target_arch = "wasm32")]
+    /// Replaces the project with an opened file, once it has been read.
     pub(super) fn poll_upload(&mut self) {
         let Some(result) = self.file.upload.as_ref().and_then(platform::FilePick::poll) else {
             return;

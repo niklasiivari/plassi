@@ -64,7 +64,7 @@ impl HelpPage {
                 "Set up tables and seats.",
                 "Quick setup creates equal tables.",
                 "People keep their seats when tables change.",
-                "Set tags and custom distances for special seats.",
+                "Free layout places, turns and rounds tables on a canvas.",
             ],
             HelpPage::Print => &[
                 "Create A4 PDFs for the selected option.",
@@ -88,11 +88,13 @@ impl HelpPage {
                 ("Esc", "Cancel / clear selection"),
                 ("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"),
             ],
-            HelpPage::Graph
-            | HelpPage::People
-            | HelpPage::Categories
-            | HelpPage::Policy
-            | HelpPage::Room => &[("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo")],
+            HelpPage::Graph | HelpPage::People | HelpPage::Categories | HelpPage::Policy => {
+                &[("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo")]
+            }
+            HelpPage::Room => &[
+                ("R / Shift+R", "Turn the selected table"),
+                ("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"),
+            ],
             HelpPage::Print => &[],
         }
     }

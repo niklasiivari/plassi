@@ -47,10 +47,14 @@ impl Place<'_> {
         }
     }
 
-    fn world_rect(&self) -> Rect {
+    fn card(&self) -> Turned {
         match self {
-            Place::Seat(seat) => card_rect(seat),
-            Place::Loose(_, at) => Rect::from_center_size(*at, Vec2::new(CARD_W, CARD_H)),
+            Place::Seat(seat) => card_turned(seat),
+            Place::Loose(_, at) => Turned {
+                centre: *at,
+                size: Vec2::new(CARD_W, CARD_H),
+                angle: 0.0,
+            },
         }
     }
 }
@@ -99,7 +103,7 @@ impl PlassiApp {
             scene,
         } = *paint;
         let person = place.person(scene);
-        let mut world = place.world_rect();
+        let mut world = place.card();
         let dragged = person.is_some_and(|person| {
             self.chart
                 .drag
@@ -107,19 +111,23 @@ impl PlassiApp {
                 .is_some_and(|drag| drag.people.contains(&person))
         });
         if let Some(person) = person.filter(|_| !dragged) {
-            let centre = self.card_centre_animated(ui.ctx(), person, world.center(), false);
-            world = Rect::from_center_size(centre, world.size());
+            world.centre = self.card_centre_animated(ui.ctx(), person, world.centre, false);
         }
-        let screen = view.rect(world);
-        if !screen.intersects(view.clip) {
+        let card = Turned {
+            centre: view.point(world.centre),
+            size: world.size * view.zoom,
+            angle: world.angle,
+        };
+        if !card.bounds().intersects(view.clip) {
             return;
         }
+        let pointer = ui.input(|i| i.pointer.hover_pos());
         let id = match place {
             Place::Seat(seat) => ui.id().with(("seat", &seat.id)),
             Place::Loose(person, _) => ui.id().with(("loose", person)),
         };
         let response = ui
-            .interact(screen, id, Sense::click_and_drag())
+            .interact(card.hit_rect(pointer), id, Sense::click_and_drag())
             .on_hover_cursor(egui::CursorIcon::Grab);
         actions.hovered_card |= response.hovered();
         if response.hovered() {
@@ -131,7 +139,9 @@ impl PlassiApp {
             });
         }
         let look = self.card_look(scene, place, person, response.hovered() || drop);
-        self.paint_card(painter, p, screen, person, look);
+        paint_turned(painter, card.angle, card.centre, |painter| {
+            self.paint_card(painter, p, card.upright(), person, look)
+        });
         self.card_clicks(ui, paint, &response, place, actions);
         let Some(person) = person else { return };
         egui::Popup::context_menu(&response)

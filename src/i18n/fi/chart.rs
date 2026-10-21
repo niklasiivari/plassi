@@ -140,10 +140,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Nothing for the people seated so far",
         "Ei huomautettavaa tähän mennessä sijoitetuista",
     ),
-    (
-        "Place people by hand, or use “Seat the rest”. The score is shown once everyone has a seat.",
-        "Sijoita henkilöt käsin tai valitse ”Sijoita loput”. Pisteet näytetään, kun kaikilla on paikka.",
-    ),
     ("lower is better", "pienempi on parempi"),
     (
         "wishes {} · your preferences {} · seating policy {}",
@@ -223,10 +219,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     (
         "Right-click for actions",
         "Avaa toiminnot hiiren oikealla painikkeella",
-    ),
-    (
-        "Drag to move. Ctrl-click or Shift-drag a box to select. Right-click for actions. Click a table for its summary.",
-        "Siirrä vetämällä. Valitse napsauttamalla Ctrl pohjassa tai rajaamalla alue Shift pohjassa. Avaa toiminnot hiiren oikealla painikkeella. Napsauta pöytää nähdäksesi sen yhteenvedon.",
     ),
     (
         "Moves people up; keeps pinned seats.",
@@ -365,10 +357,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     (
         "{} of them on the chart",
         "{} heistä istumajärjestyksen alueella",
-    ),
-    (
-        "Drag people onto seats or anywhere on the chart, or select one and click an empty seat.",
-        "Vedä henkilöitä paikoille tai minne tahansa istumajärjestykseen, tai valitse henkilö ja napsauta vapaata paikkaa.",
     ),
     ("Seat the rest", "Sijoita loput"),
     (

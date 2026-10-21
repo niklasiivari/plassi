@@ -30,28 +30,10 @@ fn fixture() -> Project {
             label: "A".into(),
             left: 2,
             right: 2,
+            shape: TableShape::Long,
         }],
     });
     project
-}
-
-#[test]
-fn project_validation_rejects_out_of_range_scoring_values() {
-    let mut project = fixture();
-    project.policy.sprinkle = i64::MIN;
-    assert!(project.validate().is_err());
-
-    project.policy = SeatingPolicy::default();
-    project.policy.left_out_penalty = -1;
-    assert!(project.validate().is_err());
-
-    project.policy = SeatingPolicy::default();
-    project.policy.organization_weight = 101;
-    assert!(project.validate().is_err());
-
-    project.policy = SeatingPolicy::default();
-    project.policy.isolation_penalty = 2_001;
-    assert!(project.validate().is_err());
 }
 
 #[test]
@@ -86,6 +68,7 @@ fn organization_wish_is_met_by_the_nearest_member() {
         label: "B".into(),
         left: 1,
         right: 0,
+        shape: TableShape::Long,
     });
     project.rules.push(organization_wish(
         1,
@@ -163,11 +146,7 @@ fn project_validation_rejects_reserved_maximum_ids() {
 #[test]
 fn progress_keeps_large_soft_scores_separate_from_hard_violations() {
     let mut project = fixture();
-    project.policy.organization_weight = 0;
-    project.policy.sprinkle = 0;
-    project.policy.isolation_penalty = 0;
-    project.policy.left_out_penalty = 0;
-    project.policy.lone_end_penalty = 0;
+    project.policy = SeatingPolicy::none();
     // Pinned to one seat, with eleven costly wishes for another.
     let placement = |id, hard, penalty| Rule {
         id,
@@ -220,7 +199,7 @@ fn vertical_table_neighbours() {
     let project = fixture();
     let seats = project.layout.seats();
     let seat = |id: &str| seats.iter().find(|s| s.id == id).unwrap();
-    let class = |a, b| distance_class(&project.layout, seat(a), seat(b));
+    let class = |a, b| table_distance(seat(a), seat(b));
     assert_eq!(
         class("table-a:left:0", "table-a:left:1"),
         DistanceClass::Beside
@@ -846,7 +825,7 @@ fn group_moves_keep_group_together() {
     );
     let seats = project.layout.seats();
     let seat = |p: usize| seats.iter().find(|s| s.id == best.assignment[&p]).unwrap();
-    assert!(distance_class(&project.layout, seat(0), seat(3)) <= DistanceClass::Opposite);
+    assert!(table_distance(seat(0), seat(3)) <= DistanceClass::Opposite);
 }
 
 #[test]
@@ -970,6 +949,7 @@ fn incremental_deltas_match_full_rescoring() {
                 label: format!("Table {i}"),
                 left: 15,
                 right: 15,
+                shape: TableShape::Long,
             })
             .collect(),
     });
@@ -1156,6 +1136,7 @@ fn people_without_wishes_stay_off_table_ends() {
             label: "Table".into(),
             left: 3,
             right: 3,
+            shape: TableShape::Long,
         }],
     });
     // Two pairs who wished for each other; 4 and 5 have no wishes.
@@ -1170,7 +1151,7 @@ fn people_without_wishes_stay_off_table_ends() {
         ));
     }
     project.policy.organization = OrganizationMixing::Indifferent;
-    project.policy.sprinkle = 0;
+    project.policy.without_wishes = WithoutWishes::Indifferent;
     crate::seating::check_deltas(&project);
     let candidate = crate::seating::solve(&project, None, 0, web_time::Duration::from_millis(400))
         .expect("seating");
@@ -1185,7 +1166,7 @@ fn people_without_wishes_stay_off_table_ends() {
     assert!(result.policy.lone_at_ends.is_empty());
 
     // Turned off, nothing counts.
-    project.policy.lone_end_penalty = 0;
+    project.policy.table_ends = TableEnds::Indifferent;
     let mut ends = candidate.assignment.clone();
     ends.insert(4, candidate.assignment[&0].clone());
     ends.insert(0, candidate.assignment[&4].clone());
@@ -1244,6 +1225,7 @@ pub(crate) fn two_tables() -> Project {
                 label: format!("Table {i}"),
                 left: 2,
                 right: 2,
+                shape: TableShape::Long,
             })
             .collect(),
     });
@@ -1300,6 +1282,7 @@ fn long_table_group() -> Project {
             label: "Table".into(),
             left: 8,
             right: 8,
+            shape: TableShape::Long,
         }],
     });
     project.add_preference(
@@ -1410,13 +1393,14 @@ fn solver_moves_a_group_next_to_a_pinned_person() {
                 label: format!("Table {i}"),
                 left: 4,
                 right: 4,
+                shape: TableShape::Long,
             })
             .collect(),
     });
     project.pin(0, Pin::Seat("t1:left:0".into()));
     // About moving groups; keeping people without wishes off the ends
     // would trade against the wishes here.
-    project.policy.lone_end_penalty = 0;
+    project.policy.table_ends = TableEnds::Indifferent;
     let wish = |project: &mut Project, from: usize, to: usize| {
         let id = project.next_rule_id();
         project.rules.push(crate::import::wish_rule(
@@ -1465,6 +1449,7 @@ fn report_score_matches_solver_score() {
                 label: format!("Table {i}"),
                 left: 7,
                 right: 7,
+                shape: TableShape::Long,
             })
             .collect(),
     });

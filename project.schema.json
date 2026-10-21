@@ -55,12 +55,11 @@
       "$ref": "#/$defs/SeatingPolicy",
       "default": {
         "empty_seats": "TableBottoms",
-        "isolation_penalty": 400,
-        "left_out_penalty": 300,
-        "lone_end_penalty": 100,
+        "one_wish": "Preferred",
         "organization": "Indifferent",
-        "organization_weight": 15,
-        "sprinkle": 10
+        "sitting_alone": "Avoid",
+        "table_ends": "GroupsOnly",
+        "without_wishes": "AmongGroups"
       }
     },
     "preferences": {
@@ -146,18 +145,6 @@
           "additionalProperties": false,
           "required": [
             "RowCenter"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "Tag": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Tag"
           ]
         }
       ]
@@ -482,28 +469,23 @@
           "type": "boolean",
           "default": false
         },
-        "relations": {
-          "type": "array",
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/SeatRelation"
-          }
+        "room": {
+          "description": "The room's walls in the free layout, to see how the tables fit.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoomOutline"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "rows": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/RowSpec"
           }
-        },
-        "seat_tags": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "default": {}
         },
         "table_positions": {
           "type": "object",
@@ -515,6 +497,14 @@
       },
       "required": [
         "rows"
+      ]
+    },
+    "OneWish": {
+      "type": "string",
+      "enum": [
+        "Important",
+        "Preferred",
+        "Indifferent"
       ]
     },
     "OrganizationMixing": {
@@ -643,6 +633,34 @@
           "type": "string",
           "const": "same_as_app"
         }
+      ]
+    },
+    "RoomOutline": {
+      "description": "A rectangle around the tables, in the same units as table positions.",
+      "type": "object",
+      "properties": {
+        "height": {
+          "type": "number",
+          "format": "float"
+        },
+        "width": {
+          "type": "number",
+          "format": "float"
+        },
+        "x": {
+          "type": "number",
+          "format": "float"
+        },
+        "y": {
+          "type": "number",
+          "format": "float"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
       ]
     },
     "RowSpec": {
@@ -817,69 +835,48 @@
         }
       ]
     },
-    "SeatRelation": {
-      "type": "object",
-      "properties": {
-        "a": {
-          "type": "string"
-        },
-        "b": {
-          "type": "string"
-        },
-        "class": {
-          "$ref": "#/$defs/DistanceClass"
-        }
-      },
-      "required": [
-        "a",
-        "b",
-        "class"
-      ]
-    },
     "SeatingPolicy": {
-      "description": "Global rules for everyone, mainly shaping where unconstrained attendees sit.\nWeights use the same scale as rule penalties (see [`WishKind::far_penalty`]).",
+      "description": "Global rules for everyone, mainly shaping where unconstrained attendees sit.",
       "type": "object",
       "properties": {
         "empty_seats": {
           "$ref": "#/$defs/EmptySeatPlacement",
           "default": "TableBottoms"
         },
-        "isolation_penalty": {
-          "description": "Cost for anyone with nobody beside or opposite them.",
-          "type": "integer",
-          "format": "int64",
-          "default": 400
-        },
-        "left_out_penalty": {
-          "description": "Extra cost for anyone with wishes of whom none is beside, opposite or\ndiagonal to them, so no\none loses all their wishes to save a little elsewhere.",
-          "type": "integer",
-          "format": "int64",
-          "default": 300
-        },
-        "lone_end_penalty": {
-          "description": "Cost for someone who neither wishes for anyone nor is wished for (nor\nis in a group) sitting at a table end, where they have the fewest\npeople to talk to; groups take the ends instead.",
-          "type": "integer",
-          "format": "int64",
-          "default": 100
+        "one_wish": {
+          "description": "How much it matters that everyone with wishes has one of them nearby.",
+          "$ref": "#/$defs/OneWish",
+          "default": "Preferred"
         },
         "organization": {
           "description": "Whether unconstrained attendees should sit with their own organization.",
           "$ref": "#/$defs/OrganizationMixing",
           "default": "Indifferent"
         },
-        "organization_weight": {
-          "description": "Cost per beside/opposite pair that goes against `organization`.",
-          "type": "integer",
-          "format": "int64",
-          "default": 15
+        "sitting_alone": {
+          "description": "How much it matters that nobody sits with nobody beside or opposite.",
+          "$ref": "#/$defs/SittingAlone",
+          "default": "Avoid"
         },
-        "sprinkle": {
-          "description": "Positive: spread unconstrained attendees among wish groups (cost per pair of\nadjacent unconstrained attendees). Negative: keep them apart from wish groups\n(cost per unconstrained attendee adjacent to a constrained one).",
-          "type": "integer",
-          "format": "int64",
-          "default": 10
+        "table_ends": {
+          "description": "Whether table ends are kept for groups.",
+          "$ref": "#/$defs/TableEnds",
+          "default": "GroupsOnly"
+        },
+        "without_wishes": {
+          "description": "Whether people without wishes sit among wish groups or apart from them.",
+          "$ref": "#/$defs/WithoutWishes",
+          "default": "AmongGroups"
         }
       }
+    },
+    "SittingAlone": {
+      "type": "string",
+      "enum": [
+        "Never",
+        "Avoid",
+        "Indifferent"
+      ]
     },
     "SolverStatus": {
       "description": "How an option came about, stored as data and put into words in the\ncurrent language when shown.",
@@ -1030,9 +1027,23 @@
         }
       ]
     },
+    "TableEnds": {
+      "type": "string",
+      "enum": [
+        "GroupsOnly",
+        "Indifferent"
+      ]
+    },
     "TablePosition": {
+      "description": "Where a table stands: its centre, and how far it is turned.",
       "type": "object",
       "properties": {
+        "rotation": {
+          "description": "Degrees clockwise.",
+          "type": "number",
+          "format": "float",
+          "default": 0.0
+        },
         "x": {
           "type": "number",
           "format": "float"
@@ -1045,6 +1056,14 @@
       "required": [
         "x",
         "y"
+      ]
+    },
+    "TableShape": {
+      "description": "A long table has seats down two sides. A round table has the same seats\naround it: the right side clockwise from the top, the left side on back up.",
+      "type": "string",
+      "enum": [
+        "long",
+        "round"
       ]
     },
     "TableSpec": {
@@ -1067,6 +1086,10 @@
           "type": "integer",
           "format": "uint",
           "minimum": 0
+        },
+        "shape": {
+          "$ref": "#/$defs/TableShape",
+          "default": "long"
         }
       },
       "required": [
@@ -1165,6 +1188,14 @@
           "type": "string",
           "const": "Seating"
         }
+      ]
+    },
+    "WithoutWishes": {
+      "type": "string",
+      "enum": [
+        "AmongGroups",
+        "ApartFromGroups",
+        "Indifferent"
       ]
     }
   }

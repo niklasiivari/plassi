@@ -3,12 +3,17 @@ use std::collections::HashSet;
 
 use eframe::egui::{self, RichText};
 
-use crate::model::{DistanceClass, RowSpec, Seat, SeatRelation, TableSpec};
+use crate::model::{RowSpec, TableShape, TableSpec};
 
 use super::PlassiApp;
 use super::theme::{self, Palette};
 
+mod footprint;
+mod free_page;
 mod layout_canvas;
+mod outline;
+mod table_editor;
+mod turn_handle;
 
 const TABLE_CARD_WIDTH: f32 = 192.0 + 2.0 * theme::space::M;
 
@@ -18,14 +23,6 @@ pub(super) struct RoomState {
     pub(super) quick_seats: usize,
     pub(super) quick_columns: usize,
     canvas: layout_canvas::LayoutCanvas,
-    /// Seat whose tags are being edited.
-    pub(super) selected_seat: String,
-    pub(super) new_tag: String,
-    pub(super) relation_a: String,
-    pub(super) relation_b: String,
-    pub(super) relation_class: DistanceClass,
-    /// TSV path for replacing the project.
-    pub(super) import_input: String,
 }
 
 impl Default for RoomState {
@@ -35,12 +32,6 @@ impl Default for RoomState {
             quick_seats: 15,
             quick_columns: 4,
             canvas: Default::default(),
-            selected_seat: String::new(),
-            new_tag: String::new(),
-            relation_a: String::new(),
-            relation_b: String::new(),
-            relation_class: DistanceClass::Beside,
-            import_input: "data/data.tsv".into(),
         }
     }
 }
@@ -71,24 +62,17 @@ impl PlassiApp {
         }
         ui.add_space(theme::space::XL);
         let mut edit = RoomEdit::default();
-        if !self.project.layout.free_layout {
-            edit.geometry |= self.quick_setup(ui, p);
-        }
+        edit.geometry |= self.quick_setup(ui, p);
         ui.add_space(theme::space::S);
-        edit.merge(self.layout_controls(ui, p));
-        if self.project.layout.free_layout {
-            edit.merge(self.layout_canvas(ui, p));
-            ui.add_space(theme::space::M);
-        } else {
-            edit.merge(self.row_cards(ui, p));
-        }
+        edit.merge(self.layout_controls(ui));
+        edit.merge(self.row_cards(ui, p));
         ui.add_space(theme::space::L);
-        egui::CollapsingHeader::new(RichText::new(tr("Advanced: tags and distances")).strong())
-            .id_salt("advanced-room")
-            .show(ui, |ui| edit.labels |= self.advanced_room(ui, p));
-        ui.add_space(theme::space::S);
-        self.replace_from_tsv(ui, p);
+        self.room_problem(ui, p);
         self.save_room(edit);
+    }
+
+    /// What is wrong with the room, if anything.
+    fn room_problem(&self, ui: &mut egui::Ui, p: Palette) {
         if let Err(error) = self.project.validate() {
             ui.colored_label(
                 p.warn,
@@ -106,7 +90,7 @@ impl PlassiApp {
             p,
             crate::app::help::HelpPage::Room,
             tr("Room layout"),
-            Some(tr("Long tables with seats on both sides.")),
+            None,
         );
         ui.horizontal_wrapped(|ui| {
             theme::pill(ui, fill("{} seats", &[&seats]), p.text, p.surface_hi);
@@ -244,26 +228,6 @@ impl PlassiApp {
         edit
     }
 
-    fn replace_from_tsv(&mut self, ui: &mut egui::Ui, p: Palette) {
-        if cfg!(target_arch = "wasm32") {
-            return;
-        }
-        egui::CollapsingHeader::new(RichText::new(tr("Replace project from TSV")).strong())
-            .id_salt("import-room")
-            .show(ui, |ui| {
-                ui.label(
-                    RichText::new(tr("Replaces the entire project. To update people, use Import on People & wishes."))
-                        .color(p.warn),
-                );
-                ui.horizontal_wrapped(|ui| {
-                    ui.text_edit_singleline(&mut self.room.import_input);
-                    if ui.button(tr("Import TSV")).clicked() {
-                        self.import_tsv();
-                    }
-                });
-            });
-    }
-
     fn save_room(&mut self, edit: RoomEdit) {
         if edit.geometry {
             let ids: HashSet<_> = self
@@ -286,116 +250,6 @@ impl PlassiApp {
         } else if edit.labels {
             self.commit(tr("Saved room layout"));
         }
-    }
-
-    /// Returns whether anything changed.
-    fn advanced_room(&mut self, ui: &mut egui::Ui, p: Palette) -> bool {
-        let seats = self.project.layout.seats();
-        if seats.is_empty() {
-            ui.label(RichText::new(tr("Add tables first.")).color(p.muted));
-            return false;
-        }
-        let tags = self.tag_editor(ui, p, &seats);
-        ui.add_space(theme::space::S);
-        tags | self.relation_editor(ui, p, &seats)
-    }
-
-    /// Tags on one seat, for placement rules.
-    fn tag_editor(&mut self, ui: &mut egui::Ui, p: Palette, seats: &[Seat]) -> bool {
-        if self.room.selected_seat.is_empty() {
-            self.room.selected_seat = seats[0].id.clone();
-        }
-        theme::hint(ui, p, tr("Mark special seats, e.g. accessible or aisle."));
-        let mut changed = false;
-        ui.horizontal_wrapped(|ui| {
-            seat_picker(ui, "tag-seat", &mut self.room.selected_seat, seats);
-            if let Some(tags) = self
-                .project
-                .layout
-                .seat_tags
-                .get_mut(&self.room.selected_seat)
-            {
-                tags.retain(|tag| {
-                    let keep = !ui.add(theme::tag_button(tag)).clicked();
-                    changed |= !keep;
-                    keep
-                });
-            }
-            ui.add(
-                theme::field(&mut self.room.new_tag)
-                    .hint_text(tr("new tag"))
-                    .desired_width(120.0),
-            );
-            let tag = self.room.new_tag.trim().to_owned();
-            if ui.button(tr("Add tag")).clicked() && !tag.is_empty() {
-                let tags = self
-                    .project
-                    .layout
-                    .seat_tags
-                    .entry(self.room.selected_seat.clone())
-                    .or_default();
-                if !tags.contains(&tag) {
-                    tags.push(tag);
-                    changed = true;
-                }
-                self.room.new_tag.clear();
-            }
-        });
-        self.project
-            .layout
-            .seat_tags
-            .retain(|_, tags| !tags.is_empty());
-        changed
-    }
-
-    /// Hand-set distances between two seats.
-    fn relation_editor(&mut self, ui: &mut egui::Ui, p: Palette, seats: &[Seat]) -> bool {
-        if self.room.relation_a.is_empty() {
-            self.room.relation_a = seats[0].id.clone();
-        }
-        if self.room.relation_b.is_empty() {
-            self.room.relation_b = seats[seats.len() - 1].id.clone();
-        }
-        theme::hint(ui, p, tr("Set a custom distance between two seats."));
-        let mut changed = false;
-        ui.horizontal_wrapped(|ui| {
-            seat_picker(ui, "relation-a", &mut self.room.relation_a, seats);
-            seat_picker(ui, "relation-b", &mut self.room.relation_b, seats);
-            theme::combo("relation-class", self.room.relation_class.label()).show_ui(ui, |ui| {
-                for class in DistanceClass::ALL {
-                    ui.value(&mut self.room.relation_class, class, class.label());
-                }
-            });
-            let (a, b) = (&self.room.relation_a, &self.room.relation_b);
-            if ui.button(tr("Save distance")).clicked() && a != b {
-                self.project
-                    .layout
-                    .relations
-                    .retain(|r| !same_pair(&r.a, &r.b, a, b));
-                self.project.layout.relations.push(SeatRelation {
-                    a: a.clone(),
-                    b: b.clone(),
-                    class: self.room.relation_class,
-                });
-                changed = true;
-            }
-        });
-        self.project.layout.relations.retain(|relation| {
-            let keep = ui
-                .horizontal(|ui| {
-                    ui.label(format!(
-                        "{} ↔ {}: {}",
-                        relation.a,
-                        relation.b,
-                        relation.class.label()
-                    ));
-                    !ui.add(theme::ghost_button(tr("Remove"), p)).clicked()
-                })
-                .inner;
-            changed |= !keep;
-            keep
-        });
-        changed
     }
 }
 
@@ -462,12 +316,16 @@ fn row_card(
 fn add_table(row: &mut RowSpec, table_ids: &[String]) {
     let used = table_ids.iter().chain(row.tables.iter().map(|t| &t.id));
     let id = next_id("table", used.map(String::as_str));
-    let (left, right) = row.tables.last().map_or((8, 8), |t| (t.left, t.right));
+    let (left, right, shape) = row
+        .tables
+        .last()
+        .map_or((8, 8, TableShape::Long), |t| (t.left, t.right, t.shape));
     row.tables.push(TableSpec {
         label: fill("Table {}", &[&(table_ids.len() + 1)]),
         id,
         left,
         right,
+        shape,
     });
 }
 
@@ -516,23 +374,7 @@ fn table_card(
                     if target != row_id {
                         *move_table = Some((table.id.clone(), target));
                     }
-                    ui.horizontal_wrapped(|ui| {
-                        table_preview(ui, p, table.left, table.right);
-                        ui.vertical(|ui| {
-                            ui.label(
-                                RichText::new(tr("Left"))
-                                    .size(theme::text::CAPTION)
-                                    .color(p.muted),
-                            );
-                            edit.geometry |= stepper(ui, &mut table.left);
-                            ui.label(
-                                RichText::new(tr("Right"))
-                                    .size(theme::text::CAPTION)
-                                    .color(p.muted),
-                            );
-                            edit.geometry |= stepper(ui, &mut table.right);
-                        });
-                    });
+                    edit.geometry |= seat_controls(ui, p, table);
                 });
             },
         );
@@ -556,8 +398,65 @@ fn stepper(ui: &mut egui::Ui, value: &mut usize) -> bool {
     *value != before
 }
 
-/// Tiny vertical drawing of a table with its seats.
-fn table_preview(ui: &mut egui::Ui, p: Palette, left: usize, right: usize) {
+/// Long or round, and the seats: per side down a long table, in total
+/// around a round one.
+fn seat_controls(ui: &mut egui::Ui, p: Palette, table: &mut TableSpec) -> bool {
+    let mut changed = false;
+    ui.horizontal(|ui| {
+        for (shape, label) in [
+            (TableShape::Long, tr("Long")),
+            (TableShape::Round, tr("Round")),
+        ] {
+            changed |= ui
+                .selectable_value(&mut table.shape, shape, label)
+                .changed();
+        }
+    });
+    let caption = |ui: &mut egui::Ui, text: &str| {
+        ui.label(
+            RichText::new(text)
+                .size(theme::text::CAPTION)
+                .color(p.muted),
+        );
+    };
+    ui.horizontal_wrapped(|ui| {
+        table_preview(ui, p, table);
+        ui.vertical(|ui| match table.shape {
+            TableShape::Long => {
+                caption(ui, tr("Left"));
+                changed |= ui.push_id("left", |ui| stepper(ui, &mut table.left)).inner;
+                caption(ui, tr("Right"));
+                changed |= ui
+                    .push_id("right", |ui| stepper(ui, &mut table.right))
+                    .inner;
+            }
+            TableShape::Round => {
+                caption(ui, tr("Seats"));
+                let mut seats = table.left + table.right;
+                if ui.push_id("seats", |ui| stepper(ui, &mut seats)).inner {
+                    (table.left, table.right) = (seats.div_ceil(2), seats / 2);
+                    changed = true;
+                }
+            }
+        });
+    });
+    changed
+}
+
+/// Tiny drawing of a table with its seats.
+fn table_preview(ui: &mut egui::Ui, p: Palette, table: &TableSpec) {
+    if table.shape == TableShape::Round {
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(44.0, 44.0), egui::Sense::hover());
+        let seats = table.left + table.right;
+        ui.painter().circle_filled(rect.center(), 12.0, p.table);
+        for i in 0..seats {
+            let angle = (i as f32 + 0.5) / seats as f32 * std::f32::consts::TAU;
+            let at = rect.center() + 18.0 * egui::vec2(angle.sin(), -angle.cos());
+            ui.painter().circle_filled(at, 2.2, p.accent);
+        }
+        return;
+    }
+    let (left, right) = (table.left, table.right);
     let rows = left.max(right).max(1);
     let pitch = (90.0 / rows as f32).min(9.0);
     let height = (rows as f32 * pitch + 8.0).max(40.0);
@@ -582,20 +481,6 @@ fn next_id<'a>(prefix: &str, existing: impl Iterator<Item = &'a str>) -> String 
         .map(|index| format!("{prefix}-{index}"))
         .find(|id| !used.contains(id.as_str()))
         .unwrap()
-}
-
-fn seat_picker(ui: &mut egui::Ui, salt: &str, selected: &mut String, seats: &[Seat]) {
-    theme::combo(salt, selected.as_str())
-        .height(300.0)
-        .show_ui(ui, |ui| {
-            for seat in seats {
-                ui.value(selected, seat.id.clone(), &seat.id);
-            }
-        });
-}
-
-fn same_pair(a: &str, b: &str, c: &str, d: &str) -> bool {
-    (a == c && b == d) || (a == d && b == c)
 }
 
 /// The status after a room change, saying what it took away: counted in

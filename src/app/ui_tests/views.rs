@@ -283,50 +283,6 @@ fn a_very_long_table_shows_its_summary() {
 }
 
 #[test]
-fn a_wish_made_close_by_a_seat_relation_does_not_leave_the_table() {
-    use crate::model::{DistanceClass, SeatRelation, WishKind};
-    let mut ui = solved();
-    let tables: Vec<String> = ui.app().project.layout.rows[0]
-        .tables
-        .iter()
-        .map(|t| t.id.clone())
-        .collect();
-    let (seat_a, seat_b) = (
-        format!("{}:right:0", tables[0]),
-        format!("{}:left:0", tables[1]),
-    );
-    let on = |ui: &Ui, seat: &str| {
-        *ui.option()
-            .assignment
-            .iter()
-            .find(|(_, s)| *s == seat)
-            .unwrap()
-            .0
-    };
-    let (from, to) = (on(&ui, &seat_a), on(&ui, &seat_b));
-    let app = ui.app_mut();
-    let id = app.project.next_rule_id();
-    let wish = crate::import::wish_rule(id, from, vec![to], WishKind::Seating, "test");
-    app.project.rules.push(wish);
-    // The two seats face each other across the aisle between the tables.
-    app.project.layout.relations.push(SeatRelation {
-        a: seat_a,
-        b: seat_b,
-        class: DistanceClass::Opposite,
-    });
-    app.commit("Added a wish across the aisle");
-    ui.settle();
-    let point = ui.app().table_on_screen(&tables[0]).unwrap();
-    ui.click_at(point, PointerButton::Primary, Modifiers::NONE);
-    assert!(ui.has_text("seats taken"), "{:?}", ui.dump());
-    assert!(
-        !ui.dump().iter().any(|t| t.contains('→')),
-        "{:?}",
-        ui.dump()
-    );
-}
-
-#[test]
 fn a_table_summary_does_not_come_back_after_someone_is_deselected() {
     let mut ui = solved();
     let table = first_table(&ui);

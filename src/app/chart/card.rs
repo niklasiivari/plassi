@@ -2,13 +2,11 @@
 
 use super::*;
 
-/// World-space rectangle of the card drawn for a seat.
+pub(super) use crate::app::turned::seat_card as card_turned;
+
+/// World-space bounds of the card drawn for a seat.
 pub(super) fn card_rect(seat: &Seat) -> Rect {
-    let dx = match seat.side {
-        Side::Left => -CARD_OFFSET,
-        Side::Right => CARD_OFFSET,
-    };
-    Rect::from_center_size(Pos2::new(seat.x + dx, seat.y), Vec2::new(CARD_W, CARD_H))
+    card_turned(seat).bounds()
 }
 
 pub(super) fn initials(name: &str) -> String {

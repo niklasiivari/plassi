@@ -60,14 +60,14 @@ impl Ends {
         }
         let lone = lone_people(project, index);
         let lone_penalty = if lone.contains(&true) {
-            project.policy.lone_end_penalty
+            project.policy.lone_end_penalty()
         } else {
             0
         };
         let beside = if terms.is_empty() && lone_penalty == 0 {
             vec![Vec::new(); seats.len()]
         } else {
-            beside_lists(&project.layout, seats)
+            beside_lists(seats)
         };
         let reach = (0..seats.len())
             .map(|s| {

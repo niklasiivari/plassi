@@ -17,6 +17,8 @@ pub(in crate::app) struct CategoriesState {
     kind: Kind,
     new_name: String,
     mapping_search: String,
+    /// Suggested merges, by project revision and kind.
+    merges: crate::app::memo::Memo<(u64, Kind), Vec<crate::catalog::Merge>>,
 }
 
 impl Default for CategoriesState {
@@ -25,6 +27,7 @@ impl Default for CategoriesState {
             kind: Kind::Organization,
             new_name: String::new(),
             mapping_search: String::new(),
+            merges: Default::default(),
         }
     }
 }
@@ -60,11 +63,12 @@ impl PlassiApp {
     fn kind_tabs(&mut self, ui: &mut egui::Ui, p: Palette) {
         ui.horizontal_wrapped(|ui| {
             for kind in Kind::ALL {
+                let lookup = self.project.catalog.lookup(kind);
                 let unmapped = self
                     .project
                     .spellings(kind)
                     .iter()
-                    .filter(|(s, _)| self.project.catalog.find(kind, s).is_none())
+                    .filter(|(s, _)| lookup.find_all(s).is_empty())
                     .count();
                 let active = self.categories.kind == kind;
                 let mut label = egui::text::LayoutJob::default();
@@ -107,11 +111,6 @@ impl PlassiApp {
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(RichText::new(label).strong().size(theme::text::LEAD));
-            theme::hint(
-                ui,
-                p,
-                tr("Create a category even if nobody entered its name on the sign-up sheet."),
-            );
             ui.add_space(theme::space::S);
             let name = &mut self.categories.new_name;
             let key = crate::catalog::normalize(name);

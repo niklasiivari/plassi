@@ -39,14 +39,6 @@ impl Project {
         if self.notes.iter().any(|note| !people.contains(&note.person)) {
             return Err(anyhow!(tr("Note refers to a missing person")));
         }
-        if !(0..=100).contains(&self.policy.organization_weight)
-            || !(-50..=50).contains(&self.policy.sprinkle)
-            || !(0..=2_000).contains(&self.policy.isolation_penalty)
-            || !(0..=2_000).contains(&self.policy.left_out_penalty)
-            || !(0..=2_000).contains(&self.policy.lone_end_penalty)
-        {
-            bail!(tr("Seating policy value out of range"));
-        }
         for candidate in &self.candidates {
             candidate.validate(&people)?;
         }
@@ -134,13 +126,14 @@ impl Project {
         }
 
         let pairs = people.saturating_mul(people.saturating_sub(1)) / 2;
+        let policy = &self.policy;
         let policy_pair =
-            i128::from(self.policy.organization_weight) + i128::from(self.policy.sprinkle).abs();
+            i128::from(policy.organization_weight()) + i128::from(policy.sprinkle()).abs();
         soft = soft
             .saturating_add(pairs.saturating_mul(policy_pair))
-            .saturating_add(people.saturating_mul(i128::from(self.policy.isolation_penalty)))
-            .saturating_add(people.saturating_mul(i128::from(self.policy.left_out_penalty)))
-            .saturating_add(people.saturating_mul(i128::from(self.policy.lone_end_penalty)))
+            .saturating_add(people.saturating_mul(i128::from(policy.isolation_penalty())))
+            .saturating_add(people.saturating_mul(i128::from(policy.left_out_penalty())))
+            .saturating_add(people.saturating_mul(i128::from(policy.lone_end_penalty())))
             .saturating_add(people.saturating_mul(5_000));
         (soft, hard)
     }
@@ -184,7 +177,7 @@ struct LayoutIds<'a> {
 }
 
 impl Layout {
-    /// Checks ID uniqueness, custom seat geometry, tags and relations.
+    /// Checks ID uniqueness and seat geometry.
     fn validate(&self) -> Result<LayoutIds<'_>> {
         let mut rows = HashSet::new();
         let mut tables = HashSet::new();
@@ -209,48 +202,28 @@ impl Layout {
             }
         }
         for (id, position) in &self.table_positions {
-            if !position.x.is_finite() || !position.y.is_finite() {
+            if ![position.x, position.y, position.rotation]
+                .iter()
+                .all(|v| v.is_finite())
+            {
                 bail!("Invalid position for table {id}");
             }
+        }
+        if let Some(room) = self.room
+            && !(room.width > 0.0 && room.height > 0.0 && room.x.is_finite() && room.y.is_finite())
+        {
+            bail!("Invalid room outline");
         }
         let all_seats = self.seats();
         let seats: HashSet<String> = all_seats.iter().map(|s| s.id.clone()).collect();
         if seats.len() != all_seats.len() {
             bail!(tr("Duplicate seat ID"));
         }
-        if let Some(id) = self.seat_tags.keys().find(|id| !seats.contains(*id)) {
-            bail!(fill("Tags refer to missing seat {}", &[&id]));
-        }
-        self.validate_relations(&seats)?;
         Ok(LayoutIds {
             rows,
             tables,
             seats,
         })
-    }
-
-    fn validate_relations(&self, seats: &HashSet<String>) -> Result<()> {
-        let mut pairs = HashSet::new();
-        for relation in &self.relations {
-            if relation.a == relation.b
-                || !seats.contains(&relation.a)
-                || !seats.contains(&relation.b)
-            {
-                bail!(fill(
-                    "Distance needs two different existing seats: {} / {}",
-                    &[&relation.a, &relation.b]
-                ));
-            }
-            let mut pair = [relation.a.as_str(), relation.b.as_str()];
-            pair.sort();
-            if !pairs.insert(pair) {
-                bail!(fill(
-                    "Duplicate seat distance: {} / {}",
-                    &[&relation.a, &relation.b]
-                ));
-            }
-        }
-        Ok(())
     }
 }
 

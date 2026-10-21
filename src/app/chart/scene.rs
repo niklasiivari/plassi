@@ -5,6 +5,8 @@ use super::*;
 /// Everything the chart needs for one frame, derived from the project.
 pub(super) struct Scene {
     pub(super) seats: Vec<Seat>,
+    /// The top of each table with seats, by table ID.
+    pub(super) tops: HashMap<String, TableTop>,
     /// Each seat's index in `seats`, by seat ID.
     seat_index: HashMap<String, usize>,
     pub(super) occupant: HashMap<String, usize>,
@@ -37,6 +39,7 @@ impl Scene {
         evaluation: Option<std::rc::Rc<Evaluation>>,
     ) -> Self {
         let seats = project.layout.seats();
+        let tops = table_tops(project, &seats);
         let option = candidate.and_then(|i| project.candidates.get(i));
         let assignment = option.map(|c| c.assignment.clone()).unwrap_or_default();
         let loose: BTreeMap<usize, Pos2> = option
@@ -95,6 +98,7 @@ impl Scene {
             .collect();
         Self {
             seats,
+            tops,
             seat_index,
             occupant,
             seat_of: assignment.into_iter().collect(),
@@ -112,9 +116,18 @@ impl Scene {
 
     /// World centre of a person's card: on their seat, or where they were left.
     pub(super) fn card_centre(&self, person: usize) -> Option<Pos2> {
+        self.card_of(person).map(|card| card.centre)
+    }
+
+    /// A person's card: on their seat, or upright where they were left.
+    pub(super) fn card_of(&self, person: usize) -> Option<Turned> {
         match self.seat_of.get(&person) {
-            Some(id) => self.seat(id).map(|s| card_rect(s).center()),
-            None => self.loose.get(&person).copied(),
+            Some(id) => self.seat(id).map(card_turned),
+            None => self.loose.get(&person).map(|&centre| Turned {
+                centre,
+                size: Vec2::new(CARD_W, CARD_H),
+                angle: 0.0,
+            }),
         }
     }
 
@@ -133,7 +146,7 @@ impl Scene {
 
     /// The seat whose card covers a world point.
     pub(super) fn seat_at(&self, world: Pos2) -> Option<&Seat> {
-        self.seats.iter().find(|s| card_rect(s).contains(world))
+        self.seats.iter().find(|s| card_turned(s).contains(world))
     }
 
     /// The pin mark shown on a person's card.
@@ -191,4 +204,21 @@ pub(in crate::app) fn total_score(
 ) -> (i64, usize) {
     let evaluation = score::evaluate_with(scorer, project, assignment);
     (evaluation.penalty(), evaluation.hard_violations)
+}
+
+/// The top of each table with seats, reaching past its end seats' cards.
+fn table_tops(project: &Project, seats: &[Seat]) -> HashMap<String, TableTop> {
+    let frames = project.layout.table_frames();
+    let seated: HashSet<&str> = seats.iter().map(|s| s.table_id.as_str()).collect();
+    project
+        .layout
+        .rows
+        .iter()
+        .flat_map(|r| &r.tables)
+        .filter(|t| seated.contains(t.id.as_str()))
+        .map(|t| {
+            let top = TableTop::new(t, frames[&t.id], CARD_H / 2.0 + 6.0);
+            (t.id.clone(), top)
+        })
+        .collect()
 }

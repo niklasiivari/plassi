@@ -86,7 +86,7 @@ fn table_row_selector_keeps_seating_and_free_canvas_drag_is_saved() {
 
 #[test]
 fn free_canvas_has_local_editing_and_adds_tables_at_the_context_click() {
-    use crate::model::{SEAT_PITCH, TABLE_SPAN};
+    use crate::model::TABLE_SPAN;
     use egui::PointerButton;
     let mut ui = Ui::with_example();
     ui.go_to("Room layout");
@@ -103,11 +103,8 @@ fn free_canvas_has_local_editing_and_adds_tables_at_the_context_click() {
     ui.click("Deselect");
     ui.click("Snap to grid");
     let table = &ui.app().project.layout.rows[0].tables[0];
-    let at = ui.app().project.layout.table_origins()[&table.id];
-    let middle = egui::pos2(
-        at.x + TABLE_SPAN / 2.0,
-        at.y + (table.left.max(table.right) - 1) as f32 * SEAT_PITCH / 2.0,
-    );
+    let at = ui.app().project.layout.table_frames()[&table.id];
+    let middle = egui::pos2(at.x, at.y);
     let table_rect = ui.node("Move Table 1").rect();
     let zoom = (table_rect.width() - 16.0) / TABLE_SPAN;
     let canvas = ui.node("Room canvas").rect();
@@ -173,4 +170,82 @@ fn free_canvas_has_local_editing_and_adds_tables_at_the_context_click() {
         let panel = ui.node("Remove table").rect();
         assert!(panel.right() <= width && panel.left() >= 0.0, "{panel:?}");
     }
+}
+
+#[test]
+fn free_tables_turn_become_round_and_warn_when_their_cards_overlap() {
+    use crate::model::{TablePosition, TableShape};
+    let mut ui = Ui::with_example();
+    // Tall enough that the table editor is never pushed up to stay on screen.
+    ui.h.set_size(egui::vec2(1440.0, 1400.0));
+    ui.go_to("Room layout");
+    ui.click("Free layout");
+    ui.click("Move Table 1");
+    let editor = ui.node("Table name").rect();
+    ui.click("Round");
+    // The editor stays where it opened while the table changes shape and turns.
+    assert_eq!(ui.node("Table name").rect(), editor);
+    let table = |ui: &Ui| ui.app().project.layout.rows[0].tables[0].clone();
+    assert_eq!(table(&ui).shape, TableShape::Round);
+    ui.key(Modifiers::NONE, Key::R);
+    assert_eq!(
+        ui.app().project.layout.table_positions["table-1"].rotation,
+        45.0
+    );
+    assert_eq!(ui.node("Table name").rect(), editor);
+    ui.key(Modifiers::SHIFT, Key::R);
+    ui.key(Modifiers::SHIFT, Key::R);
+    assert_eq!(
+        ui.app().project.layout.table_positions["table-1"].rotation,
+        315.0
+    );
+    ui.click("Long");
+    assert_eq!(table(&ui).shape, TableShape::Long);
+    // Dragging the handle to the right of the centre points the table's top there.
+    let handle = ui.node("Turn Table 1").rect().center();
+    let centre = ui.node("Move Table 1").rect().center();
+    let right = centre + egui::vec2(centre.distance(handle), 0.0);
+    ui.drag(handle, right);
+    assert_eq!(
+        ui.app().project.layout.table_positions["table-1"].rotation,
+        90.0
+    );
+    ui.key(Modifiers::COMMAND, Key::Z);
+    assert_eq!(
+        ui.app().project.layout.table_positions["table-1"].rotation,
+        315.0
+    );
+    // Slanted, the long table reaches into its neighbour's cards.
+    assert!(ui.has_text("overlap another table"));
+    ui.key(Modifiers::NONE, Key::R);
+    assert_eq!(
+        ui.app().project.layout.table_positions["table-1"].rotation,
+        0.0
+    );
+    ui.click("Deselect");
+    assert!(!ui.has_text("Name cards overlap"));
+    let first = ui.app().project.layout.table_positions["table-1"];
+    let next = TablePosition {
+        x: first.x + 120.0,
+        ..first
+    };
+    let id = ui.app().project.layout.rows[0].tables[1].id.clone();
+    ui.app_mut().project.layout.table_positions.insert(id, next);
+    ui.settle();
+    assert!(ui.has_text("Name cards overlap"));
+
+    ui.click("Room walls");
+    let room = ui
+        .app()
+        .project
+        .layout
+        .room
+        .expect("walls around the tables");
+    assert!(room.width > 0.0 && room.height > 0.0);
+    let disk: crate::model::Project =
+        crate::io::parse(&ui.app().file.store.read().unwrap()).unwrap();
+    assert_eq!(disk.layout.room, Some(room));
+    assert!(ui.has("Resize room walls"));
+    ui.click("Room walls");
+    assert!(ui.app().project.layout.room.is_none());
 }

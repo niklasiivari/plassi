@@ -7,17 +7,9 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Back to people", "Takaisin henkilöihin"),
     ("Price", "Hinta"),
     ("Print mark", "Merkintä"),
-    (
-        "Shown on the kitchen and bar prints, e.g. VG or 0 %. The most common choice is left unmarked.",
-        "Näkyy keittiö- ja baaritulosteissa, esim. VE tai 0 %. Yleisin valinta jätetään merkitsemättä.",
-    ),
     ("Not set", "Ei määritetty"),
     ("Custom price", "Oma hinta"),
     (" (custom)", " (oma hinta)"),
-    (
-        "Added to the ticket total. Use 0 if included.",
-        "Lisätään lipun hintaan. Aseta hinnaksi 0, jos valinta sisältyy lippuun.",
-    ),
     (
         "Stored only in this browser on this device. No accounts, tracking or cookies.",
         "Tiedot tallennetaan vain tämän laitteen selaimeen. Ei käyttäjätilejä, seurantaa tai evästeitä.",
@@ -110,10 +102,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Palautettiin versio ajalta {}",
     ),
     ("Could not restore: {}", "Palautus epäonnistui: {}"),
-    (
-        "No versions yet. Saved every few minutes while editing.",
-        "Ei vielä aiempia versioita. Muokkauksen aikana tallennetaan versio muutaman minuutin välein.",
-    ),
     ("{} people, {} options", "{} henkilöä, {} vaihtoehtoa"),
     ("Restore", "Palauta"),
     (
@@ -127,10 +115,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Download project", "Lataa projekti"),
     ("Opened {}", "Avattu: {}"),
     ("{} needs repair: {}", "Projektissa {} on korjattavaa: {}"),
-    (
-        "Project replaced from TSV",
-        "Projekti korvattu TSV-tiedoston sisällöllä",
-    ),
     ("Downloaded project: {}", "Projekti ladattu: {}"),
     ("Project file loaded", "Projektitiedosto avattu"),
     (
@@ -212,17 +196,12 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("outside table {}", "ei pöydässä {}"),
     ("outside row {}", "ei rivillä {}"),
     ("outside center of row {}", "ei rivin {} keskellä"),
-    ("outside seat tag {}", "paikalta puuttuu tunniste {}"),
     ("in forbidden seat {}", "kielletyllä paikalla {}"),
     ("at forbidden table {}", "kielletyssä pöydässä {}"),
     ("in forbidden row {}", "kielletyllä rivillä {}"),
     (
         "in forbidden row centre {}",
         "kielletyssä keskiosassa rivillä {}",
-    ),
-    (
-        "in forbidden seats tagged {}",
-        "kielletyllä paikalla, jonka tunniste on {}",
     ),
     ("beside", "vieressä"),
     ("opposite", "vastapäätä"),
@@ -389,10 +368,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Ilmoittautumistoive viittaa henkilöön, jota ei ole projektissa",
     ),
     (
-        "Seating policy value out of range",
-        "Istumaperiaatteen arvo on sallitun alueen ulkopuolella",
-    ),
-    (
         "Scores are too large; reduce weights or penalties",
         "Pisteet ovat liian suuria. Pienennä painotuksia tai sakkopisteitä.",
     ),
@@ -418,18 +393,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Pöydässä {} on yli {} paikkaa samalla puolella",
     ),
     ("Duplicate seat ID", "Paikan tunnus on käytössä kahdesti"),
-    (
-        "Tags refer to missing seat {}",
-        "Tunnisteet viittaavat puuttuvaan paikkaan {}",
-    ),
-    (
-        "Distance needs two different existing seats: {} / {}",
-        "Etäisyys on määritettävä kahden eri paikan välille. Molempien on oltava olemassa: {} / {}",
-    ),
-    (
-        "Duplicate seat distance: {} / {}",
-        "Paikkojen etäisyys on asetettu kahdesti: {} / {}",
-    ),
     ("Rule {}: person is missing", "Sääntö {}: henkilö puuttuu"),
     (
         "Rule {}: invalid placement penalty",

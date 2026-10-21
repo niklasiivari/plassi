@@ -13,6 +13,9 @@ pub(super) struct ProjectsState {
     confirm_delete: bool,
 }
 
+/// Widest the project menu gets, in points.
+const MENU_WIDTH: f32 = 320.0;
+
 impl PlassiApp {
     pub(super) fn project_switcher(&mut self, ui: &mut egui::Ui, p: Palette) {
         self.project_switcher_ui(ui, p, false);
@@ -85,7 +88,8 @@ impl PlassiApp {
                     .close_behavior(config.close_behavior)
                     .style(theme::menu_style)
                     .show(|ui| {
-                        let width = (ui.ctx().content_rect().width() - 48.0).max(0.0);
+                        // Separators and rows fill the width, so cap it.
+                        let width = (ui.ctx().content_rect().width() - 48.0).clamp(0.0, MENU_WIDTH);
                         ui.set_max_width(width);
                         ui.set_min_width(240.0_f32.min(width));
                         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
@@ -161,6 +165,14 @@ impl PlassiApp {
             if let Err(error) = platform::open_location(self.file.library.folder()) {
                 self.status = format!("{error:#}");
             }
+            ui.close();
+        }
+        if ui
+            .button(tr("Open project file…"))
+            .on_hover_text(tr("Replaces this project; a backup is kept"))
+            .clicked()
+        {
+            self.file.upload = platform::FilePick::open(".json");
             ui.close();
         }
     }

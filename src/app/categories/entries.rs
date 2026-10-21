@@ -10,25 +10,21 @@ impl PlassiApp {
             theme::hint(ui, p, tr("No categories yet"));
             return false;
         }
-        let counts: Vec<usize> = (0..self.project.catalog.list(kind).len())
-            .map(|i| {
-                self.project
-                    .attendees
-                    .iter()
-                    .filter(|a| {
-                        self.project
-                            .catalog
-                            .find_all(kind, kind.raw(a))
-                            .contains(&i)
-                    })
-                    .count()
-            })
-            .collect();
-        let spellings: Vec<String> = self
-            .project
-            .spellings(kind)
+        let lookup = self.project.catalog.lookup(kind);
+        let spellings = self.project.spellings(kind);
+        let mut counts = vec![0; self.project.catalog.list(kind).len()];
+        for (spelling, people) in &spellings {
+            for &i in lookup.find_all(spelling) {
+                counts[i] += people;
+            }
+        }
+        // Each spelling with the categories it is in.
+        let spellings: Vec<(String, Vec<usize>)> = spellings
             .into_iter()
-            .map(|(s, _)| s)
+            .map(|(s, _)| {
+                let found = lookup.find_all(&s).to_vec();
+                (s, found)
+            })
             .collect();
         let mut changed = false;
         let mut delete = None;
@@ -38,7 +34,10 @@ impl PlassiApp {
                     ui.set_width(ui.available_width());
                     ui.horizontal_wrapped(|ui| {
                         changed |= ui
-                            .add(theme::field(&mut category.name).desired_width(ui.available_width().min(260.0)))
+                            .add(
+                                theme::field(&mut category.name)
+                                    .desired_width(ui.available_width().min(260.0)),
+                            )
                             .lost_focus();
                         theme::hint(ui, p, super::unmapped::people_count(counts[index]));
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -53,23 +52,18 @@ impl PlassiApp {
                     });
                     if kind != Kind::Organization {
                         changed |= theme::price_input(ui, tr("Price"), &mut category.price_cents);
-                        theme::hint(ui, p, tr("Added to the ticket total. Use 0 if included."));
                     }
                     if matches!(kind, Kind::Food | Kind::Drink) {
                         ui.horizontal_wrapped(|ui| {
                             ui.label(tr("Print mark"));
                             changed |= ui
                                 .add(theme::field(&mut category.mark).desired_width(60.0))
+                                .on_hover_text(tr("On the kitchen and bar prints, e.g. VG"))
                                 .lost_focus();
                         });
-                        theme::hint(
-                            ui,
-                            p,
-                            tr("Shown on the kitchen and bar prints, e.g. VG or 0 %. The most common choice is left unmarked."),
-                        );
                     }
                     changed |= alias_chips(ui, p, &mut category.aliases);
-                    changed |= add_spelling(ui, category, &spellings);
+                    changed |= add_spelling(ui, category, index, &spellings);
                 });
             });
             ui.add_space(theme::space::S);
@@ -112,9 +106,14 @@ fn alias_chips(ui: &mut egui::Ui, p: Palette, aliases: &mut Vec<String>) -> bool
 fn add_spelling(
     ui: &mut egui::Ui,
     category: &mut crate::catalog::Category,
-    spellings: &[String],
+    index: usize,
+    spellings: &[(String, Vec<usize>)],
 ) -> bool {
-    let options: Vec<&String> = spellings.iter().filter(|s| !category.matches(s)).collect();
+    let options: Vec<&String> = spellings
+        .iter()
+        .filter(|(_, found)| !found.contains(&index))
+        .map(|(s, _)| s)
+        .collect();
     if options.is_empty() {
         return false;
     }

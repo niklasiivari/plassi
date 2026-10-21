@@ -11,7 +11,14 @@ impl PlassiApp {
         p: Palette,
         kind: Kind,
     ) -> bool {
-        let suggestions = crate::catalog::merge_suggestions(&self.project, kind);
+        let project = &self.project;
+        let suggestions = self
+            .categories
+            .merges
+            .get((self.file.revision, kind), || {
+                crate::catalog::merge_suggestions(project, kind)
+            })
+            .clone();
         if suggestions.is_empty() {
             return false;
         }
@@ -72,9 +79,10 @@ impl PlassiApp {
         if spellings.is_empty() {
             return false;
         }
+        let lookup = self.project.catalog.lookup(kind);
         let unmapped: Vec<_> = spellings
             .iter()
-            .filter(|(s, _)| self.project.catalog.find(kind, s).is_none())
+            .filter(|(s, _)| lookup.find_all(s).is_empty())
             .collect();
         let mut changed = false;
         let mut create_all = false;
@@ -93,19 +101,28 @@ impl PlassiApp {
                         .clicked();
                 }
             });
-            theme::hint(ui, p, tr("Choose one or more categories for each entry. Combined entries can belong to several."));
             ui.add_space(theme::space::S);
             let search_label = tr("Find imported entry");
-            let response = ui.add(theme::field(&mut self.categories.mapping_search).hint_text(search_label).desired_width(ui.available_width()));
-            response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, search_label));
+            let response = ui.add(
+                theme::field(&mut self.categories.mapping_search)
+                    .hint_text(search_label)
+                    .desired_width(ui.available_width()),
+            );
+            response.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, search_label)
+            });
             let search = crate::catalog::normalize(&self.categories.mapping_search);
             ui.add_space(theme::space::S);
             for (spelling, count) in &spellings {
-                if !crate::catalog::normalize(spelling).contains(&search) { continue; }
+                if !crate::catalog::normalize(spelling).contains(&search) {
+                    continue;
+                }
                 ui.push_id(spelling, |ui| {
                     ui.add(egui::Label::new(RichText::new(spelling).strong()).wrap());
                     theme::hint(ui, p, people_count(*count));
-                    changed |= mapping_picker(ui, p, &mut self.project.catalog, kind, spelling);
+                    let mapped = lookup.find_all(spelling);
+                    changed |=
+                        mapping_picker(ui, p, &mut self.project.catalog, kind, (spelling, mapped));
                     ui.add_space(theme::space::S);
                     ui.separator();
                     ui.add_space(theme::space::S);
@@ -129,10 +146,9 @@ fn mapping_picker(
     p: Palette,
     catalog: &mut crate::catalog::Catalog,
     kind: Kind,
-    spelling: &str,
+    (spelling, mapped): (&str, &[usize]),
 ) -> bool {
     let mut changed = false;
-    let mapped = catalog.find_all(kind, spelling);
     ui.horizontal_wrapped(|ui| {
         if !catalog.list(kind).is_empty() {
             let label = if kind == Kind::Organization {
@@ -169,10 +185,10 @@ fn mapping_picker(
             changed = true;
         }
     });
-    let names: Vec<_> = catalog
-        .find_all(kind, spelling)
-        .into_iter()
-        .map(|i| catalog.list(kind)[i].name.clone())
+    let names: Vec<_> = mapped
+        .iter()
+        .filter_map(|&i| catalog.list(kind).get(i))
+        .map(|c| c.name.clone())
         .collect();
     if !names.is_empty() {
         ui.horizontal_wrapped(|ui| {

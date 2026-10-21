@@ -177,11 +177,6 @@ fn unseated_card(ui: &mut egui::Ui, p: Palette, scene: &Scene) {
                 .strong()
                 .color(p.warn),
         );
-        theme::hint(
-            ui,
-            p,
-            tr("Place people by hand, or use “Seat the rest”. The score is shown once everyone has a seat."),
-        );
     });
 }
 
@@ -202,13 +197,6 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
         }
     });
     ui.add_space(theme::space::S);
-    theme::hint(
-        ui,
-        p,
-        tr(
-            "Drag to move. Ctrl-click or Shift-drag a box to select. Right-click for actions. Click a table for its summary.",
-        ),
-    );
     ui.add_space(theme::space::M);
     theme::section_title(ui, p, tr("Keys"));
     theme::text_rows(ui, |ui| {

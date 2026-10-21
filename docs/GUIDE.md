@@ -33,7 +33,9 @@ Review wish suggestions before accepting them. Exact full-name matches can be ad
 
 Open **Room layout**. Quick setup creates tables in rows; set how many tables belong in each row. A table's row selector moves it to another row without changing its seats or guests.
 
-**Free layout** lets you position tables on a canvas. Click a table to edit it, drag to move it, and right-click the background to **Add table here**. **Snap to grid** aligns positions. Drag the background to pan, scroll or pinch to zoom, and use **Fit room** to see everything. PDFs group tables by their assigned rows.
+**Free layout** places tables on a full-page canvas with a side panel. Click a table to edit its name, shape (long or round), seats and turn in the panel; drag it to move it, and right-click the background to **Add table here**. Drag the round handle above a table to turn it (15° steps with **Snap to grid**), or press R. **Room walls** draws a resizable rectangle around the tables. Faint outlines show the name cards each table needs on the seating chart and turn red when tables are too close. Drag the background to pan, scroll or pinch to zoom, and use **Fit room** to see everything. PDFs group tables by their assigned rows.
+
+At a round table the next seat around counts as beside, and the rest of the table counts as together.
 
 ## Solve and adjust seating
 
@@ -51,7 +53,7 @@ On the seating chart:
 
 Pins apply to the project, across its seating options. A seat pin fixes a guest to one seat; a table restriction allows movement within that table. Manual edits can break rules, which remain visible in the report.
 
-**Seating policy** controls organization mixing, isolated guests and spare seats. Group preferences are separate from attendees' wishes. **Connections** shows who wished to sit together; **Arrange by table** helps spot wishes split across tables.
+**Seating policy** sets plain choices for the whole event: organization mixing, where people without wishes sit, sitting alone, at least one wish nearby, table ends and spare seats. Group preferences are separate from attendees' wishes. **Connections** shows who wished to sit together; **Arrange by table** helps spot wishes split across tables.
 
 ## Categories and prices
 

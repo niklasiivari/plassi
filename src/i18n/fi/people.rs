@@ -17,30 +17,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Tiedostossa ei ole sisältöä sisältäviä laskentataulukoita",
     ),
     ("Back to overview", "Takaisin yleiskatsaukseen"),
-    (
-        "Import another sheet at any time. Review its columns before adding people.",
-        "Voit tuoda uuden taulukon milloin tahansa. Tarkista sarakkeet ennen henkilöiden lisäämistä.",
-    ),
     ("Choose file…", "Valitse tiedosto…"),
     ("Worksheet", "Laskentataulukko"),
-    (
-        "Choose or drop an Excel, CSV, TSV or ODS file, or paste rows with headers.",
-        "Valitse tai vedä Excel-, CSV-, TSV- tai ODS-tiedosto tai liitä rivit otsikoineen.",
-    ),
-    (
-        "Name required. Choose what each column means for this sheet.",
-        "Nimi on pakollinen. Valitse tämän taulukon sarakkeiden merkitykset.",
-    ),
     ("Add as new people", "Lisää uusina henkilöinä"),
     ("Update matching names", "Päivitä samannimiset"),
-    (
-        "Each row adds a separate person. Existing people and seats stay unchanged.",
-        "Jokainen rivi lisää erillisen henkilön. Nykyiset henkilöt ja paikat säilyvät ennallaan.",
-    ),
-    (
-        "Matching names update existing people. New names are added; nobody is removed.",
-        "Samannimisten tiedot päivitetään. Uudet nimet lisätään, eikä ketään poisteta.",
-    ),
     (
         "To add: {} · to update: {}",
         "Lisätään: {} · päivitetään: {}",
@@ -184,10 +164,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Review notes", "Tarkista ilmoittautumistoiveet"),
     ("{} suggested wishes", "{} ehdotettua toivetta"),
-    (
-        "{} full-name matches. Review other matches individually.",
-        "{} osumaa koko nimellä. Tarkista muut osumat yksitellen henkilön tiedoista.",
-    ),
     ("Add {}", "Lisää {}"),
     (
         "Add wishes for all full-name matches",
@@ -247,7 +223,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("table {}", "pöytä {}"),
     ("row {}", "rivi {}"),
     ("centre of row {}", "rivin {} keskiosa"),
-    ("seats tagged “{}”", "paikat, joiden tunniste on ”{}”"),
     ("Must sit at {}", "Pakollinen paikka: {}"),
     ("Must not sit at {}", "Kielletty paikka: {}"),
     ("Prefer {}", "Suosi: {}"),
@@ -377,10 +352,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Choose the “{}” column.", "Valitse sarake ”{}”."),
     ("Template and export", "Pohja ja vienti"),
     ("Review mapping", "Tarkista kohdekenttä"),
-    (
-        "Match each source column to a field. Extra info is saved with each person; ignored columns are left out.",
-        "Valitse kullekin sarakkeelle kohdekenttä. Lisätiedot tallennetaan henkilön tietoihin; ohitettavia sarakkeita ei tuoda.",
-    ),
     ("Source column", "Lähdesarake"),
     ("Imported as", "Kohdekenttä"),
     ("Preview", "Esikatselu"),

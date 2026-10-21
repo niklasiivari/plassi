@@ -13,7 +13,7 @@ use crate::model::Attendee;
 mod membership;
 mod suggestions;
 
-pub use suggestions::merge_suggestions;
+pub use suggestions::{Merge, merge_suggestions};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -96,6 +96,15 @@ pub fn normalize(text: &str) -> String {
         .join(" ")
 }
 
+/// Spellings to categories, as `Catalog::find_all` finds them.
+pub struct Lookup(std::collections::HashMap<String, Vec<usize>>);
+
+impl Lookup {
+    pub fn find_all(&self, raw: &str) -> &[usize] {
+        self.0.get(&normalize(raw)).map_or(&[], Vec::as_slice)
+    }
+}
+
 impl Category {
     pub fn matches(&self, raw: &str) -> bool {
         let raw = normalize(raw);
@@ -156,6 +165,28 @@ impl Catalog {
     pub fn find_all(&self, kind: Kind, raw: &str) -> Vec<usize> {
         let list = self.list(kind);
         (0..list.len()).filter(|&i| list[i].matches(raw)).collect()
+    }
+
+    /// The categories of every normalized name and alias, for looking up
+    /// many spellings at once.
+    pub fn lookup(&self, kind: Kind) -> Lookup {
+        let mut map: std::collections::HashMap<String, Vec<usize>> = Default::default();
+        for (index, category) in self.list(kind).iter().enumerate() {
+            for spelling in std::iter::once(&category.name).chain(&category.aliases) {
+                let key = normalize(spelling);
+                if key.is_empty() {
+                    continue;
+                }
+                let found = map.entry(key).or_default();
+                if !found.contains(&index) {
+                    found.push(index);
+                }
+            }
+        }
+        for found in map.values_mut() {
+            found.sort_unstable();
+        }
+        Lookup(map)
     }
 
     /// Adds a spelling to a category (by index). It keeps any other categories.

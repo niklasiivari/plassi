@@ -146,6 +146,12 @@ pub(super) fn page_scroll(ui: &mut egui::Ui, width: f32, add: impl FnOnce(&mut e
         });
 }
 
+/// The save status above the sidebar's controls, in points. It takes the
+/// place of the save dot, which only the narrow sidebar shows.
+const STATUS_HEIGHT: f32 = 60.0;
+/// How much higher the footer starts in the expanded sidebar, for the status.
+const STATUS_EXTRA: f32 = 16.0;
+
 impl PlassiApp {
     /// Compact navigation retains project and file actions without taking canvas width.
     pub(super) fn mobile_header(&mut self, ui: &mut egui::Ui, p: Palette) {
@@ -200,7 +206,8 @@ impl PlassiApp {
         openness: f32,
     ) -> bool {
         let bounds = ui.max_rect();
-        let footer_top = (bounds.bottom() - 224.0).max(bounds.top());
+        // The expanded sidebar has the save status above the controls.
+        let footer_top = (bounds.bottom() - 224.0 - STATUS_EXTRA * openness).max(bounds.top());
         let mut header = ui.new_child(
             egui::UiBuilder::new()
                 .id_salt("sidebar-project-selector")
@@ -246,11 +253,12 @@ impl PlassiApp {
         });
 
         if openness > 0.0 {
+            // Above the controls, lined up with the navigation's text.
             let mut project =
                 ui.new_child(egui::UiBuilder::new().id_salt("sidebar-project").max_rect(
                     egui::Rect::from_min_max(
-                        egui::pos2(bounds.left() + 76.0, footer_top),
-                        egui::pos2(bounds.left() + 228.0, bounds.bottom()),
+                        egui::pos2(bounds.left() + theme::space::L, footer_top),
+                        egui::pos2(bounds.right() - theme::space::S, footer_top + STATUS_HEIGHT),
                     ),
                 ));
             project.set_opacity(openness);
@@ -345,8 +353,8 @@ impl PlassiApp {
 
     /// Open-file field, sync status and project size (laid out bottom up).
     fn file_controls(&mut self, ui: &mut egui::Ui, p: Palette) {
-        // This column has only 152 points. Status text should wrap instead
-        // of losing the part explaining where the project was saved.
+        // Status text should wrap instead of losing the part explaining
+        // where the project was saved.
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
         let sync = ui
             .horizontal_top(|ui| {

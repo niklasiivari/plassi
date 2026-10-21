@@ -8,7 +8,7 @@ use super::layout::ForceLayout;
 use crate::app::PlassiApp;
 use crate::app::camera::Viewport;
 use crate::app::theme::{self, Palette};
-use crate::model::{Project, Side};
+use crate::model::Project;
 
 const NODE: f32 = 7.0;
 /// Opacity of nodes and lines unrelated to the hovered person, fully faded.
@@ -191,12 +191,8 @@ fn paint_zones(
             Stroke::new(1.0, p.border),
             egui::StrokeKind::Inside,
         );
-        let half = super::tables::TABLE_HALF_WIDTH * view.zoom;
-        let body = Rect::from_min_max(
-            egui::pos2(rect.center().x - half, rect.min.y + 24.0 * view.zoom),
-            egui::pos2(rect.center().x + half, rect.max.y - 24.0 * view.zoom),
-        );
-        painter.rect_filled(body, (8.0 * view.zoom).clamp(2.0, 10.0) as u8, p.table);
+        let radius = (8.0 * view.zoom).clamp(2.0, 10.0) as u8;
+        zone.top.paint(painter, view, p.table, Stroke::NONE, radius);
         let top = rect.center_top() - Vec2::new(0.0, theme::space::S);
         let title = top - Vec2::new(0.0, theme::text::CAPTION + theme::space::XS);
         painter.text(
@@ -294,7 +290,8 @@ struct NodeFocus {
     labels: bool,
     clip: Rect,
     /// Seat side per node when arranging by table; names go on the outer side.
-    sides: Option<Vec<Option<Side>>>,
+    /// Per node, the direction away from its table, when arranged by table.
+    sides: Option<Vec<Option<f32>>>,
 }
 
 /// Dots coloured by organization; hovering fades everyone not linked to the hovered person.
@@ -352,15 +349,27 @@ fn paint_nodes(
             } else {
                 p.text.gamma_multiply(0.85 * alpha)
             };
-            let side = focus.sides.as_ref().and_then(|s| s[i]);
-            let (at, align) = match side {
-                Some(Side::Left) => (centre - Vec2::new(radius + 6.0, 0.0), Align2::RIGHT_CENTER),
-                Some(Side::Right) => (centre + Vec2::new(radius + 6.0, 0.0), Align2::LEFT_CENTER),
-                None => (centre + Vec2::new(0.0, radius + 3.0), Align2::CENTER_TOP),
-            };
+            let out = focus.sides.as_ref().and_then(|s| s[i]);
+            let (at, align) = name_place(centre, radius, out);
             label(painter, p, at, align, &attendee.name, size, color);
         }
     }
+}
+
+/// Where a name goes beside its node: on the side away from the table, or
+/// under the node when it has no seat.
+fn name_place(centre: Pos2, radius: f32, out: Option<f32>) -> (Pos2, Align2) {
+    let Some(out) = out else {
+        return (centre + Vec2::new(0.0, radius + 3.0), Align2::CENTER_TOP);
+    };
+    let direction = Vec2::angled(out);
+    let align = match (direction.x, direction.y) {
+        (x, _) if x < -0.5 => Align2::RIGHT_CENTER,
+        (x, _) if x > 0.5 => Align2::LEFT_CENTER,
+        (_, y) if y < 0.0 => Align2::CENTER_BOTTOM,
+        _ => Align2::CENTER_TOP,
+    };
+    (centre + direction * (radius + 6.0), align)
 }
 
 /// Text on a soft backdrop so lines behind it don't hurt legibility.

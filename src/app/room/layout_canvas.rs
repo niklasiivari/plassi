@@ -1,18 +1,24 @@
 //! Room designer. Table positions belong to the project; camera and in-progress
 //! gestures belong to the editor, so a drag is saved once on release.
 use super::*;
-use crate::app::camera::Camera;
-use crate::model::{SEAT_PITCH, TABLE_SPAN, TablePosition};
-use egui::{Align2, FontId, Pos2, Rect, Sense, Stroke, StrokeKind, Vec2};
+use crate::app::camera::{Camera, Viewport};
+use crate::app::turned::TableTop;
+use crate::model::TablePosition;
+use egui::{Align2, FontId, Pos2, Rect, Sense, Stroke, Vec2};
 
 pub(super) struct LayoutCanvas {
     camera: Camera,
     pub(super) fit_pending: bool,
-    snap: bool,
+    pub(super) snap: bool,
     drag: Option<(String, TablePosition, Pos2)>,
+    pub(super) outline_drag: Option<outline::OutlineDrag>,
+    /// The table whose turn handle is being dragged.
+    pub(super) turning: Option<String>,
     project: String,
     size: Option<Vec2>,
-    selected: Option<String>,
+    pub(super) selected: Option<String>,
+    /// Tables too close for their name cards on the chart, as last drawn.
+    pub(super) crowded: std::collections::BTreeSet<String>,
     context_at: Option<TablePosition>,
     center: Option<TablePosition>,
 }
@@ -24,19 +30,24 @@ impl Default for LayoutCanvas {
             fit_pending: true,
             snap: true,
             drag: None,
+            outline_drag: None,
+            turning: None,
             project: String::new(),
             size: None,
             selected: None,
+            crowded: Default::default(),
             context_at: None,
             center: None,
         }
     }
 }
 
-const GRID: f32 = 40.0;
+pub(super) const GRID: f32 = 40.0;
 const CARD_MARGIN: f32 = 190.0;
+/// How far a long table's top reaches past its end seats.
+const TABLE_END: f32 = 28.0;
 
-fn snapped(value: f32, snap: bool) -> f32 {
+pub(super) fn snapped(value: f32, snap: bool) -> f32 {
     if snap {
         (value / GRID).round() * GRID
     } else {
@@ -44,11 +55,20 @@ fn snapped(value: f32, snap: bool) -> f32 {
     }
 }
 
+fn at(point: Pos2) -> TablePosition {
+    TablePosition {
+        x: point.x,
+        y: point.y,
+        rotation: 0.0,
+    }
+}
+
 impl PlassiApp {
-    pub(super) fn layout_controls(&mut self, ui: &mut egui::Ui, p: Palette) -> RoomEdit {
+    pub(super) fn layout_controls(&mut self, ui: &mut egui::Ui) -> RoomEdit {
         let before = self.project.layout.free_layout;
         let mut free = before;
         let mut add = false;
+        let mut edit = RoomEdit::default();
         ui.horizontal_wrapped(|ui| {
             ui.selectable_value(&mut free, false, tr("Rows"));
             ui.selectable_value(&mut free, true, tr("Free layout"));
@@ -58,6 +78,7 @@ impl PlassiApp {
                 if ui.button(tr("Fit room")).clicked() {
                     self.room.canvas.fit_pending = true;
                 }
+                edit.labels |= self.outline_controls(ui);
             }
         });
         if free != before {
@@ -65,34 +86,17 @@ impl PlassiApp {
             self.room.canvas.fit_pending = true;
             self.room.canvas.drag = None;
         }
-        if free {
-            theme::hint(
-                ui,
-                p,
-                tr(
-                    "Click a table to edit it; drag to move. Right-click to add a table. Drag the background to pan; scroll or pinch to zoom.",
-                ),
-            );
-        }
         if add {
-            let at = self
-                .room
-                .canvas
-                .center
-                .unwrap_or(TablePosition { x: 0.0, y: 0.0 });
+            let at = self.room.canvas.center.unwrap_or(at(Pos2::ZERO));
             self.add_free_table(at);
         }
-        RoomEdit {
-            labels: false,
-            geometry: free != before || add,
-        }
+        edit.geometry |= free != before || add;
+        edit
     }
 
     pub(super) fn layout_canvas(&mut self, ui: &mut egui::Ui, p: Palette) -> RoomEdit {
-        let (rect, background) = ui.allocate_exact_size(
-            Vec2::new(ui.available_width(), 420.0),
-            Sense::click_and_drag(),
-        );
+        let (rect, background) =
+            ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
         background.widget_info(|| {
             egui::WidgetInfo::labeled(egui::WidgetType::Other, true, tr("Room canvas"))
         });
@@ -105,27 +109,40 @@ impl PlassiApp {
             state.size = Some(rect.size());
             state.fit_pending = true;
             state.drag = None;
+            state.outline_drag = None;
+            state.turning = None;
         }
-        let origins = self.project.layout.table_origins();
-        let tables: Vec<_> = self
-            .project
-            .layout
+        // A second finger yields the drag to camera navigation, without changing the room.
+        if ui.input(|i| i.multi_touch().is_some()) {
+            state.drag = None;
+            state.outline_drag = None;
+            state.turning = None;
+        }
+        let view = state.camera.viewport(rect);
+        // The room as it is drawn: with a dragged or turned table where the
+        // pointer has it.
+        let mut layout = self.project.layout.clone();
+        let dragged = self
+            .dragged_table(ui, &view)
+            .or_else(|| self.turned_table(ui, &view));
+        if let Some((id, position)) = &dragged {
+            layout.table_positions.insert(id.clone(), *position);
+        }
+        let frames = layout.table_frames();
+        let tables: Vec<_> = layout
             .rows
             .iter()
             .flat_map(|r| &r.tables)
-            .map(|t| {
-                let at = origins[&t.id];
-                let height = (t.left.max(t.right).max(1) - 1) as f32 * SEAT_PITCH + 56.0;
-                let body = Rect::from_min_size(
-                    Pos2::new(at.x, at.y - 28.0),
-                    Vec2::new(TABLE_SPAN, height),
-                );
-                (t, body)
-            })
+            .map(|t| (t, TableTop::new(t, frames[&t.id], TABLE_END)))
             .collect();
+        let prints = footprint::footprints(&layout, &tables);
+        let crowded = footprint::crowded(&prints);
+        let state = &mut self.room.canvas;
+        let room = layout.room.map(outline::world_rect);
         let world = tables
             .iter()
-            .map(|(_, r)| r.expand2(Vec2::new(CARD_MARGIN, 42.0)))
+            .map(|(_, top)| top.bounds().expand2(Vec2::new(CARD_MARGIN, 42.0)))
+            .chain(room)
             .fold(Rect::NOTHING, Rect::union);
         if state.fit_pending && world.is_finite() {
             state.camera.fit(rect.shrink(20.0), world, 1.0);
@@ -133,41 +150,24 @@ impl PlassiApp {
         }
         state.camera.animate(ui.ctx());
         let view = state.camera.viewport(rect);
-        let center = view.world(rect.center());
-        state.center = Some(TablePosition {
-            x: center.x,
-            y: center.y,
-        });
+        state.center = Some(at(view.world(rect.center())));
         if background.clicked() {
             state.selected = None;
         }
         let mut add_at = None;
         add_menu(&background, &view, &mut state.context_at, &mut add_at);
-        let mut anchors = std::collections::HashMap::new();
         let painter = ui.painter_at(rect);
-        painter.rect_filled(rect, 6.0, p.surface_hi);
-        let spacing = GRID * view.zoom;
-        if spacing >= 8.0 {
-            let mut x = rect.min.x + (view.origin.x - rect.min.x).rem_euclid(spacing);
-            while x < rect.max.x {
-                let mut y = rect.min.y + (view.origin.y - rect.min.y).rem_euclid(spacing);
-                while y < rect.max.y {
-                    painter.circle_filled(Pos2::new(x, y), 1.0, p.grid);
-                    y += spacing;
-                }
-                x += spacing;
-            }
-        }
-        // A second finger yields the drag to camera navigation, without changing the room.
-        if ui.input(|i| i.multi_touch().is_some()) {
-            state.drag = None;
+        paint_grid(&painter, &view, rect, room, p);
+        for (id, print) in &prints {
+            let color = if crowded.contains(id) { p.bad } else { p.muted };
+            print.paint(&painter, &view, color);
         }
         let navigation =
             state.camera.is_touch_navigation() || ui.input(|i| i.multi_touch().is_some());
-        let mut moved = None;
-        for (table, body) in tables {
+        let seats = layout.seats();
+        for (table, top) in &tables {
             let response = ui.interact(
-                view.rect(body).expand(8.0).intersect(rect),
+                view.rect(top.bounds()).expand(8.0).intersect(rect),
                 ui.id().with(("move-table", &table.id)),
                 Sense::click_and_drag(),
             );
@@ -188,73 +188,53 @@ impl PlassiApp {
             {
                 // press_origin keeps the table attached to the initial grab point.
                 let start = ui.input(|i| i.pointer.press_origin()).unwrap_or(at);
-                state.drag = Some((table.id.clone(), origins[&table.id], view.world(start)));
+                state.drag = Some((table.id.clone(), frames[&table.id], view.world(start)));
             }
-            let mut offset = Vec2::ZERO;
-            if let Some((id, original, start)) = &state.drag
-                && id == &table.id
-                && let Some(at) = ui.input(|i| i.pointer.interact_pos())
-            {
-                let delta = view.world(at) - *start;
-                let position = TablePosition {
-                    x: snapped(original.x + delta.x, state.snap),
-                    y: snapped(original.y + delta.y, state.snap),
-                };
-                offset = Vec2::new(position.x - original.x, position.y - original.y);
-                if ui.input(|i| i.pointer.any_released()) {
-                    moved = Some((id.clone(), position));
-                }
-            }
-            let body = body.translate(offset);
             let active = state
                 .drag
                 .as_ref()
                 .is_some_and(|(id, _, _)| id == &table.id)
                 || state.selected.as_deref() == Some(&table.id);
-            anchors.insert(table.id.clone(), view.rect(body));
-            painter.rect(
-                view.rect(body),
-                4.0,
-                p.table,
-                Stroke::new(
-                    if active { 2.0 } else { 1.0 },
-                    if active { p.accent } else { p.muted },
-                ),
-                StrokeKind::Outside,
-            );
-            painter.text(
-                view.point(Pos2::new(body.center().x, body.min.y - 18.0)),
-                Align2::CENTER_CENTER,
-                &table.label,
-                FontId::proportional((14.0 * view.zoom).max(9.0)),
-                p.text,
-            );
-            for (count, x) in [
-                (table.left, body.min.x - 12.0),
-                (table.right, body.max.x + 12.0),
-            ] {
-                for i in 0..count {
-                    painter.circle_filled(
-                        view.point(Pos2::new(x, body.min.y + 28.0 + i as f32 * SEAT_PITCH)),
-                        (5.0 * view.zoom).max(1.5),
-                        p.accent,
-                    );
-                }
-            }
+            let dots = seats
+                .iter()
+                .filter(|s| s.table_id == table.id)
+                .map(|s| Pos2::new(s.x, s.y) + 12.0 * Vec2::angled(s.out));
+            paint_table(&painter, &view, p, (table, top), dots, active);
             response.on_hover_cursor(egui::CursorIcon::Grab);
         }
+        if self.room.canvas.drag.is_none() {
+            for (table, top) in &tables {
+                self.turn_handle(ui, &painter, &view, p, (table, top));
+            }
+        }
+        let mut moved = dragged.filter(|_| ui.input(|i| i.pointer.any_released()));
+        let outline_changed = self.outline_handles(ui, &painter, &view, p);
+        let state = &mut self.room.canvas;
         if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
             state.drag = None;
+            state.turning = None;
             state.selected = None;
             moved = None;
         }
-        state
-            .camera
-            .handle_input(ui, rect, &background, state.drag.is_none());
+        state.camera.handle_input(
+            ui,
+            rect,
+            &background,
+            state.drag.is_none() && state.outline_drag.is_none() && state.turning.is_none(),
+        );
         if ui.input(|i| i.pointer.any_released()) {
             state.drag = None;
+            state.turning = None;
         }
-        let mut edit = RoomEdit::default();
+        if state.crowded != crowded {
+            // The side panel, drawn before the canvas, shows this next frame.
+            ui.ctx().request_repaint();
+            state.crowded = crowded;
+        }
+        let mut edit = RoomEdit {
+            labels: outline_changed,
+            geometry: false,
+        };
         if let Some(at) = add_at {
             self.add_free_table(at);
             edit.geometry = true;
@@ -264,13 +244,21 @@ impl PlassiApp {
             self.chart.view.fit_pending = true;
             edit.labels = true;
         }
-        if let Some(id) = self.room.canvas.selected.clone()
-            && let Some(body) = anchors.get(&id)
-            && self.room.canvas.drag.is_none()
-        {
-            edit.merge(self.free_table_editor(ui, p, &id, *body));
-        }
+        edit.labels |= self.rotate_by_key(ui);
         edit
+    }
+
+    /// The table being dragged and where the pointer has it now.
+    fn dragged_table(&self, ui: &egui::Ui, view: &Viewport) -> Option<(String, TablePosition)> {
+        let (id, original, start) = self.room.canvas.drag.as_ref()?;
+        let delta = view.world(ui.input(|i| i.pointer.interact_pos())?) - *start;
+        let snap = self.room.canvas.snap;
+        let position = TablePosition {
+            x: snapped(original.x + delta.x, snap),
+            y: snapped(original.y + delta.y, snap),
+            ..*original
+        };
+        Some((id.clone(), position))
     }
 
     fn add_free_table(&mut self, at: TablePosition) {
@@ -296,92 +284,101 @@ impl PlassiApp {
             TablePosition {
                 x: snapped(at.x, self.room.canvas.snap),
                 y: snapped(at.y, self.room.canvas.snap),
+                rotation: 0.0,
             },
         );
         self.room.canvas.selected = Some(id);
     }
+}
 
-    fn free_table_editor(
-        &mut self,
-        ui: &mut egui::Ui,
-        p: Palette,
-        id: &str,
-        body: Rect,
-    ) -> RoomEdit {
-        let mut edit = RoomEdit::default();
-        let Some(table) = self
-            .project
-            .layout
-            .rows
-            .iter_mut()
-            .flat_map(|r| &mut r.tables)
-            .find(|t| t.id == id)
-        else {
-            return edit;
-        };
-        let mut remove = false;
-        let mut close = false;
-        let position = Pos2::new(body.max.x + 12.0, body.min.y);
-        egui::Area::new(ui.id().with(("free-table-editor", id)))
-            .order(egui::Order::Foreground)
-            .fixed_pos(position)
-            .constrain_to(ui.ctx().content_rect().shrink(8.0))
-            .show(ui.ctx(), |ui| {
-                theme::card(p).show(ui, |ui| {
-                    ui.set_width(200.0);
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new(tr("Table")).strong());
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            close = theme::icon_button(
-                                ui,
-                                p,
-                                theme::Icon::Close,
-                                tr("Deselect"),
-                                false,
-                            )
-                            .clicked();
-                        });
-                    });
-                    let label = ui.label(tr("Table name"));
-                    edit.labels |= ui
-                        .add(theme::field(&mut table.label).desired_width(200.0))
-                        .labelled_by(label.id)
-                        .changed();
-                    ui.label(tr("Left"));
-                    edit.geometry |= ui.push_id("left", |ui| stepper(ui, &mut table.left)).inner;
-                    ui.label(tr("Right"));
-                    edit.geometry |= ui
-                        .push_id("right", |ui| stepper(ui, &mut table.right))
-                        .inner;
-                    ui.add_space(theme::space::S);
-                    remove = ui.add(theme::ghost_button(tr("Remove table"), p)).clicked();
-                });
-            });
-        if close {
-            self.room.canvas.selected = None;
+/// Which tables are too close for their name cards on the chart.
+pub(super) fn crowded_note(
+    ui: &mut egui::Ui,
+    p: Palette,
+    layout: &crate::model::Layout,
+    crowded: &std::collections::BTreeSet<String>,
+) {
+    if crowded.is_empty() {
+        return;
+    }
+    let names: Vec<_> = crowded
+        .iter()
+        .filter_map(|id| layout.table(id).map(|t| t.label.as_str()))
+        .collect();
+    ui.label(
+        RichText::new(fill(
+            "Name cards overlap on the chart: {}",
+            &[&names.join(", ")],
+        ))
+        .size(theme::text::SMALL)
+        .color(p.bad),
+    );
+}
+
+/// Dots on the grid, inside the room's walls when it has them.
+fn paint_grid(
+    painter: &egui::Painter,
+    view: &Viewport,
+    rect: Rect,
+    room: Option<Rect>,
+    p: Palette,
+) {
+    let spacing = GRID * view.zoom;
+    if spacing < 8.0 {
+        return;
+    }
+    let area = room.map_or(rect, |room| view.rect(room).intersect(rect));
+    let first = |min: f32, origin: f32| {
+        let offset = (origin - min).rem_euclid(spacing);
+        min + if offset > 0.0 { offset } else { 0.0 }
+    };
+    let mut x = first(area.min.x, view.origin.x);
+    while x <= area.max.x {
+        let mut y = first(area.min.y, view.origin.y);
+        while y <= area.max.y {
+            painter.circle_filled(Pos2::new(x, y), 1.0, p.grid);
+            y += spacing;
         }
-        if remove {
-            for row in &mut self.project.layout.rows {
-                row.tables.retain(|t| t.id != id);
-            }
-            self.room.canvas.selected = None;
-            edit.geometry = true;
-        }
-        edit
+        x += spacing;
+    }
+}
+
+/// A table's top with its name on it, and its seats as dots.
+fn paint_table(
+    painter: &egui::Painter,
+    view: &Viewport,
+    p: Palette,
+    (table, top): (&TableSpec, &TableTop),
+    seats: impl Iterator<Item = Pos2>,
+    active: bool,
+) {
+    let stroke = Stroke::new(
+        if active { 2.0 } else { 1.0 },
+        if active { p.accent } else { p.muted },
+    );
+    top.paint(painter, view, p.table, stroke, 4);
+    painter.text(
+        view.point(top.top.centre),
+        Align2::CENTER_CENTER,
+        &table.label,
+        FontId::proportional((14.0 * view.zoom).max(9.0)),
+        p.text,
+    );
+    for seat in seats {
+        painter.circle_filled(view.point(seat), (5.0 * view.zoom).max(1.5), p.accent);
     }
 }
 
 fn add_menu(
     response: &egui::Response,
-    view: &crate::app::camera::Viewport,
+    view: &Viewport,
     origin: &mut Option<TablePosition>,
     add: &mut Option<TablePosition>,
 ) {
     if response.secondary_clicked()
-        && let Some(at) = response.interact_pointer_pos()
+        && let Some(point) = response.interact_pointer_pos()
     {
-        let at = view.world(at);
-        *origin = Some(TablePosition { x: at.x, y: at.y });
+        *origin = Some(at(view.world(point)));
     }
     response.context_menu(|ui| {
         if ui.button(tr("Add table here")).clicked() {

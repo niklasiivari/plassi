@@ -106,11 +106,10 @@ impl PlassiApp {
 
     /// Wishes found in sign-up text, with a one-click add for full-name matches.
     fn suggestions_card(&mut self, ui: &mut egui::Ui, p: Palette) {
-        let project = &self.project;
-        let suggestions = self
-            .people
+        let (project, people) = (&self.project, &mut self.people);
+        let suggestions = people
             .suggest_cache
-            .get(self.file.revision, || crate::suggest::suggestions(project))
+            .get(self.file.revision, || people.suggester.suggestions(project))
             .clone();
         if suggestions.is_empty() {
             return;
@@ -129,14 +128,7 @@ impl PlassiApp {
                             .size(theme::text::LEAD)
                             .strong(),
                     );
-                    theme::hint(
-                        ui,
-                        p,
-                        fill(
-                            "{} full-name matches. Review other matches individually.",
-                            &[&sure.len()],
-                        ),
-                    );
+                    theme::hint(ui, p, fill("{} full-name matches", &[&sure.len()]));
                 });
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

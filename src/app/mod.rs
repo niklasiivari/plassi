@@ -24,6 +24,7 @@ mod shell;
 mod solving;
 mod theme;
 mod tour;
+mod turned;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod ui_tests;
 #[cfg(test)]
@@ -31,7 +32,6 @@ pub(crate) use theme::initials as theme_initials;
 
 use shell::*;
 
-use std::path::Path;
 use web_time::{Duration, Instant};
 
 use eframe::egui::{self, Color32, RichText};
@@ -39,7 +39,7 @@ use eframe::egui::{self, Color32, RichText};
 use theme::Palette;
 
 use crate::model::Project;
-use crate::{import, io, platform, score, seating};
+use crate::{io, platform, score, seating};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Page {
@@ -86,7 +86,6 @@ pub(super) struct PlassiApp {
     /// Search time for a solve or a longer search, and for an improvement.
     solve_time: Duration,
     improve_time: Duration,
-    policy_dirty: bool,
     chart: chart::ChartState,
     graph: graph::GraphState,
     categories: categories::CategoriesState,
@@ -127,7 +126,6 @@ impl eframe::App for PlassiApp {
         self.sync_external();
         self.poll_solver();
         self.remember_option();
-        #[cfg(target_arch = "wasm32")]
         self.poll_upload();
         let p = theme::palette(ui.ctx());
         let typing = ui.ctx().memory(|m| m.focused().is_some());
@@ -198,6 +196,9 @@ impl eframe::App for PlassiApp {
                 Page::Chart => self.chart_page(ui, p),
                 Page::People => self.people_page(ui, p),
                 Page::Policy => page_scroll(ui, theme::CONTENT_WIDTH, |ui| self.policy_page(ui, p)),
+                Page::Room if self.project.layout.free_layout && !self.file.external_invalid => {
+                    self.free_room_page(ui, p)
+                }
                 Page::Room => page_scroll(ui, theme::WIDE_WIDTH, |ui| self.room_page(ui, p)),
                 Page::Print => page_scroll(ui, theme::CONTENT_WIDTH, |ui| self.print_page(ui, p)),
                 Page::Graph => self.graph_page(ui, p),
@@ -341,7 +342,6 @@ impl PlassiApp {
             solving: None,
             solve_time: seating::SOLVE_TIME,
             improve_time: seating::IMPROVE_TIME,
-            policy_dirty: false,
             chart,
             graph: Default::default(),
             categories: Default::default(),

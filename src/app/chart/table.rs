@@ -2,31 +2,26 @@
 //! mix of categories and the allergies.
 
 use super::*;
-use crate::model::{DistanceClass, Target, distance_class};
+use crate::model::{DistanceClass, Target, table_distance};
 
 impl Scene {
-    /// The table's body in world space, from its top seat to its bottom seat.
+    /// The bounds of the table's top in world space.
     pub(super) fn table_body(&self, table_id: &str) -> Option<Rect> {
-        let seats = self.seats.iter().filter(|s| s.table_id == table_id);
-        let (min_x, min_y, max_y) = seats.fold(None, |acc: Option<(f32, f32, f32)>, s| {
-            Some(acc.map_or((s.x, s.y, s.y), |(x, lo, hi)| {
-                (x.min(s.x), lo.min(s.y), hi.max(s.y))
-            }))
-        })?;
-        Some(Rect::from_min_max(
-            Pos2::new(min_x, min_y - CARD_H / 2.0 - 6.0),
-            Pos2::new(min_x + TABLE_SPAN, max_y + CARD_H / 2.0 + 6.0),
-        ))
+        self.tops.get(table_id).map(TableTop::bounds)
     }
 
-    /// The table whose body or name covers a world point.
+    /// The table whose top or name covers a world point.
     pub(super) fn table_at(&self, project: &Project, world: Pos2) -> Option<String> {
         let tables = project.layout.rows.iter().flat_map(|r| &r.tables);
         tables
             .filter(|t| {
-                self.table_body(&t.id).is_some_and(|body| {
-                    let with_name = Rect::from_min_max(body.min - Vec2::new(0.0, 28.0), body.max);
-                    with_name.contains(world)
+                self.tops.get(&t.id).is_some_and(|top| {
+                    let bounds = top.bounds();
+                    let name = Rect::from_min_max(
+                        bounds.min - Vec2::new(0.0, 28.0),
+                        Pos2::new(bounds.max.x, bounds.min.y),
+                    );
+                    top.contains(world) || name.contains(world)
                 })
             })
             .map(|t| t.id.clone())
@@ -138,9 +133,7 @@ impl PlassiApp {
         people: &[usize],
     ) {
         let seat_of = |person: usize| scene.seat(scene.seat_of.get(&person)?);
-        let apart = |a: &Seat, b: &Seat| {
-            distance_class(&self.project.layout, a, b) > DistanceClass::Diagonal
-        };
+        let apart = |a: &Seat, b: &Seat| table_distance(a, b) > DistanceClass::Diagonal;
         let mut away: Vec<(usize, usize, String)> = Vec::new();
         for rule in self.project.rules.iter().filter(|r| r.enabled) {
             let RuleKind::Proximity {

@@ -39,11 +39,12 @@ use eframe::egui::{
 
 use crate::catalog::Kind;
 use crate::i18n::{fill, tr};
-use crate::model::{Pin, Project, RuleKind, Seat, Side, Spot, TABLE_SPAN};
+use crate::model::{Pin, Project, RuleKind, Seat, Side, Spot};
 use crate::score::{self, Evaluation, Outcome, RuleResult};
 use crate::seating::PolicyReport;
 
 use super::PlassiApp;
+use super::turned::{TableTop, Turned, paint_turned};
 
 /// Pan/zoom state of the chart canvas.
 pub(in crate::app) struct ChartView {

@@ -35,15 +35,9 @@ impl Project {
                 Area::Seat(id) => seats.contains(id),
                 Area::Table(id) => tables.contains(id),
                 Area::Row(id) | Area::RowCenter(id) => rows.contains(id),
-                Area::Tag(_) => true,
             },
             _ => true,
         });
-        let layout = &mut self.layout;
-        layout.seat_tags.retain(|seat, _| seats.contains(seat));
-        layout
-            .relations
-            .retain(|r| seats.contains(&r.a) && seats.contains(&r.b));
         let mut unseated = Vec::new();
         for option in &mut self.candidates {
             let lost: Vec<usize> = option
@@ -72,9 +66,7 @@ impl Project {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{
-        Area, DistanceClass, Pin, Rule, RuleKind, SeatRelation, SolverStatus, Spot,
-    };
+    use crate::model::{Area, Pin, Rule, RuleKind, SolverStatus, Spot};
 
     #[test]
     fn people_keep_seats_that_still_exist() {
@@ -134,17 +126,8 @@ mod tests {
     }
 
     #[test]
-    fn rules_tags_and_distances_of_removed_places_go() {
+    fn rules_about_removed_places_go() {
         let mut project = crate::tests::two_tables();
-        project
-            .layout
-            .seat_tags
-            .insert("t2:left:0".into(), vec!["aisle".into()]);
-        project.layout.relations.push(SeatRelation {
-            a: "t1:left:0".into(),
-            b: "t2:left:0".into(),
-            class: DistanceClass::Near,
-        });
         let id = project.next_rule_id();
         project.rules.push(Rule {
             id,
@@ -161,8 +144,6 @@ mod tests {
         });
         project.layout.rows[0].tables.remove(1);
         assert_eq!(project.fit_to_room().rules_removed, 1);
-        assert!(project.layout.seat_tags.is_empty());
-        assert!(project.layout.relations.is_empty());
         project.validate().unwrap();
     }
 }

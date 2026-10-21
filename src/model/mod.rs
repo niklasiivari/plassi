@@ -6,14 +6,18 @@ use serde::{Deserialize, Serialize};
 
 mod layout;
 mod pins;
+mod policy;
 mod refit;
 mod spots;
+mod tables;
 mod validate;
 
 pub use layout::*;
 pub use pins::Pin;
+pub use policy::*;
 pub use refit::RoomFit;
 pub use spots::{Point, Spot};
+pub use tables::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Attendee {
@@ -44,16 +48,28 @@ pub struct Layout {
     pub free_layout: bool,
     #[serde(default)]
     pub table_positions: BTreeMap<String, TablePosition>,
+    /// The room's walls in the free layout, to see how the tables fit.
     #[serde(default)]
-    pub seat_tags: BTreeMap<String, Vec<String>>,
-    #[serde(default)]
-    pub relations: Vec<SeatRelation>,
+    pub room: Option<RoomOutline>,
 }
 
+/// Where a table stands: its centre, and how far it is turned.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct TablePosition {
     pub x: f32,
     pub y: f32,
+    /// Degrees clockwise.
+    #[serde(default)]
+    pub rotation: f32,
+}
+
+/// A rectangle around the tables, in the same units as table positions.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct RoomOutline {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -71,13 +87,18 @@ pub struct TableSpec {
     pub left: usize,
     /// Seats down the right side, numbered from the top of the table.
     pub right: usize,
+    #[serde(default)]
+    pub shape: TableShape,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct SeatRelation {
-    pub a: String,
-    pub b: String,
-    pub class: DistanceClass,
+/// A long table has seats down two sides. A round table has the same seats
+/// around it: the right side clockwise from the top, the left side on back up.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TableShape {
+    #[default]
+    Long,
+    Round,
 }
 
 #[derive(Clone, Debug)]
@@ -89,7 +110,10 @@ pub struct Seat {
     pub y: f32,
     pub side: Side,
     pub index: usize,
-    pub tags: Vec<String>,
+    /// The direction away from the table, in radians clockwise from +x.
+    pub out: f32,
+    /// The seat's place around a round table.
+    pub ring: Option<Ring>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -182,61 +206,6 @@ impl PrintLanguage {
             Self::English => "en",
         }
     }
-}
-
-/// Global rules for everyone, mainly shaping where unconstrained attendees sit.
-/// Weights use the same scale as rule penalties (see [`WishKind::far_penalty`]).
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
-#[serde(default)]
-pub struct SeatingPolicy {
-    /// Whether unconstrained attendees should sit with their own organization.
-    pub organization: OrganizationMixing,
-    /// Cost per beside/opposite pair that goes against `organization`.
-    pub organization_weight: i64,
-    /// Positive: spread unconstrained attendees among wish groups (cost per pair of
-    /// adjacent unconstrained attendees). Negative: keep them apart from wish groups
-    /// (cost per unconstrained attendee adjacent to a constrained one).
-    pub sprinkle: i64,
-    /// Cost for anyone with nobody beside or opposite them.
-    pub isolation_penalty: i64,
-    /// Extra cost for anyone with wishes of whom none is beside, opposite or
-    /// diagonal to them, so no
-    /// one loses all their wishes to save a little elsewhere.
-    pub left_out_penalty: i64,
-    /// Cost for someone who neither wishes for anyone nor is wished for (nor
-    /// is in a group) sitting at a table end, where they have the fewest
-    /// people to talk to; groups take the ends instead.
-    pub lone_end_penalty: i64,
-    pub empty_seats: EmptySeatPlacement,
-}
-
-impl Default for SeatingPolicy {
-    fn default() -> Self {
-        Self {
-            organization: OrganizationMixing::Indifferent,
-            organization_weight: 15,
-            sprinkle: 10,
-            isolation_penalty: 400,
-            left_out_penalty: 300,
-            lone_end_penalty: 100,
-            empty_seats: EmptySeatPlacement::TableBottoms,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
-pub enum OrganizationMixing {
-    SameOrganization,
-    Mixed,
-    Indifferent,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
-pub enum EmptySeatPlacement {
-    /// Leave spare seats at the bottom of tables, as opposite pairs where possible.
-    TableBottoms,
-    /// Any seat may stay empty.
-    Anywhere,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -367,7 +336,6 @@ pub enum Area {
     Table(String),
     Row(String),
     RowCenter(String),
-    Tag(String),
 }
 
 /// Penalty per distance class, closest first (see `DistanceClass::ALL`).
@@ -571,7 +539,16 @@ impl Project {
 
     /// Human-readable seat name, e.g. "Table 2 · left 3".
     pub fn seat_label(&self, seat_id: &str) -> String {
-        match self.seat_place(seat_id) {
+        let place = self.seat_place(seat_id);
+        let round = self
+            .layout
+            .table(seat_table(seat_id))
+            .filter(|t| t.shape == TableShape::Round);
+        if let (Some(spec), Some((table, side, row))) = (round, place) {
+            let seat = spec.ring_position(side, row - 1) + 1;
+            return fill("{} · seat {}", &[&table, &seat]);
+        }
+        match place {
             Some((table, Side::Left, row)) => fill("{} · left {}", &[&table, &row]),
             Some((table, Side::Right, row)) => fill("{} · right {}", &[&table, &row]),
             None => seat_id.to_string(),

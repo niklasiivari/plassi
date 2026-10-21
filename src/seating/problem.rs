@@ -186,7 +186,7 @@ impl Problem {
     ) -> Self {
         let seats = project.layout.seats();
         let n = seats.len();
-        let class = distance_matrix(project, &seats);
+        let class = distance_matrix(&seats);
         let neighbours = neighbours(&class, n);
         let people: Vec<usize> = project.attendees.iter().map(|a| a.id).collect();
         let index: HashMap<usize, usize> =
@@ -195,7 +195,7 @@ impl Problem {
         let placement = combine_placement(&placement_rules, people.len(), n);
         let terms = compile_terms(project, &index);
         let terms_of = terms_of(&terms, people.len());
-        let fairness = Fairness::new(&terms, people.len(), project.policy.left_out_penalty);
+        let fairness = Fairness::new(&terms, people.len(), project.policy.left_out_penalty());
         let active = project.active_people();
         let groups = crate::groups::wish_groups(project)
             .into_iter()
@@ -234,10 +234,10 @@ impl Problem {
             fairness,
             org,
             org_mode: project.policy.organization,
-            org_weight: project.policy.organization_weight,
-            sprinkle: project.policy.sprinkle,
-            isolation: project.policy.isolation_penalty,
-            may_isolate: project.policy.isolation_penalty != 0 && n > people.len(),
+            org_weight: project.policy.organization_weight(),
+            sprinkle: project.policy.sprinkle(),
+            isolation: project.policy.isolation_penalty(),
+            may_isolate: project.policy.isolation_penalty() != 0 && n > people.len(),
             pair: Vec::new(),
             usable,
             seat_order: seat_order(&seats),
@@ -598,7 +598,7 @@ fn usable(
 }
 
 /// Row-major `n × n` distance classes between seats; a seat is `Beside` itself.
-fn distance_matrix(project: &Project, seats: &[Seat]) -> Vec<DistanceClass> {
+fn distance_matrix(seats: &[Seat]) -> Vec<DistanceClass> {
     let n = seats.len();
     let mut class = Vec::with_capacity(n * n);
     for (i, a) in seats.iter().enumerate() {
@@ -608,20 +608,6 @@ fn distance_matrix(project: &Project, seats: &[Seat]) -> Vec<DistanceClass> {
             } else {
                 table_distance(a, b)
             });
-        }
-    }
-    let index: HashMap<&str, usize> = seats
-        .iter()
-        .enumerate()
-        .map(|(i, s)| (s.id.as_str(), i))
-        .collect();
-    for relation in &project.layout.relations {
-        if let (Some(&a), Some(&b)) = (
-            index.get(relation.a.as_str()),
-            index.get(relation.b.as_str()),
-        ) {
-            class[a * n + b] = relation.class;
-            class[b * n + a] = relation.class;
         }
     }
     class
@@ -691,23 +677,27 @@ fn combine_placement(
     placement
 }
 
-/// Per seat: its table's index and its row at that table.
+/// Per seat: its table's index and its row at that table. Around a round
+/// table, each two neighbouring seats make a row.
 fn seat_spots(seats: &[Seat]) -> Vec<(usize, usize)> {
     let mut tables: HashMap<&str, usize> = HashMap::new();
     seats
         .iter()
         .map(|s| {
             let next = tables.len();
-            (*tables.entry(&s.table_id).or_insert(next), s.index)
+            let row = s.ring.map_or(s.index, |ring| ring.position / 2);
+            (*tables.entry(&s.table_id).or_insert(next), row)
         })
         .collect()
 }
 
-/// Per table, per row: its left and right seat, `NONE` where a side has no seat.
+/// Per table, per row: its left and right seat, `NONE` where a side has no
+/// seat. Round tables pair the seats mirrored across them.
 fn table_rows(seats: &[Seat]) -> Vec<Vec<[usize; 2]>> {
     let spots = seat_spots(seats);
     let mut tables: Vec<Vec<[usize; 2]>> = Vec::new();
-    for (s, (seat, &(table, row))) in seats.iter().zip(&spots).enumerate() {
+    for (s, (seat, &(table, _))) in seats.iter().zip(&spots).enumerate() {
+        let row = seat.index;
         if tables.len() <= table {
             tables.resize(table + 1, Vec::new());
         }

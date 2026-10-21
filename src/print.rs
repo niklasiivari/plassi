@@ -75,13 +75,6 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
         .ok_or_else(|| anyhow!("no seating option to print; solve first"))?;
     let tables = project.layout.rows.iter().flat_map(|r| &r.tables);
     let max_rows = tables.map(|t| t.left.max(t.right)).max().unwrap_or(1);
-    let max_tables = project
-        .layout
-        .rows
-        .iter()
-        .map(|r| r.tables.len())
-        .max()
-        .unwrap_or(1);
     let title = if project.event.title.trim().is_empty() {
         match project.event.print_language.code() {
             "fi" => "Istumajärjestys",
@@ -105,12 +98,6 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
         "marks": marks.as_ref().map(Marks::summary),
         "people": people_json(project),
         "max_rows": max_rows,
-        "max_tables": max_tables,
-        "totals": {
-            "food": totals_json(project, Kind::Food),
-            "drink": totals_json(project, Kind::Drink),
-            "group": totals_json(project, Kind::Ticket),
-        },
     }))
 }
 
@@ -329,31 +316,6 @@ fn people_json(project: &Project) -> Vec<Value> {
         key(a).cmp(&key(b))
     });
     people
-}
-
-/// How many attendees have each value of `field`, most common first.
-/// Count per category (unmapped spellings count on their own).
-fn totals_json(project: &Project, kind: Kind) -> Vec<Value> {
-    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-    for a in &project.attendees {
-        let mut names = project.category_names(kind, a);
-        if names.is_empty() {
-            let raw = kind.raw(a).trim();
-            names.push(if raw.is_empty() {
-                "—".into()
-            } else {
-                raw.to_string()
-            });
-        }
-        for name in names {
-            *counts.entry(name).or_default() += 1;
-        }
-    }
-    let mut list: Vec<_> = counts.into_iter().collect();
-    list.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
-    list.into_iter()
-        .map(|(k, n)| json!({ "label": k, "count": n }))
-        .collect()
 }
 
 /// A print as PDF (on the desktop; the browser typesets through its own module).

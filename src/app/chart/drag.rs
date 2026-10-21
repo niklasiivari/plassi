@@ -182,12 +182,17 @@ fn outline_seats(
     for (_, spot) in targets {
         let Spot::Seat(id) = spot else { continue };
         let Some(seat) = scene.seat(id) else { continue };
-        painter.rect_stroke(
-            view.rect(card_rect(seat)).expand(3.0 * view.zoom.max(0.5)),
-            CornerRadius::same((10.0 * view.zoom).clamp(3.0, 12.0) as u8),
-            Stroke::new(2.0, p.accent),
-            StrokeKind::Outside,
-        );
+        let card = card_turned(seat);
+        let centre = view.point(card.centre);
+        paint_turned(painter, card.angle, centre, |painter| {
+            painter.rect_stroke(
+                Rect::from_center_size(centre, card.size * view.zoom)
+                    .expand(3.0 * view.zoom.max(0.5)),
+                CornerRadius::same((10.0 * view.zoom).clamp(3.0, 12.0) as u8),
+                Stroke::new(2.0, p.accent),
+                StrokeKind::Outside,
+            )
+        });
     }
 }
 
@@ -282,12 +287,12 @@ fn spot_at(scene: &Scene, at: Pos2) -> Spot {
         scene
             .seats
             .iter()
-            .filter(|seat| card_rect(seat).distance_sq_to_pos(at) <= SNAP_MARGIN * SNAP_MARGIN)
+            .filter(|seat| card_turned(seat).distance_sq(at) <= SNAP_MARGIN * SNAP_MARGIN)
             .min_by(|a, b| {
-                card_rect(a)
-                    .center()
+                card_turned(a)
+                    .centre
                     .distance_sq(at)
-                    .total_cmp(&card_rect(b).center().distance_sq(at))
+                    .total_cmp(&card_turned(b).centre.distance_sq(at))
             })
     });
     match nearest {

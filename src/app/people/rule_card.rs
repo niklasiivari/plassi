@@ -97,16 +97,17 @@ pub(super) fn person_picker(
 }
 
 impl PlassiApp {
-    /// Editor for one rule. Returns (changed, delete requested).
+    /// Editor for one rule, with Done in its bottom-right corner. Returns
+    /// (changed, delete requested, done).
     pub(super) fn rule_card(
         &mut self,
         ui: &mut egui::Ui,
         p: Palette,
         rule_id: u64,
-    ) -> (bool, bool) {
+    ) -> (bool, bool, bool) {
         let names = self.person_names();
         let Some(index) = self.project.rules.iter().position(|r| r.id == rule_id) else {
-            return (false, false);
+            return (false, false, false);
         };
         let result = self
             .evaluation()
@@ -115,6 +116,7 @@ impl PlassiApp {
         let picker_filter = &mut self.people.picker_filter;
         let mut changed = false;
         let mut delete = false;
+        let mut done = false;
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.push_id(rule_id, |ui| {
@@ -134,9 +136,12 @@ impl PlassiApp {
                             .color(p.muted),
                     );
                 }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                    done = ui.add(theme::primary_button(tr("Done"), p)).clicked();
+                });
             });
         });
-        (changed, delete)
+        (changed, delete, done)
     }
 }
 
@@ -187,7 +192,6 @@ fn placement_editor(ui: &mut egui::Ui, kind: &mut RuleKind) -> bool {
         Area::Table(id) => fill("table {}", &[id]),
         Area::Row(id) => fill("row {}", &[id]),
         Area::RowCenter(id) => fill("centre of row {}", &[id]),
-        Area::Tag(tag) => fill("seats tagged “{}”", &[tag]),
     };
     ui.label(fill(
         match (*must_be, *hard) {

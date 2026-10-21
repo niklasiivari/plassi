@@ -1,13 +1,127 @@
 //! Finnish text: pages.
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
+    (
+        "People without wishes sit with their own organization.",
+        "Toiveettomat istuvat oman järjestönsä kanssa.",
+    ),
+    (
+        "People without wishes sit with other organizations.",
+        "Toiveettomat istuvat muiden järjestöjen kanssa.",
+    ),
+    ("Doesn't matter", "Ei väliä"),
+    (
+        "Organizations do not affect the seating.",
+        "Järjestöt eivät vaikuta istumajärjestykseen.",
+    ),
+    ("Among wish groups", "Toiveryhmien joukossa"),
+    (
+        "They are spread between the people with wishes.",
+        "He sijoittuvat toiveita esittäneiden lomaan.",
+    ),
+    ("Apart from wish groups", "Erillään toiveryhmistä"),
+    (
+        "They sit together, away from the wish groups.",
+        "He istuvat yhdessä, erillään toiveryhmistä.",
+    ),
+    (
+        "They fill the seats that are left.",
+        "He täyttävät jäljelle jäävät paikat.",
+    ),
+    ("Never", "Ei koskaan"),
+    (
+        "Everyone has someone beside or opposite.",
+        "Jokaisella on joku vieressä tai vastapäätä.",
+    ),
+    ("Avoid", "Vältä"),
+    (
+        "Only wishes can leave someone without a neighbour.",
+        "Vain toiveet voivat jättää jonkun ilman vierustoveria.",
+    ),
+    (
+        "Empty seats may leave someone without a neighbour.",
+        "Tyhjät paikat voivat jättää jonkun ilman vierustoveria.",
+    ),
+    ("At least one wish nearby", "Vähintään yksi toive lähellä"),
+    (
+        "Everyone gets one of their wishes close, even at a cost to others.",
+        "Jokainen saa yhden toiveistaan lähelle, vaikka se maksaisi muille.",
+    ),
+    ("Preferred", "Toivottava"),
+    (
+        "Everyone gets one of their wishes close where it costs little.",
+        "Jokainen saa yhden toiveistaan lähelle, kun se maksaa vähän.",
+    ),
+    (
+        "Only the wishes themselves count.",
+        "Vain toiveet itse ratkaisevat.",
+    ),
+    ("Groups only", "Vain ryhmille"),
+    (
+        "People without wishes stay off the ends.",
+        "Toiveettomat eivät istu päädyissä.",
+    ),
+    (
+        "Anyone may sit at an end.",
+        "Päädyssä voi istua kuka tahansa.",
+    ),
+    ("At table bottoms", "Pöytien alapäissä"),
+    (
+        "In opposite pairs at the bottom of tables.",
+        "Vastakkaisina pareina pöytien alapäissä.",
+    ),
+    (
+        "Any seat may stay empty.",
+        "Mikä tahansa paikka voi jäädä tyhjäksi.",
+    ),
     ("Room canvas", "Tilan asettelualusta"),
     ("Table name", "Pöydän nimi"),
     ("Add table here", "Lisää pöytä tähän"),
+    ("Controls", "Ohjaus"),
+    ("Click", "Klikkaus"),
+    ("Edit a table", "Muokkaa pöytää"),
+    ("Drag", "Veto"),
+    ("Move a table", "Siirrä pöytää"),
+    ("Drag ○", "Vedä ○"),
+    ("Turn a table", "Käännä pöytää"),
+    ("Right-click", "Oikea klikkaus"),
+    ("Add a table there", "Lisää pöytä siihen"),
+    ("Drag background / Scroll", "Vedä taustaa / Vieritä"),
+    ("Pan / zoom", "Siirrä näkymää / zoomaa"),
+    ("Cancel / deselect", "Peru / poista valinta"),
+    ("Turn", "Käännä"),
     (
-        "Click a table to edit it; drag to move. Right-click to add a table. Drag the background to pan; scroll or pinch to zoom.",
-        "Muokkaa pöytää klikkaamalla ja siirrä vetämällä. Lisää pöytä hiiren oikealla painikkeella. Siirrä näkymää vetämällä taustaa; zoomaa vierittämällä tai nipistämällä.",
+        "Name cards overlap another table on the chart",
+        "Nimikortit menevät kartalla toisen pöydän päälle",
     ),
+    (
+        "Name cards overlap on the chart: {}",
+        "Nimikortit menevät kartalla päällekkäin: {}",
+    ),
+    ("No versions yet.", "Ei vielä versioita."),
+    ("{} full-name matches", "{} koko nimen osumaa"),
+    (
+        "On the kitchen and bar prints, e.g. VG",
+        "Keittiön ja baarin tulosteissa, esim. VG",
+    ),
+    (
+        "Replaces this project; a backup is kept",
+        "Korvaa tämän projektin; varmuuskopio säilyy",
+    ),
+    ("Turn the selected table", "Käännä valittua pöytää"),
+    ("Drag to turn", "Käännä vetämällä"),
+    ("Turn {}", "Käännä {}"),
+    (
+        "Turn 45° anticlockwise (Shift+R)",
+        "Käännä 45° vastapäivään (Shift+R)",
+    ),
+    ("Turn 45° clockwise (R)", "Käännä 45° myötäpäivään (R)"),
+    ("Room walls", "Tilan seinät"),
+    ("Resize room walls", "Muuta tilan kokoa"),
+    ("Long", "Pitkä"),
+    ("Round", "Pyöreä"),
+    ("Seats", "Paikat"),
+    ("{} · seat {}", "{} · paikka {}"),
     ("tables per row", "pöytää rivissä"),
     ("Rows", "Rivit"),
     ("Free layout", "Vapaa asettelu"),
@@ -21,18 +135,10 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Organization name", "Järjestön nimi"),
     ("Category name", "Luokan nimi"),
     (
-        "Create a category even if nobody entered its name on the sign-up sheet.",
-        "Voit luoda luokan, vaikka kukaan ei olisi ilmoittanut sen nimeä ilmoittautuessa.",
-    ),
-    (
         "A category with this name already exists.",
         "Samanniminen luokka on jo olemassa.",
     ),
     ("Imported entries", "Tuodut merkinnät"),
-    (
-        "Choose one or more categories for each entry. Combined entries can belong to several.",
-        "Valitse merkinnälle yksi tai useampi luokka. Yhdistelmä voi kuulua moneen luokkaan.",
-    ),
     ("Find imported entry", "Etsi tuotua merkintää"),
     ("Choose organizations…", "Valitse järjestöt…"),
     ("Choose categories…", "Valitse luokat…"),
@@ -40,10 +146,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Excel workbook", "Excel-työkirja"),
     ("Export Excel (.xlsx)", "Vie Excel (.xlsx)"),
     ("Save Excel and open", "Tallenna Excel ja avaa"),
-    (
-        "Seating order, meals, drinks, allergies and extra guest details, with catering totals by table. Includes unseated guests and empty seats.",
-        "Istumajärjestys, ruoat, juomat, allergiat ja vieraiden lisätiedot sekä tarjoilumäärät pöydittäin. Sisältää myös ilman paikkaa olevat vieraat ja tyhjät paikat.",
-    ),
     // Categories
     ("Categories", "Luokat"),
     (
@@ -90,58 +192,14 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Rules for the whole event.",
         "Koko tapahtumaa koskevat säännöt.",
     ),
-    (
-        "Neighbours for people without wishes.",
-        "Pöytäseuran valinta henkilöille, joilla ei ole toiveita.",
-    ),
-    (
-        "Seat them among wish groups or separately.",
-        "Sijoita toiveita esittämättömät henkilöt toiveryhmien sekaan tai erilleen.",
-    ),
-    (
-        "Penalty for having nobody beside or opposite.",
-        "Sakkopisteet, jos vieressä tai vastapäätä ei istu ketään.",
-    ),
-    (
-        "Penalty if no wish is beside, opposite or diagonal.",
-        "Sakkopisteet, jos kukaan toivotusta seurasta ei istu vieressä, vastapäätä tai vinottain vastapäätä.",
-    ),
-    ("Where spare seats go.", "Tyhjien paikkojen sijoittelu."),
     ("Organizations", "Järjestöt"),
     ("Same organization", "Saman järjestön jäsenet yhteen"),
     ("Mix organizations", "Eri järjestöjen jäsenet sekaisin"),
-    ("No preference", "Ei väliä"),
-    ("Strength", "Painotus"),
     ("People without wishes", "Henkilöt, joilla ei ole toiveita"),
-    ("Keep separate", "Pidä erillään"),
-    ("Mix in", "Sijoita joukkoon"),
-    ("Neutral", "Ei painotusta"),
-    (
-        "Adjacent people without wishes: {} points",
-        "Toiveita esittämättömät henkilöt vierekkäin: {} pistettä",
-    ),
-    (
-        "Beside a wish group: {} points",
-        "Toiveryhmän vieressä: {} pistettä",
-    ),
-    ("Avoid sitting alone", "Vältä yksin istumista"),
     ("Table ends", "Pöydän päädyt"),
-    (
-        "Penalty for someone without wishes at a table end; groups take the ends instead.",
-        "Sakkopisteet, jos pöydän päädyssä istuu joku ilman toiveita; päädyt jäävät ryhmille.",
-    ),
-    ("At least one wish", "Vähintään yksi toive toteutuu"),
     ("Empty seats", "Tyhjät paikat"),
-    (
-        "At table bottoms, in opposite pairs",
-        "Pöytien alapäihin vastakkaisiksi pareiksi",
-    ),
     ("Anywhere", "Mihin tahansa"),
     ("Reset to defaults", "Palauta oletukset"),
-    (
-        "Another table: wish {} points · avec {} points",
-        "Eri pöydässä: toive {} pistettä · avec {} pistettä",
-    ),
     (
         "Policy saved; solve again to apply",
         "Istumaperiaatteet tallennettu. Laske istumajärjestys uudelleen, jotta muutokset tulevat käyttöön.",
@@ -150,10 +208,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     (
         "Repair the JSON file before editing in the app.",
         "Korjaa JSON-tiedosto ennen kuin jatkat muokkaamista sovelluksessa.",
-    ),
-    (
-        "Advanced: tags and distances",
-        "Lisäasetukset: tunnisteet ja etäisyydet",
     ),
     ("Invalid project: {}", "Virheellinen projekti: {}"),
     ("Room layout", "Pöydät ja paikat"),
@@ -178,15 +232,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("+ Add row", "+ Lisää rivi"),
     (
-        "Replace project from TSV",
-        "Korvaa projekti TSV-tiedostolla",
-    ),
-    (
-        "Replaces the entire project. To update people, use Import on People & wishes.",
-        "Korvaa koko projektin. Jos haluat päivittää vain henkilöiden tiedot, käytä Henkilöt ja toiveet -sivun Tuo-toimintoa.",
-    ),
-    ("Import TSV", "Tuo TSV-tiedosto"),
-    (
         "{} people lost their seats and are not seated",
         "{} henkilöä menetti paikkansa ja on nyt ilman paikkaa",
     ),
@@ -207,17 +252,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "muissa vaihtoehdoissa henkilöitä menetti paikkansa",
     ),
     ("Saved room layout", "Pöydät ja paikat tallennettu"),
-    ("Add tables first.", "Lisää ensin pöytiä."),
-    (
-        "Mark special seats, e.g. accessible or aisle.",
-        "Merkitse esimerkiksi esteettömät paikat ja käytävän vieressä olevat paikat.",
-    ),
-    ("new tag", "uusi tunniste"),
-    (
-        "Set a custom distance between two seats.",
-        "Aseta kahden paikan välinen etäisyys.",
-    ),
-    ("Save distance", "Tallenna etäisyys"),
     ("{} tables", "{} pöytää"),
     ("Remove row", "Poista rivi"),
     ("+ Add table", "+ Lisää pöytä"),
@@ -324,12 +358,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Henkilöt pitävät paikkansa, kun pöytiä muutetaan.",
     ),
     (
-        "Set tags and custom distances for special seats.",
-        "Aseta erityispaikkojen tunnisteet ja etäisyydet.",
-    ),
-    (
-        "Long tables with seats on both sides.",
-        "Pitkät pöydät, joissa on paikkoja molemmilla puolilla.",
+        "Free layout places, turns and rounds tables on a canvas.",
+        "Vapaassa asettelussa pöydät sijoitellaan, käännetään ja muutetaan pyöreiksi alustalla.",
     ),
     (
         "Reset to restore defaults.",

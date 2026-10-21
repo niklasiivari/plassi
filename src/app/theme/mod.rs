@@ -3,7 +3,7 @@ mod icons;
 mod tokens;
 mod widgets;
 
-pub use controls::{combo, slider};
+pub use controls::combo;
 pub use icons::{Icon, icon_button, icon_button_enabled, paint as paint_icon};
 pub use tokens::*;
 pub use widgets::*;

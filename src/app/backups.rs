@@ -200,11 +200,7 @@ enum Restore {
 
 fn versions_list(ui: &mut egui::Ui, p: Palette, versions: &[Version]) -> Option<Restore> {
     if versions.is_empty() {
-        theme::hint(
-            ui,
-            p,
-            tr("No versions yet. Saved every few minutes while editing."),
-        );
+        theme::hint(ui, p, tr("No versions yet."));
     }
     let mut picked = None;
     for version in versions {

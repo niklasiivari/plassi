@@ -22,6 +22,7 @@ impl Layout {
                 label: crate::i18n::fill("Table {}", &[&i]),
                 left: per_side,
                 right: per_side,
+                shape: TableShape::Long,
             })
             .collect();
         Self {
@@ -60,27 +61,33 @@ impl Layout {
         self.free_layout = free;
     }
 
+    /// Table centres in rows: side by side with an aisle between, each row
+    /// below the tallest table of the one before.
     fn row_positions(&self) -> BTreeMap<String, TablePosition> {
         let mut positions = BTreeMap::new();
         let mut y = 0.0;
         for row in &self.rows {
-            let mut height = 0.0_f32;
-            for (i, table) in row.tables.iter().enumerate() {
+            let (mut x, mut height) = (0.0, 0.0_f32);
+            for table in &row.tables {
+                let (across, along) = table.half_size();
                 positions.insert(
                     table.id.clone(),
                     TablePosition {
-                        x: i as f32 * (TABLE_SPAN + TABLE_GAP),
-                        y,
+                        x: x + across,
+                        y: y + along,
+                        rotation: 0.0,
                     },
                 );
-                height = height.max((table.left.max(table.right).max(1) - 1) as f32 * SEAT_PITCH);
+                x += 2.0 * across + TABLE_GAP;
+                height = height.max(2.0 * along);
             }
             y += height + ROW_GAP;
         }
         positions
     }
 
-    pub fn table_origins(&self) -> BTreeMap<String, TablePosition> {
+    /// Where each table stands: in rows, or where it was put in the free layout.
+    pub fn table_frames(&self) -> BTreeMap<String, TablePosition> {
         let mut positions = self.row_positions();
         if self.free_layout {
             for (id, position) in &mut positions {
@@ -90,6 +97,13 @@ impl Layout {
             }
         }
         positions
+    }
+
+    pub fn table(&self, table_id: &str) -> Option<&TableSpec> {
+        self.rows
+            .iter()
+            .flat_map(|r| &r.tables)
+            .find(|t| t.id == table_id)
     }
 
     /// Move the table intact; assignments, tags and table rules use stable IDs.
@@ -131,45 +145,30 @@ impl Layout {
 
     pub fn seats(&self) -> Vec<Seat> {
         let mut result = Vec::new();
-        let origins = self.table_origins();
+        let frames = self.table_frames();
         for row in &self.rows {
             for table in &row.tables {
-                let TablePosition {
-                    x: table_x,
-                    y: row_y,
-                } = origins[&table.id];
-                let mut push = |side: Side, index: usize, suffix: &str, x: f32, y: f32| {
-                    let id = format!("{}:{suffix}:{index}", table.id);
-                    let tags = self.seat_tags.get(&id).cloned().unwrap_or_default();
-                    result.push(Seat {
-                        id,
-                        row_id: row.id.clone(),
-                        table_id: table.id.clone(),
-                        x,
-                        y,
-                        side,
-                        index,
-                        tags,
-                    });
-                };
-                for index in 0..table.left {
-                    push(
-                        Side::Left,
-                        index,
-                        "left",
-                        table_x,
-                        row_y + index as f32 * SEAT_PITCH,
-                    );
-                }
-                for index in 0..table.right {
-                    let x = table_x + TABLE_SPAN;
-                    push(
-                        Side::Right,
-                        index,
-                        "right",
-                        x,
-                        row_y + index as f32 * SEAT_PITCH,
-                    );
+                let frame = frames[&table.id];
+                for (side, count, suffix) in [
+                    (Side::Left, table.left, "left"),
+                    (Side::Right, table.right, "right"),
+                ] {
+                    for index in 0..count {
+                        let id = format!("{}:{suffix}:{index}", table.id);
+                        let (x, y, out) = table.local_seat(side, index);
+                        let (x, y) = frame.place(x, y);
+                        result.push(Seat {
+                            id,
+                            row_id: row.id.clone(),
+                            table_id: table.id.clone(),
+                            x,
+                            y,
+                            side,
+                            index,
+                            out: out + frame.radians(),
+                            ring: table.ring(side, index),
+                        });
+                    }
                 }
             }
         }
@@ -190,7 +189,6 @@ pub fn area_contains(area: &Area, seat: &Seat, seats: &[Seat]) -> bool {
         Area::Seat(id) => seat.id == *id,
         Area::Table(id) => seat.table_id == *id,
         Area::Row(id) => seat.row_id == *id,
-        Area::Tag(tag) => seat.tags.iter().any(|t| t == tag),
         Area::RowCenter(id) => {
             if seat.row_id != *id {
                 return false;
@@ -210,14 +208,13 @@ pub fn area_contains(area: &Area, seat: &Seat, seats: &[Seat]) -> bool {
 }
 
 /// For each seat, the seats directly beside it on the same side.
-pub fn beside_lists(layout: &Layout, seats: &[Seat]) -> Vec<Vec<usize>> {
+pub fn beside_lists(seats: &[Seat]) -> Vec<Vec<usize>> {
     seats
         .iter()
         .map(|a| {
             (0..seats.len())
                 .filter(|&j| {
-                    seats[j].id != a.id
-                        && distance_class(layout, a, &seats[j]) == DistanceClass::Beside
+                    seats[j].id != a.id && table_distance(a, &seats[j]) == DistanceClass::Beside
                 })
                 .collect()
         })
@@ -267,21 +264,13 @@ pub fn gaps<'a>(seats: &'a [Seat], assignment: &BTreeMap<usize, String>) -> Vec<
         .collect()
 }
 
-pub fn distance_class(layout: &Layout, a: &Seat, b: &Seat) -> DistanceClass {
-    if let Some(relation) = layout
-        .relations
-        .iter()
-        .find(|r| (r.a == a.id && r.b == b.id) || (r.a == b.id && r.b == a.id))
-    {
-        return relation.class;
-    }
-    table_distance(a, b)
-}
-
-/// Distance from the table geometry alone, ignoring hand-set relations.
+/// How close two seats are, from the table geometry.
 pub fn table_distance(a: &Seat, b: &Seat) -> DistanceClass {
     if a.table_id != b.table_id {
         return DistanceClass::Far;
+    }
+    if let (Some(a), Some(b)) = (a.ring, b.ring) {
+        return ring_distance(a, b);
     }
     match (a.side, b.side) {
         (Side::Left, Side::Left) | (Side::Right, Side::Right) if a.index.abs_diff(b.index) == 1 => {
@@ -353,13 +342,12 @@ mod layout_tests {
                 .collect::<Vec<_>>(),
             row_seats.iter().map(|s| (s.x, s.y)).collect::<Vec<_>>()
         );
-        layout.table_positions.insert(
-            "table-1".into(),
-            TablePosition {
-                x: -240.0,
-                y: 120.0,
-            },
-        );
+        let at = TablePosition {
+            x: -240.0,
+            y: 120.0,
+            rotation: 0.0,
+        };
+        layout.table_positions.insert("table-1".into(), at);
         let layout: Layout =
             serde_json::from_str(&serde_json::to_string(&layout).unwrap()).unwrap();
         let seat = layout
@@ -367,16 +355,14 @@ mod layout_tests {
             .into_iter()
             .find(|s| s.id == "table-1:left:0")
             .unwrap();
-        assert_eq!((seat.x, seat.y), (-240.0, 120.0));
+        // Two seats a side: the top-left seat is half a span and half a pitch off the centre.
+        assert_eq!(
+            (seat.x, seat.y),
+            (-240.0 - TABLE_SPAN / 2.0, 120.0 - SEAT_PITCH / 2.0)
+        );
         let mut layout = layout;
         layout.set_free_layout(false);
         layout.set_free_layout(true);
-        assert_eq!(
-            layout.table_positions["table-1"],
-            TablePosition {
-                x: -240.0,
-                y: 120.0
-            }
-        );
+        assert_eq!(layout.table_positions["table-1"], at);
     }
 }

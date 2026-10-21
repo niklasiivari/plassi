@@ -458,16 +458,6 @@ fn invalid_late_change_keeps_the_form_and_entered_details() {
 }
 
 #[test]
-fn opening_advanced_room_editor_does_not_create_empty_seat_tags() {
-    let mut ui = Ui::with_example();
-    ui.go_to("Room layout");
-    ui.click("Advanced: tags and distances");
-    ui.settle();
-
-    assert!(ui.app().project.layout.seat_tags.is_empty());
-}
-
-#[test]
 fn people_import_from_pasted_sheet() {
     let mut ui = Ui::open();
     ui.go_to("People & wishes");

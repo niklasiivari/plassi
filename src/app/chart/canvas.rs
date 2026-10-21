@@ -3,13 +3,7 @@
 use super::*;
 use crate::app::camera::Viewport;
 
-pub(super) const CARD_W: f32 = 176.0;
-
-pub(super) const CARD_H: f32 = 44.0;
-
-/// How far a side seat's card centre sits outward from its seat coordinate,
-/// so the card lies just outside the table edge.
-pub(super) const CARD_OFFSET: f32 = CARD_W / 2.0 + 6.0;
+pub(super) use crate::app::turned::{CARD_H, CARD_W};
 
 fn animate_position(ctx: &egui::Context, id: egui::Id, target: Pos2, duration: f32) -> Pos2 {
     Pos2::new(
@@ -26,15 +20,18 @@ pub(super) struct Paint<'a> {
     pub(super) scene: &'a Scene,
 }
 
-/// An outline around the card centred on screen point `centre`.
-fn outline_card(painter: &egui::Painter, view: &Viewport, centre: Pos2, stroke: Stroke) {
-    let card = Rect::from_center_size(centre, Vec2::new(CARD_W, CARD_H) * view.zoom);
-    painter.rect_stroke(
-        card.expand(3.0 * view.zoom.max(0.5)),
-        CornerRadius::same((10.0 * view.zoom).clamp(3.0, 12.0) as u8),
-        stroke,
-        StrokeKind::Outside,
-    );
+/// An outline around a card, given in world space.
+fn outline_card(painter: &egui::Painter, view: &Viewport, card: Turned, stroke: Stroke) {
+    let centre = view.point(card.centre);
+    let rect = Rect::from_center_size(centre, card.size * view.zoom);
+    paint_turned(painter, card.angle, centre, |painter| {
+        painter.rect_stroke(
+            rect.expand(3.0 * view.zoom.max(0.5)),
+            CornerRadius::same((10.0 * view.zoom).clamp(3.0, 12.0) as u8),
+            stroke,
+            StrokeKind::Outside,
+        )
+    });
 }
 
 /// Dotted backdrop that pans and zooms with the chart.
@@ -91,6 +88,7 @@ impl PlassiApp {
         }
         let view = self.update_viewport(ui, rect, &background, scene);
         paint_grid(&painter, &view, p);
+        self.paint_walls(&painter, &view, p);
         self.paint_tables(&painter, &view, p, scene);
         self.paint_wish_lines(ui, &painter, &view, p, scene);
         self.paint_group_highlights(&painter, &view, p, scene);
@@ -159,28 +157,47 @@ impl PlassiApp {
         view.camera.viewport(rect)
     }
 
+    /// The room's walls from the free layout.
+    fn paint_walls(&self, painter: &egui::Painter, view: &Viewport, p: Palette) {
+        let layout = &self.project.layout;
+        let Some(room) = layout.room.filter(|_| layout.free_layout) else {
+            return;
+        };
+        let walls = Rect::from_min_size(
+            Pos2::new(room.x, room.y),
+            Vec2::new(room.width, room.height),
+        );
+        painter.rect_stroke(
+            view.rect(walls),
+            2.0,
+            Stroke::new(2.0, p.border),
+            StrokeKind::Inside,
+        );
+    }
+
     fn paint_tables(&self, painter: &egui::Painter, view: &Viewport, p: Palette, scene: &Scene) {
         for table in self.project.layout.rows.iter().flat_map(|r| &r.tables) {
-            let Some(body) = scene.table_body(&table.id) else {
+            let Some(top) = scene.tops.get(&table.id) else {
                 continue;
             };
             let selected = self.chart.selected_table.as_deref() == Some(table.id.as_str());
-            painter.rect(
-                view.rect(body),
-                CornerRadius::same(
-                    (theme::radius::SM as f32 * view.zoom).clamp(2.0, theme::radius::SM as f32)
-                        as u8,
-                ),
-                p.table,
-                if selected {
-                    Stroke::new(2.0, p.accent)
-                } else {
-                    Stroke::NONE
-                },
-                StrokeKind::Outside,
-            );
+            let radius =
+                (theme::radius::SM as f32 * view.zoom).clamp(2.0, theme::radius::SM as f32);
+            let stroke = if selected {
+                Stroke::new(2.0, p.accent)
+            } else {
+                Stroke::NONE
+            };
+            top.paint(painter, view, p.table, stroke, radius as u8);
+            // Cards surround a turned or round table, so its name goes on top.
+            let body = top.bounds();
+            let at = if top.round || top.top.angle != 0.0 {
+                body.center()
+            } else {
+                Pos2::new(body.center().x, body.min.y - 16.0)
+            };
             painter.text(
-                view.point(Pos2::new(body.center().x, body.min.y - 16.0)),
+                view.point(at),
                 Align2::CENTER_CENTER,
                 &table.label,
                 FontId::proportional((13.0 * view.zoom).max(8.0)),
@@ -239,13 +256,14 @@ impl PlassiApp {
                 Stroke::new(1.5, color.gamma_multiply(0.55))
             };
             let others = if outgoing { targets } else { vec![*requester] };
-            for to in others.into_iter().filter_map(centre_of) {
+            for card in others.into_iter().filter_map(|p| scene.card_of(p)) {
+                let to = view.point(card.centre);
                 match from {
                     Some(from) => {
                         painter.line_segment([from, to], stroke);
                         painter.circle_filled(to, 3.5, stroke.color);
                     }
-                    None => outline_card(painter, view, to, stroke),
+                    None => outline_card(painter, view, card, stroke),
                 }
             }
         }
@@ -273,16 +291,17 @@ impl PlassiApp {
             .unwrap_or_default();
         let seats = scene.seats.iter().map(|s| {
             (
-                card_rect(s),
+                Some(card_turned(s)),
                 Some(s.id.as_str()),
                 scene.occupant.get(&s.id).copied(),
             )
         });
-        let loose = scene.loose.iter().map(|(person, at)| {
-            let rect = Rect::from_center_size(*at, Vec2::new(CARD_W, CARD_H));
-            (rect, None, Some(*person))
-        });
-        for (rect, seat, occupant) in seats.chain(loose) {
+        let loose = scene
+            .loose
+            .keys()
+            .map(|&person| (scene.card_of(person), None, Some(person)));
+        for (card, seat, occupant) in seats.chain(loose) {
+            let Some(card) = card else { continue };
             let in_group = occupant.is_some_and(|p| group.contains(&p));
             let previewed = seat.is_some_and(|id| {
                 self.chart
@@ -301,13 +320,17 @@ impl PlassiApp {
             } else {
                 p.accent.gamma_multiply(0.6)
             };
-            painter.rect(
-                view.rect(rect).expand(4.0 * view.zoom.max(0.5)),
-                CornerRadius::same((12.0 * view.zoom).clamp(3.0, 14.0) as u8),
-                color.gamma_multiply(0.18),
-                Stroke::new(1.5, color.gamma_multiply(0.8)),
-                StrokeKind::Outside,
-            );
+            let centre = view.point(card.centre);
+            paint_turned(painter, card.angle, centre, |painter| {
+                painter.rect(
+                    Rect::from_center_size(centre, card.size * view.zoom)
+                        .expand(4.0 * view.zoom.max(0.5)),
+                    CornerRadius::same((12.0 * view.zoom).clamp(3.0, 14.0) as u8),
+                    color.gamma_multiply(0.18),
+                    Stroke::new(1.5, color.gamma_multiply(0.8)),
+                    StrokeKind::Outside,
+                )
+            });
         }
     }
 

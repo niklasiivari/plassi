@@ -1,5 +1,5 @@
 // Plassi print template. Data arrives as JSON in sys.inputs.data.
-#let data = json(bytes(sys.inputs.at("data", default: "{\"kind\":\"chart\",\"title\":\"Preview\",\"subtitle\":\"\",\"rows\":[],\"people\":[],\"max_rows\":1,\"max_tables\":1,\"totals\":{\"food\":[],\"drink\":[],\"group\":[]}}")))
+#let data = json(bytes(sys.inputs.at("data", default: "{\"kind\":\"chart\",\"title\":\"Preview\",\"subtitle\":\"\",\"rows\":[],\"people\":[],\"max_rows\":1}")))
 
 #let serif = "Source Serif Pro"
 #let sans = "Source Sans 3"
@@ -44,159 +44,228 @@
   #upper(data.title) · #counter(page).display() / #counter(page).final().first()
 ])
 
-#let totals-row(items) = {
-  let chip(label, count) = box(
-    fill: tint, radius: 4pt, inset: (x: 8pt, y: 6pt),
-    [#text(size: 15pt, weight: "bold", str(count)) #h(3pt) #text(size: 9pt, label)],
-  )
-  items.map(i => chip(i.label, i.count)).join(h(5pt))
+// Footer with page numbers, on prints that run over more than one page.
+#let pages-footer = context if counter(page).final().first() > 1 { footer }
+
+// ---------------------------------------------------------- room layout --
+// Each room row's tables side by side, as many as stay wide enough for the
+// names; the rest wrap onto the next line. Seat rows shrink, down to a
+// readable size, to keep the room on as few pages and lines as they can.
+// Pages break between lines of tables, never inside a table.
+
+// Everyone seated.
+#let seated = data.rows.map(r => r.tables.map(tbl => tbl.rows.map(s => (s.left, s.right)))).flatten().filter(p => p != none)
+
+// Width the seated names need at `size`, with `extra(person)` beside each:
+// all of nine in ten, the longest shrinking to 70 % at most. Needs a context.
+#let names-width(size, extra: p => 0pt) = {
+  let widths = seated.map(p => measure(text(size: size, p.name)).width + extra(p)).sorted()
+  if widths.len() == 0 { return 0pt }
+  calc.max(widths.at(int(0.9 * (widths.len() - 1))), 0.7 * widths.last())
 }
 
+// `tables` in lines of at most `per`, as even as possible.
+#let wrap(tables, per) = {
+  let count = calc.ceil(tables.len() / per)
+  let even = calc.ceil(tables.len() / calc.max(1, count))
+  range(count).map(i => tables.slice(i * even, calc.min(tables.len(), (i + 1) * even)))
+}
+
+// The room in lines of tables at least `min-w` wide, each line with its row
+// label (when there is more than one row or the row wraps); the table width,
+// and each line's height with `row-h` seat rows and `extra` for its labels.
+#let plan(width, gap, min-w, row-h, extra) = {
+  let per = calc.max(1, calc.floor((width + gap) / (min-w + gap)))
+  let lines = ()
+  for room in data.rows {
+    let parts = wrap(room.tables, per)
+    let labelled = data.rows.len() > 1 or parts.len() > 1
+    for (i, tables) in parts.enumerate() {
+      let label = if not labelled { none } else if i == 0 { room.label } else {
+        room.label + " " + t("(continued)", "(jatkoa)")
+      }
+      lines.push((label: label, tables: tables))
+    }
+  }
+  let across = calc.max(1, ..lines.map(l => l.tables.len()))
+  let deepest(tables) = calc.max(1, ..tables.map(tbl => tbl.rows.len()))
+  (
+    lines: lines,
+    table-w: (width - gap * (across - 1)) / across,
+    row-h: row-h,
+    heights: lines.map(l => extra + deepest(l.tables) * row-h),
+  )
+}
+
+// Pages that blocks of `heights`, `space` apart, take when the first page
+// has `first` for them and the others `rest`. A block too tall for what is
+// left of a page goes to the next, unless the page is empty and full height.
+#let page-count(heights, space, first, rest) = {
+  let (pages, room, used) = (1, first, 0pt)
+  for h in heights {
+    let gap = if used > 0pt { space } else { 0pt }
+    if used + gap + h > room and (used > 0pt or room < rest) {
+      pages += 1
+      room = rest
+      used = 0pt
+      gap = 0pt
+    }
+    used += gap + h
+  }
+  pages
+}
+
+// Of the plans `make` gives for seat rows from `high` down to `low` tall, the
+// one on the fewest pages, then the fewest lines, then the tallest rows.
+// Lines are `space` apart; `after` is what follows them.
+#let best(make, high, low, space, first, rest, after: 0pt) = {
+  let plans = range(int((high - low) / 0.5mm) + 1).map(i => make(high - i * 0.5mm))
+  let cost(p) = page-count(p.heights + (after,), space, first, rest) * 1000 + p.lines.len()
+  let costs = plans.map(cost)
+  plans.at(costs.position(c => c == calc.min(..costs)))
+}
+
+// One line of tables under its label, kept on one page.
+#let room-line(line, table-w, gap, below, draw) = block(breakable: false, below: below, {
+  if line.label != none {
+    align(center, eyebrow(line.label))
+    v(2pt)
+  }
+  align(center, grid(
+    columns: (table-w,) * line.tables.len(),
+    column-gutter: gap,
+    ..line.tables.map(draw),
+  ))
+})
+
+// A table: its name above and the seats down both sides of a band with the
+// seat numbers; `seat(person, side)` draws a seat. `big` for the wall chart.
+#let table-box(tbl, row-h, band, seat, big: true) = {
+  align(center, text(font: serif, size: if big { 12pt } else { 10pt }, weight: "semibold", fill: accent, tbl.label))
+  v(if big { 3pt } else { 1pt })
+  let n = tbl.rows.len()
+  let number(r) = align(center + horizon, text(size: if big { 6pt } else { 5.5pt }, fill: muted, str(r.n)))
+  let body = block(
+    width: 100%, height: n * row-h, radius: if big { 3pt } else { 2pt }, fill: tint, stroke: 0.5pt + hair,
+    grid(rows: (row-h,) * n, ..tbl.rows.map(number)),
+  )
+  let cells = ()
+  for (i, r) in tbl.rows.enumerate() {
+    cells.push(align(right + horizon, seat(r.left, "left")))
+    if i == 0 { cells.push(grid.cell(rowspan: n, body)) }
+    cells.push(align(left + horizon, seat(r.right, "right")))
+  }
+  grid(columns: (1fr, band, 1fr), rows: (row-h,) * n, column-gutter: if big { 2.5mm } else { 1.5mm }, ..cells)
+}
+
+// Height of a line of tables besides its seat rows: the row label and the
+// table names. Needs a context.
+#let line-extra(big) = {
+  let probe = (label: "X", tables: ((label: "X", rows: ((n: 1, left: none, right: none),)),))
+  let one = room-line(probe, 50mm, 0pt, 0pt, tbl => table-box(tbl, 10mm, 5mm, (p, side) => none, big: big))
+  measure(block(width: 50mm, one)).height - 10mm
+}
 
 // ---------------------------------------------------------------- chart --
-#let chart(service: none) = {
-  set page(paper: "a4", flipped: true, margin: (x: 14mm, top: 12mm, bottom: 14mm))
-  header(if service == "food" { t("Kitchen", "Keittiö") } else if service == "drink" { t("Bar", "Baari") } else { t("Seating", "Istumajärjestys") })
-  let tables = calc.max(1, data.max_tables)
-  let rows = calc.max(1, data.max_rows)
-  let room-rows = calc.max(1, data.rows.len())
-  // Height left for the tables on the first page.
-  let avail = 128mm / room-rows
-  let row-h = calc.min(if service == none { 9mm } else { 11mm }, avail / (rows + 1.6))
-  let size = calc.min(10.5pt, row-h * 0.5)
-  let gap = 10mm
-  let band = 9mm
-  let table-w = (269mm - gap * (tables - 1)) / tables
-  let name-w = (table-w - band) / 2 - 2mm
-  let person(p) = {
-    if p == none {
+#let chart() = {
+  set page(paper: "a4", flipped: true, margin: (x: 14mm, top: 12mm, bottom: 14mm), footer: pages-footer)
+  let kicker = t("Seating", "Istumajärjestys")
+  header(kicker)
+  context {
+    // The page inside its margins.
+    let width = 269mm
+    let page-h = 184mm
+    // Below the header, less the spacing before the first line.
+    let first = page-h - measure(block(width: width, header(kicker))).height - 5mm
+    let gap = 10mm
+    let band = 9mm
+    let size(row-h) = calc.min(10.5pt, row-h * 0.5)
+    let names = names-width(10pt)
+    let extra = line-extra(true)
+    // Tables wide enough for the names, within reason; the tallest fits on a page.
+    let make(row-h) = {
+      let row-h = calc.min(row-h, (page-h - 16mm) / calc.max(1, data.max_rows))
+      let name-w = calc.min(45mm, names / 10pt * size(row-h))
+      plan(width, gap, 2 * (name-w + 2.5mm) + band, row-h, extra)
+    }
+    let p = best(make, 9mm, 6mm, 6mm, first, page-h)
+    let row-h = p.row-h
+    let size = size(row-h)
+    let name-w = (p.table-w - band) / 2 - 2.5mm
+    let person(p) = if p == none {
       text(size: 8pt, style: "italic", fill: muted, t("Empty", "tyhjä"))
     } else {
-      if service == none { fit(p.name, name-w, size) } else {
-        block(width: name-w, {
-          fit(p.name, name-w, size)
-          linebreak()
-          fit(p.at(service), name-w, 8pt)
-          if service == "food" and p.allergies != "" {
-            linebreak()
-            text(fill: warn, fit(p.allergies, name-w, 7pt))
-          }
-        })
-      }
+      fit(p.name, name-w, size)
     }
-  }
-  for room in data.rows {
-    if data.rows.len() > 1 {
-      align(center, eyebrow(room.label))
-      v(4pt)
-    }
-    align(center, grid(
-      columns: (table-w,) * room.tables.len(),
-      column-gutter: gap,
-      ..room.tables.map(tbl => {
-        align(center, text(font: serif, size: 12pt, weight: "semibold", fill: accent, tbl.label))
-        v(3pt)
-        let n = tbl.rows.len()
-        let body = block(
-          width: 100%, height: 100%, radius: 3pt, fill: tint, stroke: 0.5pt + hair,
-          grid(rows: (row-h,) * n, ..tbl.rows.map(r => align(center + horizon, text(size: 6pt, fill: muted, str(r.n))))),
-        )
-        let cells = ()
-        for (i, r) in tbl.rows.enumerate() {
-          cells.push(align(right + horizon, person(r.left)))
-          if i == 0 { cells.push(grid.cell(rowspan: n, body)) }
-          cells.push(align(left + horizon, person(r.right)))
-        }
-        grid(
-          columns: (1fr, band, 1fr),
-          rows: (row-h,) * n,
-          column-gutter: 2.5mm,
-          ..cells,
-        )
-      })
-    ))
-    v(6mm)
-  }
-
-  if service != none {
-    align(center, {
-      eyebrow(t("Totals", "Yhteensä"))
-      v(4pt)
-      totals-row(data.totals.at(service))
-    })
+    let draw(tbl) = table-box(tbl, row-h, band, (p, side) => person(p))
+    for line in p.lines { room-line(line, p.table-w, gap, 6mm, draw) }
   }
 }
 
 // ------------------------------------------------------- kitchen and bar --
 // Tables as on the wall chart, each seat with a short mark for the meal or
 // drink (none for the most common one) and its allergies; a legend and long
-// allergy notes below.
+// allergy notes below. The title line repeats on every page.
 #let mark-chip(mark) = if mark != "" {
   box(fill: accent, radius: 2pt, inset: (x: 2.5pt, y: 1.5pt), text(size: 7pt, weight: "bold", fill: white, mark))
 }
 
 #let service-chart(service) = {
-  set page(paper: "a4", flipped: true, margin: (x: 10mm, top: 9mm, bottom: 9mm))
   let marks = data.marks
-  grid(
-    columns: (auto, 1fr, auto),
-    align: horizon,
-    column-gutter: 8pt,
-    eyebrow(if service == "food" { t("Kitchen", "Keittiö") } else { t("Bar", "Baari") }),
-    [#text(font: serif, size: 14pt, weight: "semibold", data.title) #h(6pt) #text(font: serif, style: "italic", fill: muted, data.subtitle)],
-    text(size: 8pt, fill: muted, t("Unmarked: ", "Ilman merkintää: ") + if marks.plain != none { marks.plain.name } else { "" }),
-  )
-  v(2pt)
-  line(length: 100%, stroke: 0.5pt + hair)
-  v(4pt)
-
-  let tables = calc.max(1, data.max_tables)
-  let rows = calc.max(1, data.max_rows)
-  let room-rows = calc.max(1, data.rows.len())
-  let row-h = calc.min(11mm, 136mm / room-rows / rows)
-  let gap = 8mm
-  let band = 6mm
-  let table-w = (277mm - gap * (tables - 1)) / tables
-  let name-w = (table-w - band) / 2 - 2mm
-  let seat(p, side) = {
-    if p == none { return text(size: 7pt, style: "italic", fill: muted, t("Empty", "tyhjä")) }
-    let d = p.service
-    let mark = mark-chip(d.mark)
-    let name = fit(p.name, name-w - (if d.mark != "" { 10mm } else { 0mm }), 9pt)
-    let first = if side == "left" { [#name #mark] } else { [#mark #name] }
-    let second = if d.note != none {
-      text(size: 6.5pt, fill: warn, weight: "bold", t("Allergy note ", "Allergia, ks. ") + str(d.note))
-    } else if d.allergy != "" {
-      text(size: 6.5pt, fill: warn, d.allergy)
-    }
-    block(width: name-w, {
-      set par(leading: 0.25em)
-      first
-      if second != none { linebreak(); second }
-    })
+  let top = {
+    grid(
+      columns: (auto, 1fr, auto),
+      align: horizon,
+      column-gutter: 8pt,
+      eyebrow(if service == "food" { t("Kitchen", "Keittiö") } else { t("Bar", "Baari") }),
+      [#text(font: serif, size: 14pt, weight: "semibold", data.title) #h(6pt) #text(font: serif, style: "italic", fill: muted, data.subtitle)],
+      text(size: 8pt, fill: muted, t("Unmarked: ", "Ilman merkintää: ") + if marks.plain != none { marks.plain.name } else { "" }),
+    )
+    v(2pt)
+    line(length: 100%, stroke: 0.5pt + hair)
   }
-  for room in data.rows {
-    align(center, grid(
-      columns: (table-w,) * room.tables.len(),
-      column-gutter: gap,
-      ..room.tables.map(tbl => {
-        align(center, text(font: serif, size: 10pt, weight: "semibold", fill: accent, tbl.label))
-        v(1pt)
-        let n = tbl.rows.len()
-        let body = block(
-          width: 100%, height: 100%, radius: 2pt, fill: tint, stroke: 0.5pt + hair,
-          grid(rows: (row-h,) * n, ..tbl.rows.map(r => align(center + horizon, text(size: 5.5pt, fill: muted, str(r.n))))),
-        )
-        let cells = ()
-        for (i, r) in tbl.rows.enumerate() {
-          cells.push(align(right + horizon, seat(r.left, "left")))
-          if i == 0 { cells.push(grid.cell(rowspan: n, body)) }
-          cells.push(align(left + horizon, seat(r.right, "right")))
-        }
-        grid(columns: (1fr, band, 1fr), rows: (row-h,) * n, column-gutter: 1.5mm, ..cells)
+  set page(
+    paper: "a4", flipped: true, margin: (x: 10mm, top: 19mm, bottom: 11mm),
+    header: top, header-ascent: 3mm, footer: pages-footer,
+  )
+
+  context {
+    // The page inside its margins.
+    let width = 277mm
+    let page-h = 180mm
+    // The legend and the allergy notes under the tables.
+    let after = 10mm + if marks.notes.len() > 0 { 10mm + calc.ceil(marks.notes.len() / 3) * 4mm } else { 0mm }
+    let gap = 8mm
+    let band = 6mm
+    let extra = line-extra(false)
+    let chip(p) = if p.service.mark != "" { measure(mark-chip(p.service.mark)).width + 4pt } else { 0pt }
+    let need = calc.min(55mm, names-width(9pt, extra: chip))
+    let make(row-h) = {
+      let row-h = calc.min(row-h, (page-h - 12mm) / calc.max(1, data.max_rows))
+      plan(width, gap, 2 * (need + 1.5mm) + band, row-h, extra)
+    }
+    let p = best(make, 11mm, 7mm, 3mm, page-h, page-h, after: after)
+    let row-h = p.row-h
+    let name-w = (p.table-w - band) / 2 - 1.5mm
+    let seat(p, side) = {
+      if p == none { return text(size: 7pt, style: "italic", fill: muted, t("Empty", "tyhjä")) }
+      let d = p.service
+      let mark = mark-chip(d.mark)
+      let name = fit(p.name, name-w - if d.mark != "" { measure(mark).width + 4pt } else { 0pt }, 9pt)
+      let first = if side == "left" { [#name #mark] } else { [#mark #name] }
+      let second = if d.note != none {
+        text(size: 6.5pt, fill: warn, weight: "bold", t("Allergy note ", "Allergia, ks. ") + str(d.note))
+      } else if d.allergy != "" {
+        text(fill: warn, fit(d.allergy, name-w, 6.5pt))
+      }
+      block(width: name-w, {
+        set par(leading: 0.25em)
+        first
+        if second != none { linebreak(); second }
       })
-    ))
-    v(3mm)
+    }
+    let draw(tbl) = table-box(tbl, row-h, band, seat, big: false)
+    for line in p.lines { room-line(line, p.table-w, gap, 3mm, draw) }
   }
 
   // Legend: each mark with its meal and count.
@@ -218,6 +287,7 @@
     })
   }
 }
+
 
 // ---------------------------------------------------------------- door --
 #let door() = {
@@ -242,13 +312,9 @@
       },
     )).flatten(),
   )
-  let n = data.people.len()
-  let per = calc.ceil(n / 2)
-  grid(
-    columns: (1fr, 1fr),
-    column-gutter: 10mm,
-    ..range(2).map(i => column(data.people.slice(calc.min(n, i * per), calc.min(n, (i + 1) * per)))),
-  )
+  // One list in reading order: down the left column, then the right, then
+  // on to the next page.
+  columns(2, gutter: 10mm, column(data.people))
 }
 
 #if data.kind == "chart" { chart() }

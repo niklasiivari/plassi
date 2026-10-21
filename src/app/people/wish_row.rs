@@ -36,7 +36,6 @@ pub(super) fn describe_rule(project: &Project, rule: &Rule) -> (String, Vec<Stri
                 Area::Seat(id) => project.seat_label(id),
                 Area::Table(id) => project.table_label(id).to_string(),
                 Area::Row(id) | Area::RowCenter(id) => id.clone(),
-                Area::Tag(tag) => fill("seats tagged “{}”", &[tag]),
             };
             if !hard {
                 notes.push(tr("preference").into());
@@ -135,11 +134,11 @@ impl PlassiApp {
     }
 
     fn wish_row_editor(&mut self, ui: &mut egui::Ui, p: Palette, rule_id: u64) -> (bool, bool) {
-        let result = self.rule_card(ui, p, rule_id);
-        if ui.button(tr("Done")).clicked() {
+        let (changed, delete, done) = self.rule_card(ui, p, rule_id);
+        if done {
             self.people.editing_rule = None;
         }
         ui.add_space(theme::space::S);
-        result
+        (changed, delete)
     }
 }

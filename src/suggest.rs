@@ -98,31 +98,89 @@ fn edit_distance(a: &str, b: &str) -> usize {
 }
 
 fn close(word: &str, token: &str) -> bool {
-    if word.chars().count() < 4 {
+    let length = word.chars().count();
+    if length < 4 {
         word == token
     } else {
-        edit_distance(word, token) <= 1
+        // One edit changes the length by at most one.
+        length.abs_diff(token.chars().count()) <= 1 && edit_distance(word, token) <= 1
     }
 }
 
 /// Suggestions for every unreviewed note, excluding wishes that already exist.
 pub fn suggestions(project: &Project) -> Vec<Suggestion> {
-    let mut result = Vec::new();
-    for (index, note) in project.notes.iter().enumerate() {
-        if !note.reviewed {
-            result.extend(for_note(project, index));
-        }
-    }
-    result
+    Suggester::default().suggestions(project)
 }
 
 pub fn for_note(project: &Project, note_index: usize) -> Vec<Suggestion> {
     let Some(note) = project.notes.get(note_index) else {
         return Vec::new();
     };
+    let found = Index::new(project).found(note.person, &note.text);
+    suggest(project, note_index, &found)
+}
+
+/// Keeps what each note names while the attendees and categories stay the
+/// same, so reviewing a note or adding a wish only checks the wishes again.
+#[derive(Default)]
+pub struct Suggester {
+    roster: u64,
+    found: HashMap<(usize, String), Found>,
+}
+
+impl Suggester {
+    /// Suggestions for every unreviewed note, excluding wishes that already exist.
+    pub fn suggestions(&mut self, project: &Project) -> Vec<Suggestion> {
+        let roster = roster_key(project);
+        if roster != self.roster {
+            self.found.clear();
+            self.roster = roster;
+        }
+        let mut index = None;
+        let mut result = Vec::new();
+        for (i, note) in project.notes.iter().enumerate() {
+            if note.reviewed {
+                continue;
+            }
+            let found = self
+                .found
+                .entry((note.person, note.text.clone()))
+                .or_insert_with(|| {
+                    index
+                        .get_or_insert_with(|| Index::new(project))
+                        .found(note.person, &note.text)
+                });
+            result.extend(suggest(project, i, found));
+        }
+        result
+    }
+}
+
+/// A fingerprint of what name and organization matches depend on.
+fn roster_key(project: &Project) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    for a in &project.attendees {
+        (a.id, &a.name, &a.organization).hash(&mut hasher);
+    }
+    serde_json::to_string(&project.catalog)
+        .unwrap_or_default()
+        .hash(&mut hasher);
+    hasher.finish()
+}
+
+/// The people and organizations a note names, before leaving out wishes
+/// that already exist.
+#[derive(Clone)]
+struct Found {
+    people: Vec<(usize, Confidence, String)>,
+    organizations: Vec<(String, Confidence, String)>,
+}
+
+/// A note's matches as suggestions, without the wishes its writer already has.
+fn suggest(project: &Project, note_index: usize, found: &Found) -> Vec<Suggestion> {
+    let note = &project.notes[note_index];
     let requester = note.person;
-    let text = NoteText::new(&note.text);
-    let found = mentioned_people(project, requester, &text);
     let existing = wished_people(project, requester);
     let suggestion = |target, confidence, reason| Suggestion {
         note: note_index,
@@ -133,6 +191,7 @@ pub fn for_note(project: &Project, note_index: usize) -> Vec<Suggestion> {
         reason,
     };
     let mut result: Vec<Suggestion> = found
+        .people
         .iter()
         .filter(|(id, _, _)| !existing.contains(id))
         .map(|(id, confidence, reason)| {
@@ -143,13 +202,151 @@ pub fn for_note(project: &Project, note_index: usize) -> Vec<Suggestion> {
             )
         })
         .collect();
-    for (org, confidence, reason) in mentioned_organizations(project, requester, &text) {
+    let kind = Kind::Organization;
+    let has_rule = |name: &str| {
+        let key = project.category_key_of(kind, name);
+        project.rules.iter().any(|r| {
+            matches!(&r.kind, RuleKind::Proximity { requester: q, target: Target::Organization { name: n, .. }, .. }
+                if *q == requester && project.category_key_of(kind, n) == key)
+        })
+    };
+    for (org, confidence, reason) in &found.organizations {
+        if has_rule(org) {
+            continue;
+        }
         result.push(Suggestion {
             wish: crate::model::WishKind::Seating,
-            ..suggestion(SuggestedTarget::Organization(org), confidence, reason)
+            ..suggestion(
+                SuggestedTarget::Organization(org.clone()),
+                *confidence,
+                reason.clone(),
+            )
         });
     }
     result
+}
+
+/// What matching needs from the project, prepared once for many notes.
+struct Index<'a> {
+    project: &'a Project,
+    counts: NameCounts,
+    names: Vec<(usize, Name)>,
+    /// Folded, padded organization spellings with the category they mean.
+    organizations: Vec<(String, String)>,
+    /// Attendees per organization category key.
+    members: HashMap<String, usize>,
+}
+
+/// An attendee's name prepared for matching.
+struct Name {
+    tokens: Vec<String>,
+    /// " first last ", for whole-word `contains`.
+    full: String,
+    /// " last first ".
+    reversed: String,
+}
+
+impl Name {
+    fn new(name: &str) -> Option<Self> {
+        let tokens = tokens(name);
+        let (first, last) = (tokens.first()?, tokens.last()?);
+        Some(Self {
+            full: format!(" {} ", tokens.join(" ")),
+            reversed: format!(" {last} {first} "),
+            tokens,
+        })
+    }
+}
+
+impl<'a> Index<'a> {
+    fn new(project: &'a Project) -> Self {
+        let names = project
+            .attendees
+            .iter()
+            .filter_map(|a| Some((a.id, Name::new(&a.name)?)))
+            .collect();
+        let organizations = organization_spellings(project)
+            .into_iter()
+            .map(|(spelling, category)| (padded_words(&fold(&spelling)), category))
+            .filter(|(needle, _)| !needle.trim().is_empty())
+            .collect();
+        let mut members = HashMap::new();
+        for attendee in &project.attendees {
+            for key in project.category_keys(Kind::Organization, attendee) {
+                *members.entry(key).or_default() += 1;
+            }
+        }
+        Self {
+            project,
+            counts: NameCounts::new(project),
+            names,
+            organizations,
+            members,
+        }
+    }
+
+    fn found(&self, requester: usize, text: &str) -> Found {
+        let text = NoteText::new(text);
+        Found {
+            people: self.mentioned_people(requester, &text),
+            organizations: self.mentioned_organizations(requester, &text),
+        }
+    }
+
+    /// Attendees other than the requester that the note names, most confident first.
+    fn mentioned_people(
+        &self,
+        requester: usize,
+        text: &NoteText,
+    ) -> Vec<(usize, Confidence, String)> {
+        let mut found: Vec<_> = self
+            .names
+            .iter()
+            .filter(|(id, _)| *id != requester)
+            .filter_map(|(id, name)| {
+                name_match(name, text, &self.counts)
+                    .map(|(confidence, reason)| (*id, confidence, reason))
+            })
+            .collect();
+        found.sort_by_key(|(_, c, _)| *c);
+        found
+    }
+
+    /// Organizations named as whole words, the requester's own counting as less likely.
+    fn mentioned_organizations(
+        &self,
+        requester: usize,
+        text: &NoteText,
+    ) -> Vec<(String, Confidence, String)> {
+        let project = self.project;
+        let kind = Kind::Organization;
+        let mut found: Vec<(String, Confidence, String)> = Vec::new();
+        for (needle, category) in &self.organizations {
+            if !text.padded.contains(needle.as_str()) {
+                continue;
+            }
+            if found.iter().any(|(c, _, _)| c == category) {
+                continue;
+            }
+            let own = project
+                .person(requester)
+                .map(|a| project.category_keys(kind, a))
+                .unwrap_or_default();
+            let key = project.category_key_of(kind, category);
+            let members = self.members.get(&key).copied().unwrap_or(0);
+            let confidence = if own.contains(&key) {
+                Confidence::Low
+            } else {
+                Confidence::Medium
+            };
+            found.push((
+                category.clone(),
+                confidence,
+                fill("mentions the organization ({} attending)", &[&members]),
+            ));
+        }
+        found
+    }
 }
 
 /// A note's text prepared for matching.
@@ -199,33 +396,14 @@ impl NameCounts {
     }
 }
 
-/// Attendees other than the requester that the note names, most confident first.
-fn mentioned_people(
-    project: &Project,
-    requester: usize,
-    text: &NoteText,
-) -> Vec<(usize, Confidence, String)> {
-    let counts = NameCounts::new(project);
-    let mut found: Vec<_> = project
-        .attendees
-        .iter()
-        .filter(|a| a.id != requester)
-        .filter_map(|a| {
-            name_match(&a.name, text, &counts)
-                .map(|(confidence, reason)| (a.id, confidence, reason))
-        })
-        .collect();
-    found.sort_by_key(|(_, c, _)| *c);
-    found
-}
-
 /// How confidently the note mentions `name`, and why.
-fn name_match(name: &str, text: &NoteText, counts: &NameCounts) -> Option<(Confidence, String)> {
-    let name_tokens = tokens(name);
+fn name_match(name: &Name, text: &NoteText, counts: &NameCounts) -> Option<(Confidence, String)> {
+    let Name {
+        tokens: name_tokens,
+        full,
+        reversed,
+    } = name;
     let (first, last) = (name_tokens.first()?, name_tokens.last()?);
-    let full = format!(" {} ", name_tokens.join(" "));
-    // Surname first, as in lists: "last first".
-    let reversed = format!(" {last} {first} ");
     let initial = first.chars().next();
     // A segment is "first last" (maybe misspelled), just "last" with a
     // matching initial, or just the first name (optionally with an initial).
@@ -247,9 +425,10 @@ fn name_match(name: &str, text: &NoteText, counts: &NameCounts) -> Option<(Confi
         _ => false,
     };
     let segments = &text.segments;
-    if text.padded.contains(&full) {
+    if text.padded.contains(full.as_str()) {
         Some((Confidence::High, tr("full name in text").to_string()))
-    } else if name_tokens.len() > 1 && text.padded.contains(&reversed) {
+    // Surname first, as in lists: "last first".
+    } else if name_tokens.len() > 1 && text.padded.contains(reversed.as_str()) {
         Some((Confidence::High, tr("full name, surname first").to_string()))
     } else if name_tokens.len() > 1 && segments.iter().any(fuzzy_pair) {
         Some((Confidence::Medium, tr("name, maybe misspelled").into()))
@@ -312,53 +491,6 @@ fn organization_spellings(project: &Project) -> Vec<(String, String)> {
     }
     result.retain(|(s, _)| s.chars().count() >= 2);
     result
-}
-
-/// Organizations named as whole words that the requester has no wish for yet.
-fn mentioned_organizations(
-    project: &Project,
-    requester: usize,
-    text: &NoteText,
-) -> Vec<(String, Confidence, String)> {
-    let kind = Kind::Organization;
-    let own = project
-        .person(requester)
-        .map(|a| project.category_keys(kind, a))
-        .unwrap_or_default();
-    let has_rule = |name: &str| {
-        let key = project.category_key_of(kind, name);
-        project.rules.iter().any(|r| {
-            matches!(&r.kind, RuleKind::Proximity { requester: q, target: Target::Organization { name: n, .. }, .. }
-                if *q == requester && project.category_key_of(kind, n) == key)
-        })
-    };
-    let mut found: Vec<(String, Confidence, String)> = Vec::new();
-    for (spelling, category) in organization_spellings(project) {
-        let needle = padded_words(&fold(&spelling));
-        if needle.trim().is_empty() || !text.padded.contains(&needle) || has_rule(&category) {
-            continue;
-        }
-        if found.iter().any(|(c, _, _)| *c == category) {
-            continue;
-        }
-        let key = project.category_key_of(kind, &category);
-        let members = project
-            .attendees
-            .iter()
-            .filter(|a| project.in_category(kind, a, &key))
-            .count();
-        let confidence = if own.contains(&key) {
-            Confidence::Low
-        } else {
-            Confidence::Medium
-        };
-        found.push((
-            category,
-            confidence,
-            fill("mentions the organization ({} attending)", &[&members]),
-        ));
-    }
-    found
 }
 
 pub fn accept(project: &mut Project, suggestion: &Suggestion) {

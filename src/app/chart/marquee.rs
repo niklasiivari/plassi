@@ -62,7 +62,6 @@ impl PlassiApp {
 
 /// Everyone on the chart whose card overlaps `area`, in chart units.
 fn people_in(scene: &Scene, area: Rect) -> Vec<usize> {
-    let size = Vec2::new(CARD_W, CARD_H);
     scene
         .seat_of
         .keys()
@@ -70,8 +69,8 @@ fn people_in(scene: &Scene, area: Rect) -> Vec<usize> {
         .copied()
         .filter(|person| {
             scene
-                .card_centre(*person)
-                .is_some_and(|c| Rect::from_center_size(c, size).intersects(area))
+                .card_of(*person)
+                .is_some_and(|card| card.bounds().intersects(area))
         })
         .collect()
 }

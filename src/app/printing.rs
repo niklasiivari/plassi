@@ -98,15 +98,25 @@ impl PlassiApp {
     fn spreadsheet_card(&mut self, ui: &mut egui::Ui, p: Palette) {
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.label(RichText::new(tr("Excel workbook")).strong().size(theme::text::LEAD));
-            theme::hint(ui, p, tr("Seating order, meals, drinks, allergies and extra guest details, with catering totals by table. Includes unseated guests and empty seats."));
+            ui.label(
+                RichText::new(tr("Excel workbook"))
+                    .strong()
+                    .size(theme::text::LEAD),
+            );
             let mut request = None;
             ui.horizontal_wrapped(|ui| {
                 let ready = !self.project.candidates.is_empty();
-                if ui.add_enabled(ready, theme::primary_button(tr("Export Excel (.xlsx)"), p)).clicked() {
+                if ui
+                    .add_enabled(ready, theme::primary_button(tr("Export Excel (.xlsx)"), p))
+                    .clicked()
+                {
                     request = Some(false);
                 }
-                if !cfg!(target_arch = "wasm32") && ui.add_enabled(ready, theme::secondary_button(tr("Save Excel and open"))).clicked() {
+                if !cfg!(target_arch = "wasm32")
+                    && ui
+                        .add_enabled(ready, theme::secondary_button(tr("Save Excel and open")))
+                        .clicked()
+                {
                     request = Some(true);
                 }
             });
@@ -118,17 +128,38 @@ impl PlassiApp {
                     });
                 match result {
                     Ok(saved) => {
-                        if open && let Some(path) = saved.location { self.open_file(&path); }
-                        self.status = fill(if cfg!(target_arch = "wasm32") { "Downloaded {}" } else { "Saved {}" }, &[&saved.description]);
-                        self.printing.spreadsheet = Some((saved.description, self.file.revision, self.selected_candidate));
+                        if open && let Some(path) = saved.location {
+                            self.open_file(&path);
+                        }
+                        self.status = fill(
+                            if cfg!(target_arch = "wasm32") {
+                                "Downloaded {}"
+                            } else {
+                                "Saved {}"
+                            },
+                            &[&saved.description],
+                        );
+                        self.printing.spreadsheet = Some((
+                            saved.description,
+                            self.file.revision,
+                            self.selected_candidate,
+                        ));
                     }
                     Err(error) => self.status = format!("{error:#}"),
                 }
             }
             if let Some((path, revision, option)) = &self.printing.spreadsheet {
                 let stale = *revision != self.file.revision || *option != self.selected_candidate;
-                let text = if stale { fill("{} · out of date", &[path]) } else { path.clone() };
-                ui.label(RichText::new(text).size(theme::text::CAPTION).color(if stale { p.warn } else { p.muted }));
+                let text = if stale {
+                    fill("{} · out of date", &[path])
+                } else {
+                    path.clone()
+                };
+                ui.label(
+                    RichText::new(text)
+                        .size(theme::text::CAPTION)
+                        .color(if stale { p.warn } else { p.muted }),
+                );
             }
         });
     }

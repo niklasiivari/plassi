@@ -1,7 +1,10 @@
-use crate::i18n::{fill, tr};
+use crate::i18n::tr;
 use eframe::egui::{self, RichText};
 
-use crate::model::{EmptySeatPlacement, OrganizationMixing, SeatingPolicy};
+use crate::model::{
+    EmptySeatPlacement, OneWish, OrganizationMixing, SeatingPolicy, SittingAlone, TableEnds,
+    WithoutWishes,
+};
 
 use super::PlassiApp;
 use super::theme::{self, Palette};
@@ -17,170 +20,165 @@ impl PlassiApp {
         );
         let before = self.project.policy.clone();
         let policy = &mut self.project.policy;
-        let mut settled = true;
-
-        section(
+        choice(
             ui,
             p,
             tr("Organizations"),
-            tr("Neighbours for people without wishes."),
-            |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    for (value, label) in [
-                        (
-                            OrganizationMixing::SameOrganization,
-                            tr("Same organization"),
-                        ),
-                        (OrganizationMixing::Mixed, tr("Mix organizations")),
-                        (OrganizationMixing::Indifferent, tr("No preference")),
-                    ] {
-                        ui.selectable_value(&mut policy.organization, value, label);
-                    }
-                });
-                if policy.organization != OrganizationMixing::Indifferent {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.label(tr("Strength"));
-                        let r = theme::slider(
-                            ui,
-                            egui::Slider::new(&mut policy.organization_weight, 0..=100),
-                        );
-                        settled &= !r.dragged();
-                    });
-                }
-            },
+            &mut policy.organization,
+            &[
+                (
+                    OrganizationMixing::SameOrganization,
+                    tr("Same organization"),
+                    tr("People without wishes sit with their own organization."),
+                ),
+                (
+                    OrganizationMixing::Mixed,
+                    tr("Mix organizations"),
+                    tr("People without wishes sit with other organizations."),
+                ),
+                (
+                    OrganizationMixing::Indifferent,
+                    tr("Doesn't matter"),
+                    tr("Organizations do not affect the seating."),
+                ),
+            ],
         );
-
-        section(
+        choice(
             ui,
             p,
             tr("People without wishes"),
-            tr("Seat them among wish groups or separately."),
-            |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    theme::hint(ui, p, tr("Keep separate"));
-                    let r = theme::slider(
-                        ui,
-                        egui::Slider::new(&mut policy.sprinkle, -50..=50).show_value(false),
-                    );
-                    settled &= !r.dragged();
-                    theme::hint(ui, p, tr("Mix in"));
-                });
-                let text = match policy.sprinkle {
-                    0 => tr("Neutral").to_string(),
-                    s if s > 0 => fill("Adjacent people without wishes: {} points", &[&s]),
-                    s => fill("Beside a wish group: {} points", &[&-s]),
-                };
-                theme::hint(ui, p, text);
-            },
+            &mut policy.without_wishes,
+            &[
+                (
+                    WithoutWishes::AmongGroups,
+                    tr("Among wish groups"),
+                    tr("They are spread between the people with wishes."),
+                ),
+                (
+                    WithoutWishes::ApartFromGroups,
+                    tr("Apart from wish groups"),
+                    tr("They sit together, away from the wish groups."),
+                ),
+                (
+                    WithoutWishes::Indifferent,
+                    tr("Doesn't matter"),
+                    tr("They fill the seats that are left."),
+                ),
+            ],
         );
-
-        section(
+        choice(
             ui,
             p,
-            tr("Avoid sitting alone"),
-            tr("Penalty for having nobody beside or opposite."),
-            |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    let r = theme::slider(
-                        ui,
-                        egui::Slider::new(&mut policy.isolation_penalty, 0..=2000),
-                    );
-                    settled &= !r.dragged();
-                });
-            },
+            tr("Sitting alone"),
+            &mut policy.sitting_alone,
+            &[
+                (
+                    SittingAlone::Never,
+                    tr("Never"),
+                    tr("Everyone has someone beside or opposite."),
+                ),
+                (
+                    SittingAlone::Avoid,
+                    tr("Avoid"),
+                    tr("Only wishes can leave someone without a neighbour."),
+                ),
+                (
+                    SittingAlone::Indifferent,
+                    tr("Doesn't matter"),
+                    tr("Empty seats may leave someone without a neighbour."),
+                ),
+            ],
         );
-
-        section(
+        choice(
             ui,
             p,
-            tr("At least one wish"),
-            tr("Penalty if no wish is beside, opposite or diagonal."),
-            |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    let r = theme::slider(
-                        ui,
-                        egui::Slider::new(&mut policy.left_out_penalty, 0..=2000),
-                    );
-                    settled &= !r.dragged();
-                });
-            },
+            tr("At least one wish nearby"),
+            &mut policy.one_wish,
+            &[
+                (
+                    OneWish::Important,
+                    tr("Important"),
+                    tr("Everyone gets one of their wishes close, even at a cost to others."),
+                ),
+                (
+                    OneWish::Preferred,
+                    tr("Preferred"),
+                    tr("Everyone gets one of their wishes close where it costs little."),
+                ),
+                (
+                    OneWish::Indifferent,
+                    tr("Doesn't matter"),
+                    tr("Only the wishes themselves count."),
+                ),
+            ],
         );
-
-        section(
+        choice(
             ui,
             p,
             tr("Table ends"),
-            tr("Penalty for someone without wishes at a table end; groups take the ends instead."),
-            |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    let r = theme::slider(
-                        ui,
-                        egui::Slider::new(&mut policy.lone_end_penalty, 0..=2000),
-                    );
-                    settled &= !r.dragged();
-                });
-            },
+            &mut policy.table_ends,
+            &[
+                (
+                    TableEnds::GroupsOnly,
+                    tr("Groups only"),
+                    tr("People without wishes stay off the ends."),
+                ),
+                (
+                    TableEnds::Indifferent,
+                    tr("Doesn't matter"),
+                    tr("Anyone may sit at an end."),
+                ),
+            ],
         );
-
-        section(
+        choice(
             ui,
             p,
             tr("Empty seats"),
-            tr("Where spare seats go."),
-            |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    ui.selectable_value(
-                        &mut policy.empty_seats,
-                        EmptySeatPlacement::TableBottoms,
-                        tr("At table bottoms, in opposite pairs"),
-                    );
-                    ui.selectable_value(
-                        &mut policy.empty_seats,
-                        EmptySeatPlacement::Anywhere,
-                        tr("Anywhere"),
-                    );
-                });
-            },
+            &mut policy.empty_seats,
+            &[
+                (
+                    EmptySeatPlacement::TableBottoms,
+                    tr("At table bottoms"),
+                    tr("In opposite pairs at the bottom of tables."),
+                ),
+                (
+                    EmptySeatPlacement::Anywhere,
+                    tr("Anywhere"),
+                    tr("Any seat may stay empty."),
+                ),
+            ],
         );
-
         ui.add_space(theme::space::S);
-        theme::responsive_row(ui, |ui| {
-            if ui.button(tr("Reset to defaults")).clicked() {
-                *policy = SeatingPolicy::default();
-            }
-            let scale = fill(
-                "Another table: wish {} points · avec {} points",
-                &[
-                    &crate::model::WishKind::Seating.far_penalty(),
-                    &crate::model::WishKind::Avec.far_penalty(),
-                ],
-            );
-            ui.label(RichText::new(scale).size(theme::text::SMALL).color(p.muted));
-        });
-        // Keep slider drags local until release, then save once.
-        let changed = self.project.policy != before;
-        if !settled {
-            self.policy_dirty |= changed;
-        } else if changed || std::mem::take(&mut self.policy_dirty) {
-            self.policy_dirty = false;
+        if ui.button(tr("Reset to defaults")).clicked() {
+            *policy = SeatingPolicy::default();
+        }
+        if self.project.policy != before {
             self.commit(tr("Policy saved; solve again to apply"));
         }
     }
 }
 
-fn section(
+/// A setting as a card: its title, one button per choice, and what the
+/// chosen one does.
+fn choice<T: PartialEq + Copy>(
     ui: &mut egui::Ui,
     p: Palette,
     title: &str,
-    help: &str,
-    add: impl FnOnce(&mut egui::Ui),
+    value: &mut T,
+    options: &[(T, &str, &str)],
 ) {
     theme::card(p).show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.label(RichText::new(title).strong().size(theme::text::LEAD));
-        theme::hint(ui, p, help);
         ui.add_space(theme::space::S);
-        add(ui);
+        ui.horizontal_wrapped(|ui| {
+            for (option, label, _) in options {
+                ui.selectable_value(value, *option, *label);
+            }
+        });
+        if let Some((_, _, meaning)) = options.iter().find(|(option, _, _)| option == value) {
+            theme::hint(ui, p, *meaning);
+        }
     });
     ui.add_space(theme::space::S);
 }

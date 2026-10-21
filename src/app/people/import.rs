@@ -40,11 +40,17 @@ impl PlassiApp {
                     .strong(),
             );
             ui.add_space(theme::space::XS);
-            theme::hint(ui, p, tr("Import another sheet at any time. Review its columns before adding people."));
             ui.add_space(theme::space::S);
-            if ui.add_enabled(self.people.sheet_picker.is_none(), theme::secondary_button(tr("Choose file…"))).clicked() {
+            if ui
+                .add_enabled(
+                    self.people.sheet_picker.is_none(),
+                    theme::secondary_button(tr("Choose file…")),
+                )
+                .clicked()
+            {
                 self.people.dropped = None;
-                self.people.sheet_picker = Some(crate::platform::SheetPick::start(ui.ctx().clone()));
+                self.people.sheet_picker =
+                    Some(crate::platform::SheetPick::start(ui.ctx().clone()));
             }
             if self.people.import_sheets.len() > 1 {
                 theme::responsive_row(ui, |ui| {
@@ -57,7 +63,10 @@ impl PlassiApp {
                             }
                         });
                     if previous != self.people.import_sheet {
-                        self.people.import_text = self.people.import_sheets[self.people.import_sheet].1.clone();
+                        self.people.import_text = self.people.import_sheets
+                            [self.people.import_sheet]
+                            .1
+                            .clone();
                         self.people.import_mapping = Default::default();
                     }
                 });
@@ -66,7 +75,8 @@ impl PlassiApp {
             if self.people.import_text.trim().is_empty() {
                 self.template_bar(ui, p);
             } else {
-                egui::CollapsingHeader::new(tr("Template and export")).show(ui, |ui| self.template_bar(ui, p));
+                egui::CollapsingHeader::new(tr("Template and export"))
+                    .show(ui, |ui| self.template_bar(ui, p));
             }
             ui.add_space(theme::space::M);
             egui::ScrollArea::vertical()
@@ -83,8 +93,6 @@ impl PlassiApp {
                 });
             if hovering {
                 ui.label(RichText::new(tr("Drop to import")).color(p.accent).strong());
-            } else {
-                theme::hint(ui, p, tr("Choose or drop an Excel, CSV, TSV or ODS file, or paste rows with headers."));
             }
             if !self.people.import_text.trim().is_empty() {
                 self.sheet_preview(ui, p);
@@ -103,11 +111,6 @@ impl PlassiApp {
 
     /// The template's columns with what goes in each, and the three ways to use it.
     fn template_bar(&mut self, ui: &mut egui::Ui, p: Palette) {
-        theme::hint(
-            ui,
-            p,
-            tr("Name required. Choose what each column means for this sheet."),
-        );
         ui.add_space(theme::space::S);
         egui::CollapsingHeader::new(tr("Columns")).show(ui, |ui| {
             template_table(ui, p);
@@ -174,13 +177,6 @@ impl PlassiApp {
             p,
             &fill("{} rows · check column mapping", &[&sheet.rows.len()]),
         );
-        theme::hint(
-            ui,
-            p,
-            tr(
-                "Match each source column to a field. Extra info is saved with each person; ignored columns are left out.",
-            ),
-        );
         ui.add_space(theme::space::S);
         let changed = column_rows(ui, p, &mut sheet, &mut self.people.import_mapping.reviewed);
         if changed {
@@ -206,18 +202,6 @@ impl PlassiApp {
                     tr("Update matching names"),
                 );
             });
-            theme::hint(
-                ui,
-                p,
-                match self.people.import_mode {
-                    ImportMode::Add => tr(
-                        "Each row adds a separate person. Existing people and seats stay unchanged.",
-                    ),
-                    ImportMode::UpdateMatching => tr(
-                        "Matching names update existing people. New names are added; nobody is removed.",
-                    ),
-                },
-            );
         }
         let prepared = sheet
             .has_name()

@@ -61,11 +61,6 @@ impl Combo {
         Self(self.0, self.1, Some(width))
     }
 
-    /// Maximum height of the open list.
-    pub fn height(self, height: f32) -> Self {
-        Self(self.0.height(height), self.1, self.2)
-    }
-
     pub fn close_behavior(self, behavior: egui::PopupCloseBehavior) -> Self {
         Self(self.0.close_behavior(behavior), self.1, self.2)
     }
@@ -255,26 +250,3 @@ impl ComboOptions<'_> {
         response.changed()
     }
 }
-
-/// A slider with a soft handle: a solid accent disc with no outline, over
-/// a quiet rail.
-pub fn slider(ui: &mut egui::Ui, slider: egui::Slider<'_>) -> egui::Response {
-    ui.scope(|ui| {
-        // The handle is sized from the row height (radius = height / 2.5).
-        ui.spacing_mut().interact_size.y = HANDLE * 2.5;
-        ui.spacing_mut().slider_rail_height = 6.0;
-        let visuals = ui.visuals_mut();
-        let accent = visuals.selection.stroke.color;
-        let w = &mut visuals.widgets;
-        // The rail and a resting handle share `inactive.bg_fill`, so the
-        // handle is painted by an inside stroke as wide as the handle.
-        for state in [&mut w.inactive, &mut w.hovered, &mut w.active] {
-            state.fg_stroke = Stroke::new(HANDLE, accent);
-        }
-        ui.add(slider.handle_shape(egui::style::HandleShape::Rect { aspect_ratio: 1.0 }))
-    })
-    .inner
-}
-
-/// Radius of a slider handle, in points.
-const HANDLE: f32 = 8.0;
