@@ -50,7 +50,7 @@ impl PlassiApp {
                     ready,
                     theme::primary_button(
                         if cfg!(target_arch = "wasm32") {
-                            tr("Download all PDFs")
+                            tr("Download all PDFs (.zip)")
                         } else {
                             tr("Save all PDFs")
                         },
@@ -369,6 +369,36 @@ impl PlassiApp {
             return;
         };
         self.printing.job = None;
+        // Browsers can silently block all but the first automatic download.
+        // Offer one archive for a batch, while keeping individual PDFs direct.
+        if cfg!(target_arch = "wasm32") && pdfs.len() > 1 {
+            let result = (|| -> anyhow::Result<_> {
+                let files = pdfs
+                    .iter()
+                    .map(|(kind, pdf)| {
+                        Ok((
+                            crate::print::file_name(&self.project, &self.file.name, *kind),
+                            pdf.as_deref().map_err(|error| anyhow::anyhow!("{error}"))?,
+                        ))
+                    })
+                    .collect::<anyhow::Result<Vec<_>>>()?;
+                let bytes = crate::print::pdf_archive(&files)?;
+                let name = format!("{} - PDFs.zip", self.file.name);
+                crate::platform::save_file(&self.file.store, &name, &bytes)
+            })();
+            match result {
+                Ok(file) => {
+                    for (kind, _) in pdfs {
+                        self.printing
+                            .saved
+                            .insert(kind, (file.description.clone(), self.file.revision));
+                    }
+                    self.status = fill("Downloaded {}", &[&file.description]);
+                }
+                Err(error) => self.status = format!("{error:#}"),
+            }
+            return;
+        }
         let mut saved = Vec::new();
         let mut failed = Vec::new();
         for (kind, pdf) in pdfs {

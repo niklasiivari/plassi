@@ -18,14 +18,17 @@ pub(in crate::app) struct CategoriesState {
     new_name: String,
     mapping_search: String,
     mapping_filter: MappingFilter,
+    choices: std::collections::BTreeMap<(String, String, usize), String>,
     entry_people: Option<(String, Vec<usize>)>,
+    manage: bool,
     /// Suggested merges, by project revision and kind.
     merges: crate::app::memo::Memo<(u64, Kind), Vec<crate::catalog::Merge>>,
 }
 
 impl CategoriesState {
-    pub(in crate::app) fn close_people(&mut self) {
+    pub(in crate::app) fn forget_project(&mut self) {
         self.entry_people = None;
+        self.choices.clear();
     }
 }
 
@@ -36,7 +39,9 @@ impl Default for CategoriesState {
             new_name: String::new(),
             mapping_search: String::new(),
             mapping_filter: MappingFilter::All,
+            choices: Default::default(),
             entry_people: None,
+            manage: false,
             merges: Default::default(),
         }
     }
@@ -56,25 +61,121 @@ impl PlassiApp {
             p,
             crate::app::help::HelpPage::Categories,
             tr("Categories"),
-            Some(tr("Merge names and set prices.")),
+            Some(tr(
+                "Match imported entries to categories, then set prices and print marks.",
+            )),
         );
         self.kind_tabs(ui, p);
-        ui.add_space(theme::space::XL);
-        let kind = self.categories.kind;
-        let mut changed = self.create_category_card(ui, p, kind);
         ui.add_space(theme::space::L);
-        theme::two_columns(ui, |ui, column| {
-            if column == 0 {
+        let kind = self.categories.kind;
+        let mut changed = false;
+        let compact = ui.available_width() < theme::TWO_COLUMN_MIN;
+        if compact {
+            ui.horizontal_wrapped(|ui| {
+                for (manage, label) in [(false, "Review entries"), (true, "Manage categories")] {
+                    if ui
+                        .add(theme::chip(tr(label), p, self.categories.manage == manage))
+                        .clicked()
+                    {
+                        self.categories.manage = manage;
+                    }
+                }
+            });
+            ui.add_space(theme::space::L);
+            if self.categories.manage {
+                changed |= self.category_management(ui, p, kind);
+            } else {
+                self.category_review_header(ui, p, kind);
                 changed |= self.merge_suggestions_card(ui, p, kind);
                 changed |= self.imported_entries(ui, p, kind);
-            } else {
-                changed |= self.category_entries(ui, p, kind);
             }
-        });
+        } else {
+            theme::two_columns(ui, |ui, column| {
+                if column == 0 {
+                    self.category_review_header(ui, p, kind);
+                    changed |= self.merge_suggestions_card(ui, p, kind);
+                    changed |= self.imported_entries(ui, p, kind);
+                } else {
+                    changed |= self.category_management(ui, p, kind);
+                }
+            });
+        }
         if changed {
             self.commit(tr("Saved categories"));
         }
         self.entry_people_window(ui, p);
+    }
+
+    fn category_management(&mut self, ui: &mut egui::Ui, p: Palette, kind: Kind) -> bool {
+        ui.label(
+            RichText::new(tr("Manage categories"))
+                .size(theme::text::LEAD)
+                .strong(),
+        );
+        theme::hint(
+            ui,
+            p,
+            if kind == Kind::Organization {
+                tr("Create organizations and combine their different spellings.")
+            } else if kind == Kind::Ticket {
+                tr("Set the price for each ticket type.")
+            } else {
+                tr("Set a shared price and print mark for each category.")
+            },
+        );
+        ui.add_space(theme::space::M);
+        let mut changed = self.create_category_card(ui, p, kind);
+        ui.add_space(theme::space::L);
+        changed |= self.category_entries(ui, p, kind);
+        changed
+    }
+
+    fn category_review_header(&self, ui: &mut egui::Ui, p: Palette, kind: Kind) {
+        let spellings = self.project.spellings(kind);
+        let lookup = self.project.catalog.lookup(kind);
+        let pending = spellings
+            .iter()
+            .filter(|(name, _)| {
+                lookup.find_all(name).is_empty() && !self.project.catalog.is_ignored(kind, name)
+            })
+            .count();
+        ui.label(
+            RichText::new(tr("Review imported entries"))
+                .size(theme::text::LEAD)
+                .strong(),
+        );
+        theme::hint(
+            ui,
+            p,
+            tr("Group different spellings of the same choice. The original sign-up text is kept."),
+        );
+        ui.add_space(theme::space::M);
+        if spellings.is_empty() {
+            theme::card(p).show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.label(tr("No imported entries for this type yet."));
+                theme::hint(
+                    ui,
+                    p,
+                    tr("Import people first, or create categories to use when adding people."),
+                );
+            });
+        } else {
+            ui.horizontal_wrapped(|ui| {
+                theme::status_pill(
+                    ui,
+                    p,
+                    if pending == 0 {
+                        tr("All entries categorized").to_string()
+                    } else {
+                        fill("{} entries to categorize", &[&pending])
+                    },
+                    if pending == 0 { p.good } else { p.warn },
+                );
+                theme::hint(ui, p, fill("{} imported entries", &[&spellings.len()]));
+            });
+        }
+        ui.add_space(theme::space::L);
     }
 
     /// One tab per kind; the count shows spellings still to map.

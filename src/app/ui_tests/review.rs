@@ -136,9 +136,9 @@ fn many_wishes_can_be_accepted_and_reviewed_on_desktop_and_phone() {
         assert!(ui.has("Review and next"));
         ui.key(Modifiers::COMMAND, Key::Z);
         assert_eq!(ui.app().project.rules.len(), 64);
-        assert_eq!(ui.count("+ Add"), 3);
-        ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
         assert_eq!(ui.count("+ Add"), 2);
+        ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
+        assert_eq!(ui.count("+ Add"), 1);
         // The list must refresh after review and after undo, including on phone.
         ui.app_mut().selected_person = None;
         ui.settle();
@@ -196,6 +196,28 @@ fn review_navigation_can_skip_backtrack_and_keep_reviewed_people_in_the_session(
 }
 
 #[test]
+fn people_overview_has_a_return_path_and_phone_review_starts_from_the_list() {
+    let mut ui = Ui::with_example();
+    ui.go_to("People & wishes");
+    ui.click("Review notes");
+    assert!(ui.app().selected_person.is_some());
+    ui.click("Overview");
+    assert!(ui.app().selected_person.is_none());
+    assert!(ui.has("Review categories"));
+    assert!(!ui.has("Paste rows with column headers…"));
+    ui.click("Review categories");
+    assert!(ui.app().page == Page::Categories);
+    ui.h.set_size(egui::vec2(390.0, 844.0));
+    ui.settle();
+    ui.click("Menu");
+    ui.go_to("People & wishes");
+    ui.click("Review notes");
+    assert!(ui.app().selected_person.is_some());
+    assert!(ui.has("Review sign-up notes"));
+    assert!(ui.has("Mark reviewed & next"));
+}
+
+#[test]
 fn select_all_can_be_cleared_from_the_top_of_the_people_list() {
     let mut ui = Ui::with_example();
     ui.go_to("People & wishes");
@@ -206,4 +228,45 @@ fn select_all_can_be_cleared_from_the_top_of_the_people_list() {
     ui.click("Select all shown");
     ui.key(Modifiers::NONE, Key::Escape);
     assert!(ui.app().people.picked.is_empty());
+}
+
+#[test]
+fn review_shortcuts_navigate_mark_all_notes_and_leave_typing_alone() {
+    let mut ui = Ui::with_example();
+    ui.go_to("People & wishes");
+    ui.click("Review notes");
+    let first = ui.app().selected_person.unwrap();
+    ui.app_mut().project.notes.push(crate::model::ImportNote {
+        person: first,
+        field: crate::model::ImportField::Avec,
+        text: "X".into(),
+        reviewed: false,
+    });
+    ui.app_mut().commit("Saved changes");
+    ui.settle();
+    ui.key(Modifiers::NONE, Key::J);
+    let second = ui.app().selected_person.unwrap();
+    assert_ne!(first, second);
+    ui.key(Modifiers::NONE, Key::K);
+    assert_eq!(ui.app().selected_person, Some(first));
+    ui.key(Modifiers::NONE, Key::R);
+    assert_eq!(ui.app().selected_person, Some(second));
+    assert!(
+        ui.app()
+            .project
+            .notes
+            .iter()
+            .filter(|n| n.person == first)
+            .all(|n| n.reviewed)
+    );
+    ui.click("Search name or organization");
+    ui.type_text("jkr");
+    assert_eq!(ui.app().selected_person, Some(second));
+    assert!(
+        ui.app()
+            .project
+            .notes
+            .iter()
+            .any(|n| n.person == second && !n.reviewed)
+    );
 }

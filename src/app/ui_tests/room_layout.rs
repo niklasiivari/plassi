@@ -57,8 +57,36 @@ fn table_row_selector_keeps_seating_and_free_canvas_drag_is_saved() {
     let (w, h) = table.half_size();
     let anchor = at.place(-w, -h);
     let grid = crate::model::SEAT_PITCH;
-    for value in [anchor.0, anchor.1] {
-        assert!(value.rem_euclid(grid).min(grid - value.rem_euclid(grid)) < 0.01);
+    let frames = ui.app().project.layout.table_frames();
+    let bounds = crate::app::turned::TableTop::new(table, at, 28.0).bounds();
+    for (axis, value) in [anchor.0, anchor.1].into_iter().enumerate() {
+        let on_grid = value.rem_euclid(grid).min(grid - value.rem_euclid(grid)) < 0.01;
+        let guided = frames
+            .iter()
+            .filter(|(id, _)| id.as_str() != "table-1")
+            .any(|(id, at)| {
+                let other = crate::app::turned::TableTop::new(
+                    ui.app().project.layout.table(id).unwrap(),
+                    *at,
+                    28.0,
+                )
+                .bounds();
+                let (moving, target) = if axis == 0 {
+                    (
+                        [bounds.left(), bounds.center().x, bounds.right()],
+                        [other.left(), other.center().x, other.right()],
+                    )
+                } else {
+                    (
+                        [bounds.top(), bounds.center().y, bounds.bottom()],
+                        [other.top(), other.center().y, other.bottom()],
+                    )
+                };
+                moving
+                    .iter()
+                    .any(|a| target.iter().any(|b| (a - b).abs() < 0.01))
+            });
+        assert!(on_grid || guided);
     }
     assert_eq!(ui.option().assignment, assignment);
     let disk: crate::model::Project =

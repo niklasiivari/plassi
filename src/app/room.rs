@@ -8,6 +8,7 @@ use crate::model::{RowSpec, TableShape, TableSpec};
 use super::PlassiApp;
 use super::theme::{self, Palette};
 
+mod arrange;
 mod footprint;
 mod free_page;
 mod labels;

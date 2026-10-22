@@ -1938,7 +1938,7 @@ fn cached_note_suggestions_follow_wish_note_roster_category_and_language_edits()
 }
 
 #[test]
-fn room_landmarks_persist_and_render_a_physical_map_before_the_seating_chart() {
+fn room_landmarks_persist_and_the_seating_chart_draws_the_room() {
     let mut project = fixture();
     project.layout.set_free_layout(true);
     project
@@ -1971,10 +1971,41 @@ fn room_landmarks_persist_and_render_a_physical_map_before_the_seating_chart() {
         let data = crate::print::data(&project, 0, crate::print::PrintKind::Chart).unwrap();
         assert_eq!(data["room_map"]["labels"][0]["text"], "X & <Y>");
         assert_eq!(data["room_map"]["tables"][0]["rotation"], 45.0);
+        assert_eq!(data["room_map"]["seats"].as_array().unwrap().len(), 4);
         assert!(
             crate::print::render(&project, 0, crate::print::PrintKind::Chart)
                 .unwrap()
                 .starts_with(b"%PDF-")
         );
     }
+}
+
+#[test]
+fn round_tables_print_on_the_room_map_even_in_rows() {
+    let mut project = fixture();
+    project.layout.rows[0].tables[0].shape = TableShape::Round;
+    let mut option = project.empty_option("X".into());
+    option.assignment.insert(0, "table-a:right:0".into());
+    project.candidates.push(option);
+    let data = crate::print::data(&project, 0, crate::print::PrintKind::Chart).unwrap();
+    let seats = data["room_map"]["seats"].as_array().unwrap();
+    assert_eq!(seats.iter().filter(|s| s["name"] == "Person 0").count(), 1);
+    project.attendees[0].allergies = "Nuts".into();
+    let data = crate::print::data(&project, 0, crate::print::PrintKind::Kitchen).unwrap();
+    let seated = data["room_map"]["seats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == "Person 0");
+    assert_eq!(seated.unwrap()["service"]["allergy"], "Nuts");
+    for kind in crate::print::PrintKind::ALL {
+        assert!(
+            crate::print::render(&project, 0, kind)
+                .unwrap()
+                .starts_with(b"%PDF-")
+        );
+    }
+    project.layout.rows[0].tables[0].shape = TableShape::Long;
+    let data = crate::print::data(&project, 0, crate::print::PrintKind::Chart).unwrap();
+    assert!(data["room_map"].is_null());
 }

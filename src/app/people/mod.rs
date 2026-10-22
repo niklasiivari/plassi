@@ -45,6 +45,7 @@ pub(in crate::app) enum PeopleFilter {
 pub(in crate::app) struct PeopleState {
     pub(in crate::app) selecting: bool,
     review: Option<Vec<usize>>,
+    pub(in crate::app) scroll_to_person: bool,
     pub(in crate::app) filter: PeopleFilter,
     pub(in crate::app) search: String,
     /// People Ctrl-clicked in the list, for bulk actions.

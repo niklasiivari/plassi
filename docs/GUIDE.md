@@ -80,3 +80,22 @@ On phones, **Menu** contains navigation, language and appearance controls. Tap t
 The chart separates **Chart**, **Details** and **Not seated**. Select a person, then open **Details** to edit their wishes or pins. To seat someone, choose them under **Not seated** and tap an empty seat on **Chart**. Use two fingers to pan and pinch to zoom.
 
 On **People & wishes**, tap a person to edit them and **Back to people** to return. Tablet-sized windows keep a compact sidebar and show the list beside the editor when space permits.
+
+## Review shortcuts
+
+On a person's notes, use K for the previous person, J for the next person,
+and R to mark all their notes reviewed and continue. The buttons show the
+same actions. Shortcuts pause while typing or using a popup.
+
+## Arranging several tables
+
+In the free room layout, Shift-click tables to extend the selection, or
+turn on **Select tables** and tap them or drag a selection box. Drag any
+selected table to move the group. The side panel aligns table edges or ends
+and distributes the gaps between at least three tables. Alignment guides
+appear near other tables while dragging with snapping enabled. Escape
+cancels an unfinished drag and clears the selection.
+
+Category suggestions explain their matches. When a spelling has several
+possible matches, choose one before merging it. **Apply all** skips choices
+that have not been resolved.

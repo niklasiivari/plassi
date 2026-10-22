@@ -2,6 +2,40 @@
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
     (
+        "Set the price for each ticket type.",
+        "Määritä kunkin lipputyypin hinta.",
+    ),
+    (
+        "Match imported entries to categories, then set prices and print marks.",
+        "Yhdistä tuodut merkinnät luokkiin ja määritä sitten hinnat ja tulostusmerkit.",
+    ),
+    ("Review entries", "Tarkista merkinnät"),
+    ("Review imported entries", "Tarkista tuodut merkinnät"),
+    ("Manage categories", "Muokkaa luokkia"),
+    (
+        "Create organizations and combine their different spellings.",
+        "Luo järjestöt ja yhdistä niiden eri kirjoitusasut.",
+    ),
+    (
+        "Set a shared price and print mark for each category.",
+        "Määritä kullekin luokalle yhteinen hinta ja tulostusmerkki.",
+    ),
+    (
+        "Group different spellings of the same choice. The original sign-up text is kept.",
+        "Yhdistä saman valinnan eri kirjoitusasut. Alkuperäinen ilmoittautumisteksti säilyy.",
+    ),
+    (
+        "No imported entries for this type yet.",
+        "Tähän tyyppiin ei ole vielä tuotu merkintöjä.",
+    ),
+    (
+        "Import people first, or create categories to use when adding people.",
+        "Tuo ensin henkilöitä tai luo luokat henkilöiden lisäämistä varten.",
+    ),
+    ("All entries categorized", "Kaikki merkinnät luokiteltu"),
+    ("{} entries to categorize", "{} merkintää luokittelematta"),
+    ("{} imported entries", "{} tuotua merkintää"),
+    (
         "People without wishes sit with their own organization.",
         "Toiveettomat istuvat oman järjestönsä kanssa.",
     ),
@@ -400,4 +434,44 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Remove text", "Poista teksti"),
     ("Move text: {}", "Siirrä tekstiä: {}"),
+    ("Mark reviewed & next", "Merkitse tarkistetuksi ja seuraava"),
+    (
+        "K: previous · J: next · R: review and next",
+        "K: edellinen · J: seuraava · R: tarkista ja jatka",
+    ),
+    ("Exact name match", "Täsmälleen sama nimi"),
+    ("Known alias", "Tunnettu kirjoitusasu"),
+    (
+        "Same spelling, different punctuation",
+        "Sama kirjoitusasu, eri välimerkit",
+    ),
+    ("Abbreviation match", "Lyhenneosuma"),
+    (
+        "New part of a combined entry",
+        "Yhdistelmämerkinnän uusi osa",
+    ),
+    ("Choose a match…", "Valitse vastaavuus…"),
+    (
+        "Choose ambiguous matches individually. Apply all skips unresolved choices.",
+        "Valitse epäselvät vastaavuudet yksitellen. Käytä kaikkia ohittaa ratkaisemattomat valinnat.",
+    ),
+    ("Select tables", "Valitse pöytiä"),
+    (
+        "Tap tables or drag a box to select several. Shift-click also adds to the selection.",
+        "Valitse useita pöytiä napauttamalla tai vetämällä valintaruutu. Vaihto-napsautus lisää myös valintaan.",
+    ),
+    ("{} tables selected", "{} pöytää valittu"),
+    (
+        "Drag any selected table to move them together. Alignments use the visible table edges.",
+        "Siirrä valittuja pöytiä yhdessä vetämällä yhtä niistä. Kohdistus käyttää pöytien näkyviä reunoja.",
+    ),
+    ("Align left edges", "Kohdista vasemmat reunat"),
+    ("Align right edges", "Kohdista oikeat reunat"),
+    ("Align top ends", "Kohdista yläpäädyt"),
+    ("Align bottom ends", "Kohdista alapäädyt"),
+    ("Align horizontal centres", "Kohdista keskikohdat vaakaan"),
+    ("Align vertical centres", "Kohdista keskikohdat pystyyn"),
+    ("Distribute horizontal gaps", "Tasaa vaakavälit"),
+    ("Distribute vertical gaps", "Tasaa pystyvälit"),
+    ("Clear table selection", "Tyhjennä pöytävalinta"),
 ];

@@ -9,6 +9,30 @@ use crate::model::Project;
 pub struct Merge {
     pub spelling: String,
     pub targets: Vec<String>,
+    pub reasons: Vec<MatchReason>,
+    /// Per component, competing canonical matches requiring a choice.
+    pub alternatives: Vec<Vec<String>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MatchReason {
+    Exact,
+    Alias,
+    Spelling,
+    Abbreviation,
+    NewCategory,
+}
+impl MatchReason {
+    pub fn label(self) -> &'static str {
+        use crate::i18n::tr;
+        match self {
+            Self::Exact => tr("Exact name match"),
+            Self::Alias => tr("Known alias"),
+            Self::Spelling => tr("Same spelling, different punctuation"),
+            Self::Abbreviation => tr("Abbreviation match"),
+            Self::NewCategory => tr("New part of a combined entry"),
+        }
+    }
 }
 
 /// Letters and digits only, lower-case.
@@ -125,18 +149,68 @@ fn parts(spelling: &str) -> Vec<String> {
     if parts.len() > 1 { parts } else { Vec::new() }
 }
 
-fn best_match(spelling: &str, known: &[(String, String)]) -> Option<String> {
+fn matches(spelling: &str, known: &[(String, String)]) -> Vec<(String, MatchReason)> {
     let key = super::normalize(spelling);
-    known
+    let squashed = squash(spelling);
+    let mut found: Vec<_> = known
         .iter()
-        .find(|(s, _)| super::normalize(s) == key)
-        .or_else(|| {
-            known
-                .iter()
-                .find(|(s, _)| !squash(spelling).is_empty() && squash(s) == squash(spelling))
+        .filter(|(s, _)| super::normalize(s) == key)
+        .map(|(s, n)| {
+            (
+                n.clone(),
+                if super::normalize(s) == super::normalize(n) {
+                    MatchReason::Exact
+                } else {
+                    MatchReason::Alias
+                },
+            )
         })
-        .or_else(|| known.iter().find(|(s, _)| same_thing(spelling, s)))
-        .map(|(_, name)| name.clone())
+        .collect();
+    if found.is_empty() && !squashed.is_empty() {
+        found = known
+            .iter()
+            .filter(|(s, _)| squash(s) == squashed)
+            .map(|(_, n)| (n.clone(), MatchReason::Spelling))
+            .collect();
+    }
+    if found.is_empty() {
+        found = known
+            .iter()
+            .filter(|(s, _)| same_thing(spelling, s))
+            .map(|(_, n)| (n.clone(), MatchReason::Abbreviation))
+            .collect();
+    }
+    found.sort_by(|a, b| a.0.cmp(&b.0));
+    found.dedup_by(|a, b| a.0 == b.0);
+    found
+}
+
+fn proposal(spelling: &str, pieces: Vec<String>, known: &[(String, String)]) -> Merge {
+    let mut merge = Merge {
+        spelling: spelling.into(),
+        targets: Vec::new(),
+        reasons: Vec::new(),
+        alternatives: Vec::new(),
+    };
+    for part in pieces {
+        let found = matches(&part, known);
+        let (name, reason) = found
+            .first()
+            .cloned()
+            .unwrap_or((part, MatchReason::NewCategory));
+        // Keep ambiguous components separate even when their defaults coincide.
+        if found.len() <= 1 && merge.targets.contains(&name) {
+            continue;
+        }
+        merge.targets.push(name);
+        merge.reasons.push(reason);
+        merge.alternatives.push(if found.len() > 1 {
+            found.into_iter().map(|(n, _)| n).collect()
+        } else {
+            Vec::new()
+        });
+    }
+    merge
 }
 
 /// Suggested mappings for every unmapped spelling of a kind.
@@ -159,24 +233,12 @@ pub fn merge_suggestions(project: &Project, kind: Kind) -> Vec<Merge> {
                 .filter(|(s, _)| s != spelling)
                 .cloned()
                 .collect();
-            let mut targets: Vec<_> = pieces
-                .iter()
-                .map(|part| best_match(part, &known).unwrap_or_else(|| part.clone()))
-                .collect();
-            let mut seen = std::collections::HashSet::new();
-            targets.retain(|name| seen.insert(name.clone()));
-            result.push(Merge {
-                spelling: spelling.clone(),
-                targets,
-            });
+            result.push(proposal(spelling, pieces, &known));
             continue;
         }
         let known = candidates(project, kind, &spellings, spelling);
-        if let Some(name) = best_match(spelling, &known) {
-            result.push(Merge {
-                spelling: spelling.clone(),
-                targets: vec![name],
-            });
+        if !matches(spelling, &known).is_empty() {
+            result.push(proposal(spelling, vec![spelling.clone()], &known));
         }
     }
     result
@@ -240,5 +302,32 @@ mod regression_tests {
             .catalog
             .ignore(Kind::Organization, "ABC 198, XYZ", true);
         assert_eq!(merge_suggestions(&project, Kind::Organization).len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod explanation_tests {
+    use super::*;
+    #[test]
+    fn ambiguity_is_retained_instead_of_picking_the_first_abbreviation() {
+        let mut project = crate::example::project();
+        project.attendees.truncate(1);
+        project.attendees[0].organization = "AX".into();
+        project.catalog.organizations.clear();
+        for name in ["ABC XYZ", "ABC-XYZ"] {
+            project.catalog.create_named(Kind::Organization, name);
+        }
+        let suggestions = merge_suggestions(&project, Kind::Organization);
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].reasons, [MatchReason::Abbreviation]);
+        assert_eq!(suggestions[0].alternatives[0], ["ABC XYZ", "ABC-XYZ"]);
+        project.catalog.assign(Kind::Organization, "AX", 1);
+        project.attendees[0].organization = "AX / XYZ".into();
+        let suggestions = merge_suggestions(&project, Kind::Organization);
+        assert!(suggestions[0].alternatives.iter().all(Vec::is_empty));
+        assert_eq!(
+            suggestions[0].reasons,
+            [MatchReason::Alias, MatchReason::NewCategory]
+        );
     }
 }

@@ -102,11 +102,49 @@ impl PlassiApp {
             theme::hint(ui, p, tr("Paste a sheet or add people."));
             return;
         }
-        ui.add(
+        if scroll_rows
+            && ui
+                .add(theme::chip(
+                    tr("Overview"),
+                    p,
+                    self.selected_person.is_none()
+                        && !self.people.import_open
+                        && self.people.roster.is_none(),
+                ))
+                .clicked()
+        {
+            self.selected_person = None;
+            self.people.end_review();
+            self.people.import_open = false;
+            self.people.roster = None;
+            self.people.wish_draft = None;
+            self.people.filter = PeopleFilter::All;
+            self.people.search.clear();
+            self.people.picked.clear();
+            self.people.selecting = false;
+        }
+        // The phone has one pane, so its review action belongs with the list.
+        if !scroll_rows
+            && self.project.notes.iter().any(|note| !note.reviewed)
+            && ui
+                .add(theme::primary_button(tr("Review notes"), p))
+                .clicked()
+        {
+            self.start_review();
+        }
+        ui.add_space(theme::space::S);
+        let search_field = ui.add(
             theme::field(&mut self.people.search)
                 .hint_text(tr("Search name or organization"))
                 .desired_width(f32::INFINITY),
         );
+        search_field.widget_info(|| {
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::TextEdit,
+                true,
+                tr("Search name or organization"),
+            )
+        });
         ui.add_space(theme::space::XS);
         let info = self.people_list_info();
         let to_review = info.rows.values().filter(|row| row.unreviewed > 0).count();

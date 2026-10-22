@@ -10,7 +10,11 @@ pub(super) struct LayoutCanvas {
     camera: Camera,
     pub(super) fit_pending: bool,
     pub(super) snap: bool,
-    drag: Option<(String, TablePosition, Pos2)>,
+    pub(super) drag: Option<(String, TablePosition, Pos2)>,
+    group_drag: std::collections::BTreeMap<String, TablePosition>,
+    pub(super) selected_tables: std::collections::BTreeSet<String>,
+    pub(super) selection_mode: bool,
+    pub(super) marquee: Option<(Pos2, Pos2)>,
     pub(super) outline_drag: Option<outline::OutlineDrag>,
     /// The table whose turn handle is being dragged.
     pub(super) turning: Option<String>,
@@ -32,6 +36,10 @@ impl Default for LayoutCanvas {
             fit_pending: true,
             snap: true,
             drag: None,
+            group_drag: Default::default(),
+            selected_tables: Default::default(),
+            selection_mode: false,
+            marquee: None,
             outline_drag: None,
             turning: None,
             project: String::new(),
@@ -98,6 +106,8 @@ impl PlassiApp {
             ui.selectable_value(&mut free, false, tr("Rows"));
             ui.selectable_value(&mut free, true, tr("Free layout"));
             if free {
+                ui.toggle_value(&mut self.room.canvas.selection_mode, tr("Select tables"))
+                    .on_hover_text(tr("Tap tables or drag a box to select several. Shift-click also adds to the selection."));
                 add = ui.button(tr("+ Add table")).clicked();
                 if ui.button(tr("+ Add text")).clicked() {
                     edit.labels |= self.add_room_label();
@@ -134,6 +144,7 @@ impl PlassiApp {
             if state.project != self.file.name {
                 state.selected = None;
                 state.selected_label = None;
+                state.selected_tables.clear();
             }
             state.project = self.file.name.clone();
             state.size = Some(rect.size());
@@ -142,6 +153,8 @@ impl PlassiApp {
             state.outline_drag = None;
             state.turning = None;
             state.label_drag = None;
+            state.marquee = None;
+            state.group_drag.clear();
         }
         // A second finger yields the drag to camera navigation, without changing the room.
         if ui.input(|i| i.multi_touch().is_some()) {
@@ -149,6 +162,8 @@ impl PlassiApp {
             state.outline_drag = None;
             state.turning = None;
             state.label_drag = None;
+            state.marquee = None;
+            state.group_drag.clear();
         }
         let view = state.camera.viewport(rect);
         // The room as it is drawn: with a dragged or turned table where the
@@ -159,6 +174,19 @@ impl PlassiApp {
             .or_else(|| self.turned_table(ui, &view));
         if let Some((id, position)) = &dragged {
             layout.table_positions.insert(id.clone(), *position);
+            if self.room.canvas.drag.is_some() {
+                let original = self.room.canvas.group_drag.get(id).unwrap_or(position);
+                for (other, at) in &self.room.canvas.group_drag {
+                    layout.table_positions.insert(
+                        other.clone(),
+                        TablePosition {
+                            x: at.x + position.x - original.x,
+                            y: at.y + position.y - original.y,
+                            ..*at
+                        },
+                    );
+                }
+            }
         }
         let frames = layout.table_frames();
         let tables: Vec<_> = layout
@@ -184,7 +212,14 @@ impl PlassiApp {
         state.camera.animate(ui.ctx());
         let view = state.camera.viewport(rect);
         state.center = Some(at(view.world(rect.center())));
-        if background.clicked() {
+        state.selected_tables.retain(|id| frames.contains_key(id));
+        let over_table = background.interact_pointer_pos().is_some_and(|point| {
+            tables
+                .iter()
+                .any(|(_, top)| view.rect(top.bounds()).expand(8.0).contains(point))
+        });
+        if background.clicked() && !over_table {
+            state.selected_tables.clear();
             state.selected = None;
             state.selected_label = None;
         }
@@ -206,7 +241,19 @@ impl PlassiApp {
                 Sense::click_and_drag(),
             );
             if response.clicked() {
-                state.selected = Some(table.id.clone());
+                if state.selection_mode || ui.input(|i| i.modifiers.shift || i.modifiers.command) {
+                    if !state.selected_tables.insert(table.id.clone()) {
+                        state.selected_tables.remove(&table.id);
+                    }
+                } else {
+                    state.selected_tables.clear();
+                    state.selected_tables.insert(table.id.clone());
+                }
+                state.selected = if state.selected_tables.contains(&table.id) {
+                    Some(table.id.clone())
+                } else {
+                    state.selected_tables.first().cloned()
+                };
                 state.selected_label = None;
             }
             add_menu(&response, &view, &mut state.context_at, &mut add_at);
@@ -223,12 +270,27 @@ impl PlassiApp {
             {
                 // press_origin keeps the table attached to the initial grab point.
                 let start = ui.input(|i| i.pointer.press_origin()).unwrap_or(at);
+                if !state.selected_tables.contains(&table.id) {
+                    state.selected_tables.clear();
+                    state.selected_tables.insert(table.id.clone());
+                }
+                state.selected = Some(table.id.clone());
+                state.selected_label = None;
+                state.group_drag = state
+                    .selected_tables
+                    .iter()
+                    .map(|id| (id.clone(), frames[id]))
+                    .collect();
                 state.drag = Some((table.id.clone(), frames[&table.id], view.world(start)));
+                if let Some(focused) = ui.memory(|m| m.focused()) {
+                    ui.memory_mut(|m| m.surrender_focus(focused));
+                }
             }
             let active = state
                 .drag
                 .as_ref()
                 .is_some_and(|(id, _, _)| id == &table.id)
+                || state.selected_tables.contains(&table.id)
                 || state.selected.as_deref() == Some(&table.id);
             let dots = seats
                 .iter()
@@ -237,7 +299,9 @@ impl PlassiApp {
             paint_table(&painter, &view, p, (table, top), dots, active);
             response.on_hover_cursor(egui::CursorIcon::Grab);
         }
-        if self.room.canvas.drag.is_none() {
+        self.room_selection_box(ui, &painter, &view, &background, &tables, p);
+        self.paint_alignment_guides(&painter, &view, &layout, dragged.as_ref(), p);
+        if self.room.canvas.drag.is_none() && self.room.canvas.selected_tables.len() <= 1 {
             for (table, top) in &tables {
                 self.turn_handle(ui, &painter, &view, p, (table, top));
             }
@@ -252,6 +316,9 @@ impl PlassiApp {
             state.selected = None;
             state.selected_label = None;
             state.label_drag = None;
+            state.marquee = None;
+            state.selected_tables.clear();
+            state.group_drag.clear();
             moved = None;
         }
         state.camera.handle_input(
@@ -261,7 +328,8 @@ impl PlassiApp {
             state.drag.is_none()
                 && state.outline_drag.is_none()
                 && state.turning.is_none()
-                && state.label_drag.is_none(),
+                && state.label_drag.is_none()
+                && state.marquee.is_none(),
         );
         if ui.input(|i| i.pointer.any_released()) {
             state.drag = None;
@@ -281,11 +349,25 @@ impl PlassiApp {
             edit.geometry = true;
         }
         if let Some((id, position)) = moved {
-            self.project.layout.table_positions.insert(id, position);
+            if !self.room.canvas.group_drag.is_empty() {
+                for other in self.room.canvas.group_drag.keys() {
+                    self.project
+                        .layout
+                        .table_positions
+                        .insert(other.clone(), frames[other]);
+                }
+            } else {
+                self.project.layout.table_positions.insert(id, position);
+            }
             self.chart.view.fit_pending = true;
             edit.labels = true;
         }
-        edit.labels |= self.rotate_by_key(ui);
+        if ui.input(|i| i.pointer.any_released()) {
+            self.room.canvas.group_drag.clear();
+        }
+        if self.room.canvas.selected_tables.len() <= 1 {
+            edit.labels |= self.rotate_by_key(ui);
+        }
         edit
     }
 
@@ -299,10 +381,32 @@ impl PlassiApp {
             y: original.y + delta.y,
             ..*original
         };
-        Some((
-            id.clone(),
-            snap_table(self.project.layout.table(id)?, position, snap),
-        ))
+        let table = self.project.layout.table(id)?;
+        let mut result = snap_table(table, position, snap);
+        if snap {
+            let top = TableTop::new(table, position, TABLE_END).bounds();
+            let others = self
+                .project
+                .layout
+                .table_frames()
+                .into_iter()
+                .filter(|(id, _)| !self.room.canvas.selected_tables.contains(id))
+                .filter_map(|(id, at)| {
+                    self.project
+                        .layout
+                        .table(&id)
+                        .map(|t| TableTop::new(t, at, TABLE_END).bounds())
+                })
+                .collect::<Vec<_>>();
+            let (delta, guides) = super::arrange::magnetic(top, &others, 8.0 / view.zoom);
+            if guides.0.is_some() {
+                result.x = position.x + delta.x;
+            }
+            if guides.1.is_some() {
+                result.y = position.y + delta.y;
+            }
+        }
+        Some((id.clone(), result))
     }
 
     fn add_free_table(&mut self, at: TablePosition) {
@@ -328,6 +432,8 @@ impl PlassiApp {
             .layout
             .table_positions
             .insert(id.clone(), position);
+        self.room.canvas.selected_tables.clear();
+        self.room.canvas.selected_tables.insert(id.clone());
         self.room.canvas.selected = Some(id);
         self.room.canvas.selected_label = None;
     }

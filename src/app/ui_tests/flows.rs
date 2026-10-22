@@ -316,7 +316,7 @@ fn wish_checklist_keeps_selections_when_searching_and_saves_all_people() {
     let mut ui = Ui::with_example();
     ui.go_to("People & wishes");
     ui.click("Guest 01");
-    ui.click("+ Add");
+    ui.click("+ Add wish");
     ui.click("Sit near…");
     let before = ui.app().project.rules.len();
     assert!(

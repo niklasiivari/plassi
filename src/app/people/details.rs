@@ -18,7 +18,7 @@ impl PlassiApp {
                 let label = if self.people.editing_details {
                     tr("Done")
                 } else {
-                    tr("Edit")
+                    tr("Edit details")
                 };
                 if ui.add(theme::small_button(label)).clicked() {
                     self.people.editing_details = !self.people.editing_details;

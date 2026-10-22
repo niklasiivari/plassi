@@ -392,7 +392,7 @@ impl PlassiApp {
     pub(super) fn replace_project(&mut self, project: Project) {
         self.project = project;
         self.people.end_review();
-        self.categories.close_people();
+        self.categories.forget_project();
         self.after_change();
     }
 

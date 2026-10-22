@@ -108,6 +108,7 @@ fn close(word: &str, token: &str) -> bool {
 }
 
 /// Suggestions for every unreviewed note, excluding wishes that already exist.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn suggestions(project: &Project) -> Vec<Suggestion> {
     Suggester::default().suggestions(project)
 }

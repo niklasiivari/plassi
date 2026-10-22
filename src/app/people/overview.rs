@@ -26,7 +26,24 @@ impl PlassiApp {
         self.review_progress(ui, p);
         ui.add_space(theme::space::L);
         self.suggestions_card(ui, p);
-        self.import_panel(ui, p);
+        theme::card(p).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.label(RichText::new(tr("People and event setup")).size(theme::text::LEAD).strong());
+            theme::hint(ui, p, tr("Choose a person to edit their wishes and details. Review categories before printing."));
+            ui.add_space(theme::space::M);
+            ui.horizontal_wrapped(|ui| {
+                if ui.add(theme::secondary_button(tr("Review categories"))).clicked() {
+                    self.page = super::super::Page::Categories;
+                }
+                if ui.add(theme::secondary_button(tr("Set up tables"))).clicked() {
+                    self.page = super::super::Page::Room;
+                }
+                if ui.add(theme::secondary_button(tr("Import people"))).clicked() {
+                    self.people.import_open = true;
+                    self.people.roster = None;
+                }
+            });
+        });
     }
 
     /// An empty project: how to get people in, or try the example.
@@ -73,6 +90,9 @@ impl PlassiApp {
                         fill("{} reviewed · {} left", &[&(total - pending), &pending])
                     };
                     theme::hint(ui, p, status);
+                    if pending > 0 {
+                        theme::hint(ui, p, tr("Read each note, add the wishes it describes, then mark it reviewed."));
+                    }
                 });
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
