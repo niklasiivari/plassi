@@ -391,6 +391,8 @@ impl PlassiApp {
     /// Installs a project and drops everything that referred to the old one.
     pub(super) fn replace_project(&mut self, project: Project) {
         self.project = project;
+        self.people.end_review();
+        self.categories.close_people();
         self.after_change();
     }
 

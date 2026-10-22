@@ -7,6 +7,7 @@ impl PlassiApp {
     /// The whole editor for one attendee; saves once if anything changed.
     pub(super) fn person_editor(&mut self, ui: &mut egui::Ui, p: Palette, id: usize) {
         let mut changed = false;
+        self.review_navigation(ui, p, id);
         self.person_header(ui, p, id);
         changed |= self.person_details_block(ui, p, id);
         changed |= self.sign_up_notes(ui, p, id);
@@ -208,6 +209,14 @@ impl PlassiApp {
 
     /// The next person after `current` (wrapping) with unreviewed sign-up text.
     pub(super) fn next_to_review(&self, current: usize) -> Option<usize> {
+        if let Some(queue) = &self.people.review
+            && let Some(pos) = queue.iter().position(|p| *p == current)
+        {
+            return queue[pos + 1..]
+                .iter()
+                .copied()
+                .find(|id| self.project.person(*id).is_some());
+        }
         let attendees = &self.project.attendees;
         let pos = attendees.iter().position(|a| a.id == current)?;
         attendees[pos + 1..]

@@ -22,6 +22,7 @@
       "default": {
         "drinks": [],
         "foods": [],
+        "ignored": {},
         "organizations": [],
         "tickets": []
       }
@@ -275,6 +276,18 @@
             "$ref": "#/$defs/Category"
           }
         },
+        "ignored": {
+          "description": "Imported entries deliberately left without a category, by kind.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "default": {}
+        },
         "organizations": {
           "type": "array",
           "default": [],
@@ -469,6 +482,14 @@
           "type": "boolean",
           "default": false
         },
+        "labels": {
+          "description": "Movable landmarks shown on the room plan and chart.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RoomLabel"
+          }
+        },
         "room": {
           "description": "The room's walls in the free layout, to see how the tables fit.",
           "anyOf": [
@@ -633,6 +654,33 @@
           "type": "string",
           "const": "same_as_app"
         }
+      ]
+    },
+    "RoomLabel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "text": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number",
+          "format": "float"
+        },
+        "y": {
+          "type": "number",
+          "format": "float"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "x",
+        "y"
       ]
     },
     "RoomOutline": {

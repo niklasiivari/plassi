@@ -98,7 +98,49 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
         "marks": marks.as_ref().map(Marks::summary),
         "people": people_json(project),
         "max_rows": max_rows,
+        "room_map": room_map(project),
     }))
+}
+
+/// The physical room with landmarks, on a page before the wall chart.
+fn room_map(project: &Project) -> Option<Value> {
+    let layout = &project.layout;
+    if !layout.free_layout || layout.labels.is_empty() {
+        return None;
+    }
+    let frames = layout.table_frames();
+    let mut min_x = f32::INFINITY;
+    let mut min_y = f32::INFINITY;
+    let mut max_x = f32::NEG_INFINITY;
+    let mut max_y = f32::NEG_INFINITY;
+    let mut include = |x: f32, y: f32, w: f32, h: f32| {
+        min_x = min_x.min(x - w / 2.0);
+        min_y = min_y.min(y - h / 2.0);
+        max_x = max_x.max(x + w / 2.0);
+        max_y = max_y.max(y + h / 2.0);
+    };
+    let tables: Vec<_> = layout.rows.iter().flat_map(|r| &r.tables).map(|table| {
+        let at = frames[&table.id];
+        let (w, h) = table.half_size();
+        let h = if table.shape == crate::model::TableShape::Long { h + 28.0 } else { h };
+        let (sin, cos) = at.radians().sin_cos();
+        include(at.x, at.y, 2.0 * (w * cos.abs() + h * sin.abs()), 2.0 * (w * sin.abs() + h * cos.abs()));
+        json!({ "x": at.x, "y": at.y, "w": w * 2.0, "h": h * 2.0, "rotation": at.rotation, "round": table.shape == crate::model::TableShape::Round, "label": table_name(project, &table.id) })
+    }).collect();
+    for label in &layout.labels {
+        include(label.x, label.y, 300.0, 150.0);
+    }
+    if let Some(room) = layout.room {
+        include(
+            room.x + room.width / 2.0,
+            room.y + room.height / 2.0,
+            room.width,
+            room.height,
+        );
+    }
+    Some(
+        json!({ "x": min_x - 30.0, "y": min_y - 30.0, "w": max_x - min_x + 60.0, "h": max_y - min_y + 60.0, "tables": tables, "labels": layout.labels, "walls": layout.room }),
+    )
 }
 
 /// The layout's rows and tables with each seat's occupant.

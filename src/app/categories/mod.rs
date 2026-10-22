@@ -17,8 +17,16 @@ pub(in crate::app) struct CategoriesState {
     kind: Kind,
     new_name: String,
     mapping_search: String,
+    mapping_filter: MappingFilter,
+    entry_people: Option<(String, Vec<usize>)>,
     /// Suggested merges, by project revision and kind.
     merges: crate::app::memo::Memo<(u64, Kind), Vec<crate::catalog::Merge>>,
+}
+
+impl CategoriesState {
+    pub(in crate::app) fn close_people(&mut self) {
+        self.entry_people = None;
+    }
 }
 
 impl Default for CategoriesState {
@@ -27,9 +35,18 @@ impl Default for CategoriesState {
             kind: Kind::Organization,
             new_name: String::new(),
             mapping_search: String::new(),
+            mapping_filter: MappingFilter::All,
+            entry_people: None,
             merges: Default::default(),
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum MappingFilter {
+    All,
+    Unresolved,
+    Resolved,
 }
 
 impl PlassiApp {
@@ -57,6 +74,7 @@ impl PlassiApp {
         if changed {
             self.commit(tr("Saved categories"));
         }
+        self.entry_people_window(ui, p);
     }
 
     /// One tab per kind; the count shows spellings still to map.
@@ -68,7 +86,9 @@ impl PlassiApp {
                     .project
                     .spellings(kind)
                     .iter()
-                    .filter(|(s, _)| lookup.find_all(s).is_empty())
+                    .filter(|(s, _)| {
+                        lookup.find_all(s).is_empty() && !self.project.catalog.is_ignored(kind, s)
+                    })
                     .count();
                 let active = self.categories.kind == kind;
                 let mut label = egui::text::LayoutJob::default();
@@ -158,5 +178,47 @@ impl PlassiApp {
             return true;
         }
         false
+    }
+}
+
+impl PlassiApp {
+    fn entry_people_window(&mut self, ui: &mut egui::Ui, p: Palette) {
+        let Some((entry, ids)) = self.categories.entry_people.clone() else {
+            return;
+        };
+        let mut open = true;
+        let mut selected = None;
+        egui::Window::new(tr("People with this entry"))
+            .id(egui::Id::new("entry-people"))
+            .open(&mut open)
+            .default_width(320.0)
+            .max_width((ui.ctx().content_rect().width() - 32.0).max(1.0))
+            .show(ui.ctx(), |ui| {
+                ui.add(egui::Label::new(RichText::new(&entry).strong()).wrap());
+                egui::ScrollArea::vertical()
+                    .max_height(360.0)
+                    .show(ui, |ui| {
+                        for id in ids {
+                            if let Some(person) = self.project.person(id) {
+                                if ui.link(&person.name).clicked() {
+                                    selected = Some(id);
+                                }
+                                theme::hint(ui, p, self.project.affiliation(person));
+                            }
+                        }
+                    });
+            });
+        if let Some(id) = selected {
+            self.people.end_review();
+            self.page = crate::app::Page::People;
+            self.selected_person = Some(id);
+            self.people.import_open = false;
+            self.people.roster = None;
+            self.people.wish_draft = None;
+            open = false;
+        }
+        if !open {
+            self.categories.entry_people = None;
+        }
     }
 }

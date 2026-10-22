@@ -9,6 +9,7 @@ mod import;
 mod list;
 mod notes;
 mod overview;
+mod review;
 mod roster;
 mod rule_card;
 pub(in crate::app) use roster::RosterEdit;
@@ -43,6 +44,7 @@ pub(in crate::app) enum PeopleFilter {
 #[derive(Default)]
 pub(in crate::app) struct PeopleState {
     pub(in crate::app) selecting: bool,
+    review: Option<Vec<usize>>,
     pub(in crate::app) filter: PeopleFilter,
     pub(in crate::app) search: String,
     /// People Ctrl-clicked in the list, for bulk actions.
@@ -123,6 +125,10 @@ pub(in crate::app) struct WishDraft {
 impl PlassiApp {
     pub(in crate::app) fn people_page(&mut self, ui: &mut egui::Ui, p: Palette) {
         self.take_dropped_sheet(ui);
+        if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.people.picked.clear();
+            self.people.selecting = false;
+        }
         if ui.available_width() < theme::SPLIT_MIN {
             self.mobile_people_page(ui, p);
             return;

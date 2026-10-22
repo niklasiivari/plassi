@@ -1936,3 +1936,45 @@ fn cached_note_suggestions_follow_wish_note_roster_category_and_language_edits()
     crate::i18n::set(crate::i18n::Lang::En);
     assert!(suggester.for_note(&project, 20).is_empty());
 }
+
+#[test]
+fn room_landmarks_persist_and_render_a_physical_map_before_the_seating_chart() {
+    let mut project = fixture();
+    project.layout.set_free_layout(true);
+    project
+        .layout
+        .table_positions
+        .get_mut("table-a")
+        .unwrap()
+        .rotation = 45.0;
+    project.layout.labels.push(RoomLabel {
+        id: 1,
+        text: "X & <Y>".into(),
+        x: -200.0,
+        y: -120.0,
+    });
+    project.layout.labels.push(RoomLabel {
+        id: 2,
+        text: "Z".into(),
+        x: 400.0,
+        y: 300.0,
+    });
+    project.candidates.push(project.empty_option("X".into()));
+    project.validate().unwrap();
+    let mut project = crate::io::parse(&crate::io::encode(&project).unwrap()).unwrap();
+    assert_eq!(project.layout.labels[0].text, "X & <Y>");
+    for lang in [
+        crate::model::PrintLanguage::English,
+        crate::model::PrintLanguage::Finnish,
+    ] {
+        project.event.print_language = lang;
+        let data = crate::print::data(&project, 0, crate::print::PrintKind::Chart).unwrap();
+        assert_eq!(data["room_map"]["labels"][0]["text"], "X & <Y>");
+        assert_eq!(data["room_map"]["tables"][0]["rotation"], 45.0);
+        assert!(
+            crate::print::render(&project, 0, crate::print::PrintKind::Chart)
+                .unwrap()
+                .starts_with(b"%PDF-")
+        );
+    }
+}

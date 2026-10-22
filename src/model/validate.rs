@@ -181,6 +181,12 @@ impl Layout {
     fn validate(&self) -> Result<LayoutIds<'_>> {
         let mut rows = HashSet::new();
         let mut tables = HashSet::new();
+        let mut labels = HashSet::new();
+        for label in &self.labels {
+            if !labels.insert(label.id) || !label.x.is_finite() || !label.y.is_finite() {
+                bail!("Invalid room label");
+            }
+        }
         for row in &self.rows {
             if row.id.is_empty() || !rows.insert(&row.id) {
                 bail!(fill("Empty or duplicate row ID: {}", &[&row.id]));

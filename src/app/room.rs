@@ -10,6 +10,7 @@ use super::theme::{self, Palette};
 
 mod footprint;
 mod free_page;
+mod labels;
 mod layout_canvas;
 mod outline;
 mod table_editor;

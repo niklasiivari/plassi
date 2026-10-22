@@ -117,10 +117,14 @@ impl PlassiApp {
             .map(|c| c.name.clone())
             .collect();
         for (spelling, _) in self.project.spellings(kind) {
-            if self.project.catalog.find(kind, &spelling).is_none() {
+            if self.project.catalog.find(kind, &spelling).is_none()
+                && !self.project.catalog.is_ignored(kind, &spelling)
+            {
                 names.push(spelling);
             }
         }
+        names.sort_by_cached_key(|name| crate::catalog::normalize(name));
+        names.dedup();
         names
     }
 }
