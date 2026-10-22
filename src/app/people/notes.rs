@@ -28,7 +28,13 @@ impl PlassiApp {
         if note.reviewed {
             return self.reviewed_note(ui, p, index);
         }
-        let suggestions = suggest::for_note(&self.project, index);
+        let (project, people) = (&self.project, &mut self.people);
+        let suggestions = people
+            .note_suggestions
+            .get((self.file.revision, index), || {
+                people.suggester.for_note(project, index)
+            })
+            .clone();
         let mut changed = false;
         theme::tinted_card(p, p.warn).show(ui, |ui| {
             ui.set_width(ui.available_width());

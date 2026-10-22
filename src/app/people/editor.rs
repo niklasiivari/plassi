@@ -156,6 +156,12 @@ impl PlassiApp {
 
     fn wished_for_by(&self, ui: &mut egui::Ui, p: Palette, id: usize) {
         theme::section_title(ui, p, tr("Wished for by"));
+        let Some(attendee) = self.project.person(id) else {
+            return;
+        };
+        let organizations = self
+            .project
+            .category_keys(crate::catalog::Kind::Organization, attendee);
         let mut any = false;
         for rule in self.project.rules.iter().filter(|r| r.enabled) {
             let RuleKind::Proximity {
@@ -167,7 +173,19 @@ impl PlassiApp {
             else {
                 continue;
             };
-            if !self.project.target_ids(*requester, target).contains(&id) {
+            // Test this person's membership instead of expanding the entire
+            // organization for every wish on every frame.
+            let includes = *requester != id
+                && match target {
+                    Target::People { ids } => ids.contains(&id),
+                    Target::Tag { tag, .. } => attendee.tags.contains(tag),
+                    Target::Organization { name } => organizations.contains(
+                        &self
+                            .project
+                            .category_key_of(crate::catalog::Kind::Organization, name),
+                    ),
+                };
+            if !includes {
                 continue;
             }
             let Some(person) = self.project.person(*requester) else {

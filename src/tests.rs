@@ -1807,3 +1807,132 @@ fn attendee_prices_sum_mapped_ticket_food_and_drink_without_guessing() {
     project.attendees[0].price_override_cents = None;
     assert_eq!(project.attendee_price_cents(&project.attendees[0]), None);
 }
+
+#[test]
+fn indexed_organization_targets_preserve_aliases_multiple_memberships_and_unmapped_text() {
+    use crate::catalog::{Category, Kind};
+    let mut project = fixture();
+    project.catalog.organizations = vec![
+        Category {
+            name: "ABC".into(),
+            aliases: vec!["ABC/XYZ".into(), "A B C".into()],
+            ..Default::default()
+        },
+        Category {
+            name: "XYZ".into(),
+            aliases: vec!["ABC/XYZ".into()],
+            ..Default::default()
+        },
+    ];
+    let template = project.attendees[0].clone();
+    project.attendees = ["ABC/XYZ", " A B C ", "xyz", "ABC XYZ", "", "  ", "abc"]
+        .into_iter()
+        .enumerate()
+        .map(|(i, organization)| Attendee {
+            id: 10 + i * 2,
+            organization: organization.into(),
+            ..template.clone()
+        })
+        .collect();
+    for name in ["ABC", "XYZ", "ABC/XYZ", " A B C ", "abc xyz", "", "  "] {
+        let key = project.category_key_of(Kind::Organization, name);
+        for requester in project.attendees.iter().map(|a| a.id) {
+            let expected: Vec<_> = project
+                .attendees
+                .iter()
+                .filter(|a| {
+                    a.id != requester && project.category_keys(Kind::Organization, a).contains(&key)
+                })
+                .map(|a| a.id)
+                .collect();
+            assert_eq!(
+                project.target_ids(requester, &Target::Organization { name: name.into() }),
+                expected,
+                "{requester}: {name}"
+            );
+        }
+    }
+}
+
+#[test]
+fn cached_note_suggestions_follow_wish_note_roster_category_and_language_edits() {
+    use crate::catalog::{Category, Kind};
+    use crate::suggest::{SuggestedTarget, Suggester};
+    let mut project = fixture();
+    project.attendees[1].organization = "ABC".into();
+    project.catalog.organizations.push(Category {
+        name: "ABC".into(),
+        ..Default::default()
+    });
+    project.notes.push(ImportNote {
+        person: 0,
+        field: ImportField::Wish,
+        text: "Person 1 and ABC".into(),
+        reviewed: false,
+    });
+    let mut suggester = Suggester::default();
+    let initial = suggester.for_note(&project, 0);
+    assert!(
+        initial
+            .iter()
+            .any(|s| s.target == SuggestedTarget::People(vec![1]))
+    );
+    assert!(
+        initial
+            .iter()
+            .any(|s| s.target == SuggestedTarget::Organization("ABC".into()))
+    );
+    for suggestion in &initial {
+        crate::suggest::accept(&mut project, suggestion);
+    }
+    assert!(suggester.for_note(&project, 0).is_empty());
+    project.rules.clear();
+    assert_eq!(suggester.for_note(&project, 0), initial);
+    project.notes[0].reviewed = true;
+    assert!(suggester.suggestions(&project).is_empty());
+    project.notes[0].reviewed = false;
+    assert_eq!(suggester.suggestions(&project), initial);
+    project.attendees[1].name = "X".into();
+    assert_eq!(
+        suggester.for_note(&project, 0),
+        crate::suggest::for_note(&project, 0)
+    );
+    assert!(
+        !suggester
+            .for_note(&project, 0)
+            .iter()
+            .any(|s| s.target == SuggestedTarget::People(vec![1]))
+    );
+    project.notes[0].text = "Person 2 and XYZ".into();
+    project.catalog.assign(Kind::Organization, "XYZ", 0);
+    project.notes[0].field = ImportField::Avec;
+    assert_eq!(
+        suggester.for_note(&project, 0),
+        crate::suggest::for_note(&project, 0)
+    );
+    assert!(
+        suggester
+            .for_note(&project, 0)
+            .iter()
+            .any(|s| s.target == SuggestedTarget::People(vec![2]) && s.wish == WishKind::Avec)
+    );
+    project.attendees[2].organization = "XYZ".into();
+    project.notes.insert(
+        0,
+        ImportNote {
+            person: 1,
+            field: ImportField::Wish,
+            text: "X".into(),
+            reviewed: false,
+        },
+    );
+    for lang in crate::i18n::Lang::ALL {
+        crate::i18n::set(lang);
+        assert_eq!(
+            suggester.for_note(&project, 1),
+            crate::suggest::for_note(&project, 1)
+        );
+    }
+    crate::i18n::set(crate::i18n::Lang::En);
+    assert!(suggester.for_note(&project, 20).is_empty());
+}

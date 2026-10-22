@@ -86,11 +86,6 @@ impl Project {
         }
     }
 
-    /// Whether the attendee belongs to the category (or spelling) behind `key`.
-    pub fn in_category(&self, kind: Kind, attendee: &Attendee, key: &str) -> bool {
-        self.category_keys(kind, attendee).iter().any(|k| k == key)
-    }
-
     /// "Organization · ticket type" as category names, skipping empty parts.
     pub fn affiliation(&self, attendee: &Attendee) -> String {
         [Kind::Organization, Kind::Ticket]

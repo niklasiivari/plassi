@@ -31,7 +31,7 @@ pub enum SuggestedTarget {
     Organization(String),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Suggestion {
     pub note: usize,
     pub requester: usize,
@@ -112,6 +112,7 @@ pub fn suggestions(project: &Project) -> Vec<Suggestion> {
     Suggester::default().suggestions(project)
 }
 
+#[cfg(test)]
 pub fn for_note(project: &Project, note_index: usize) -> Vec<Suggestion> {
     let Some(note) = project.notes.get(note_index) else {
         return Vec::new();
@@ -129,13 +130,30 @@ pub struct Suggester {
 }
 
 impl Suggester {
-    /// Suggestions for every unreviewed note, excluding wishes that already exist.
-    pub fn suggestions(&mut self, project: &Project) -> Vec<Suggestion> {
+    /// Suggestions for one note, reusing name matches across review edits.
+    pub fn for_note(&mut self, project: &Project, note_index: usize) -> Vec<Suggestion> {
+        let Some(note) = project.notes.get(note_index) else {
+            return Vec::new();
+        };
+        self.prepare(project);
+        let found = self
+            .found
+            .entry((note.person, note.text.clone()))
+            .or_insert_with(|| Index::new(project).found(note.person, &note.text));
+        suggest(project, note_index, found)
+    }
+
+    fn prepare(&mut self, project: &Project) {
         let roster = roster_key(project);
         if roster != self.roster {
             self.found.clear();
             self.roster = roster;
         }
+    }
+
+    /// Suggestions for every unreviewed note, excluding wishes that already exist.
+    pub fn suggestions(&mut self, project: &Project) -> Vec<Suggestion> {
+        self.prepare(project);
         let mut index = None;
         let mut result = Vec::new();
         for (i, note) in project.notes.iter().enumerate() {
@@ -160,6 +178,7 @@ impl Suggester {
 fn roster_key(project: &Project) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    crate::i18n::current().code().hash(&mut hasher);
     for a in &project.attendees {
         (a.id, &a.name, &a.organization).hash(&mut hasher);
     }

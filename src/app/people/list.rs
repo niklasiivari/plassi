@@ -4,17 +4,76 @@ use super::*;
 use crate::i18n::{fill, tr};
 use std::collections::{HashMap, HashSet};
 
-use crate::model::Attendee;
+use crate::model::{Attendee, Project};
 
 /// What a list row shows besides the name.
 struct RowInfo {
     subtitle: String,
     color_key: String,
     unreviewed: usize,
-    selected: bool,
+    affiliation: String,
+    pinned: bool,
+}
+
+/// Project-derived list data shared by every frame until the next edit.
+pub(super) struct ListInfo {
+    pub(super) active: HashSet<usize>,
+    rows: HashMap<usize, RowInfo>,
+}
+
+impl ListInfo {
+    fn new(project: &Project) -> Self {
+        let mut unreviewed = HashMap::<usize, usize>::new();
+        for note in project.notes.iter().filter(|n| !n.reviewed) {
+            *unreviewed.entry(note.person).or_default() += 1;
+        }
+        let mut wishes = HashMap::<usize, usize>::new();
+        for rule in &project.rules {
+            if let RuleKind::Proximity { requester, .. } = rule.kind {
+                *wishes.entry(requester).or_default() += 1;
+            }
+        }
+        let pinned = project.pins();
+        Self {
+            active: project.active_people(),
+            rows: project
+                .attendees
+                .iter()
+                .map(|person| {
+                    let pinned = pinned.contains_key(&person.id);
+                    (
+                        person.id,
+                        RowInfo {
+                            subtitle: row_subtitle(
+                                project,
+                                person,
+                                pinned,
+                                wishes.get(&person.id).copied().unwrap_or(0),
+                            ),
+                            color_key: project
+                                .category_key(crate::catalog::Kind::Organization, person),
+                            affiliation: project.affiliation(person),
+                            unreviewed: unreviewed.get(&person.id).copied().unwrap_or(0),
+                            pinned,
+                        },
+                    )
+                })
+                .collect(),
+        }
+    }
 }
 
 impl PlassiApp {
+    pub(super) fn people_list_info(&mut self) -> std::rc::Rc<ListInfo> {
+        let project = &self.project;
+        self.people
+            .list_cache
+            .get(self.file.revision, || {
+                std::rc::Rc::new(ListInfo::new(project))
+            })
+            .clone()
+    }
+
     pub(super) fn people_list(&mut self, ui: &mut egui::Ui, p: Palette, scroll_rows: bool) {
         ui.horizontal_wrapped(|ui| {
             ui.label(
@@ -49,12 +108,14 @@ impl PlassiApp {
                 .desired_width(f32::INFINITY),
         );
         ui.add_space(theme::space::XS);
-        self.filter_chips(ui, p);
+        let info = self.people_list_info();
+        let to_review = info.rows.values().filter(|row| row.unreviewed > 0).count();
+        self.filter_chips(ui, p, to_review);
         self.bulk_bar(ui);
         ui.add_space(theme::space::XS);
         ui.separator();
-        let active = self.project.active_people();
-        let pinned: HashSet<usize> = self.project.pins().into_keys().collect();
+        // Bulk actions above can change review counts, memberships or pins.
+        let info = self.people_list_info();
         let unmet = self.unmet_people();
         let seated: Option<HashSet<usize>> = self
             .project
@@ -67,34 +128,27 @@ impl PlassiApp {
         let mut shown = Vec::new();
         let mut rows = |ui: &mut egui::Ui| {
             for person in &self.project.attendees {
-                let unreviewed = self.unreviewed_notes(person.id);
+                let row_info = &info.rows[&person.id];
+                let unreviewed = row_info.unreviewed;
                 let keep = match self.people.filter {
                     PeopleFilter::All => true,
                     PeopleFilter::ToReview => unreviewed > 0,
-                    PeopleFilter::WithWishes => active.contains(&person.id),
-                    PeopleFilter::Unconstrained => !active.contains(&person.id),
+                    PeopleFilter::WithWishes => info.active.contains(&person.id),
+                    PeopleFilter::Unconstrained => !info.active.contains(&person.id),
                     PeopleFilter::Unmet => unmet.contains(&person.id),
                     PeopleFilter::NotSeated => {
                         seated.as_ref().is_some_and(|s| !s.contains(&person.id))
                     }
-                    PeopleFilter::Pinned => pinned.contains(&person.id),
+                    PeopleFilter::Pinned => row_info.pinned,
                 };
-                let matches = needle.matches(&person.name)
-                    || needle.matches(&self.project.affiliation(person));
+                let matches = needle.matches(&person.name) || needle.matches(&row_info.affiliation);
                 if !keep || !matches {
                     continue;
                 }
-                let info = RowInfo {
-                    subtitle: self.row_subtitle(person, pinned.contains(&person.id)),
-                    color_key: self
-                        .project
-                        .category_key(crate::catalog::Kind::Organization, person),
-                    unreviewed,
-                    selected: self.selected_person == Some(person.id)
-                        || self.people.picked.contains(&person.id),
-                };
                 shown.push(person.id);
-                let row = person_row(ui, p, person, &info);
+                let selected = self.selected_person == Some(person.id)
+                    || self.people.picked.contains(&person.id);
+                let row = person_row(ui, p, person, row_info, selected);
                 if row.clicked()
                     && (self.people.selecting
                         || ui.input(|i| i.modifiers.command || i.modifiers.shift))
@@ -145,13 +199,7 @@ impl PlassiApp {
             .collect()
     }
 
-    fn filter_chips(&mut self, ui: &mut egui::Ui, p: Palette) {
-        let to_review = self
-            .project
-            .attendees
-            .iter()
-            .filter(|a| self.unreviewed_notes(a.id) > 0)
-            .count();
+    fn filter_chips(&mut self, ui: &mut egui::Ui, p: Palette, to_review: usize) {
         let filters = [
             (
                 PeopleFilter::All,
@@ -182,57 +230,47 @@ impl PlassiApp {
             }
         });
     }
+}
 
-    fn unreviewed_notes(&self, person: usize) -> usize {
-        self.project
-            .notes
-            .iter()
-            .filter(|n| n.person == person && !n.reviewed)
-            .count()
-    }
-
-    /// Organization, number of wishes and pin state.
-    fn row_subtitle(&self, person: &Attendee, pinned: bool) -> String {
-        let wishes = self
-            .project
-            .rules
-            .iter()
-            .filter(|r| matches!(&r.kind, RuleKind::Proximity { requester, .. } if *requester == person.id))
-            .count();
-        let mut subtitle = self
-            .project
-            .category_name(crate::catalog::Kind::Organization, person);
-        if wishes > 0 {
-            subtitle.push_str(" · ");
-            if wishes == 1 {
-                subtitle.push_str(tr("1 wish"));
-            } else {
-                subtitle.push_str(&fill("{} wishes", &[&wishes]));
-            }
+/// Organization, number of wishes and pin state.
+fn row_subtitle(project: &Project, person: &Attendee, pinned: bool, wishes: usize) -> String {
+    let mut subtitle = project.category_name(crate::catalog::Kind::Organization, person);
+    if wishes > 0 {
+        subtitle.push_str(" · ");
+        if wishes == 1 {
+            subtitle.push_str(tr("1 wish"));
+        } else {
+            subtitle.push_str(&fill("{} wishes", &[&wishes]));
         }
-        if pinned {
-            subtitle.push_str(" · ");
-            subtitle.push_str(tr("pinned"));
-        }
-        subtitle
     }
+    if pinned {
+        subtitle.push_str(" · ");
+        subtitle.push_str(tr("pinned"));
+    }
+    subtitle
 }
 
 /// Avatar, name, subtitle and a badge counting notes to review.
-fn person_row(ui: &mut egui::Ui, p: Palette, person: &Attendee, info: &RowInfo) -> egui::Response {
+fn person_row(
+    ui: &mut egui::Ui,
+    p: Palette,
+    person: &Attendee,
+    info: &RowInfo,
+    selected: bool,
+) -> egui::Response {
     let (rect, response) =
         ui.allocate_exact_size(egui::vec2(ui.available_width(), 48.0), Sense::click());
     response.widget_info(|| {
         egui::WidgetInfo::selected(
             egui::WidgetType::SelectableLabel,
             true,
-            info.selected,
+            selected,
             &person.name,
         )
     });
     let painter = ui.painter();
     let fill = match () {
-        _ if info.selected => p.accent_soft,
+        _ if selected => p.accent_soft,
         _ if response.hovered() => p.surface_hi,
         _ => Color32::TRANSPARENT,
     };

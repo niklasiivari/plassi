@@ -599,9 +599,30 @@ impl Project {
             Target::Organization { name, .. } => {
                 let kind = crate::catalog::Kind::Organization;
                 let key = self.category_key_of(kind, name);
+                // Index spellings once instead of scanning every category and
+                // alias again for each attendee in this organization wish.
+                let lookup = self.catalog.lookup(kind);
+                let categories: HashSet<_> = self
+                    .catalog
+                    .list(kind)
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| format!("#{}", crate::catalog::normalize(&c.name)) == key)
+                    .map(|(i, _)| i)
+                    .collect();
                 self.attendees
                     .iter()
-                    .filter(|p| p.id != requester && self.in_category(kind, p, &key))
+                    .filter(|p| {
+                        if p.id == requester {
+                            return false;
+                        }
+                        let found = lookup.find_all(&p.organization);
+                        if found.is_empty() {
+                            crate::catalog::normalize(&p.organization) == key && !key.is_empty()
+                        } else {
+                            found.iter().any(|i| categories.contains(i))
+                        }
+                    })
                     .map(|p| p.id)
                     .collect()
             }

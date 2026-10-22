@@ -9,7 +9,7 @@ impl PlassiApp {
             "{} people · {} with wishes · {} rules",
             &[
                 &self.project.attendees.len(),
-                &self.project.active_people().len(),
+                &self.people_list_info().active.len(),
                 &self.project.rules.len(),
             ],
         );
