@@ -53,8 +53,13 @@ fn table_row_selector_keeps_seating_and_free_canvas_drag_is_saved() {
     ui.drag(start, start + egui::vec2(73.0, 57.0));
     let at = ui.app().project.layout.table_positions["table-1"];
     assert_ne!(at, original);
-    assert_eq!(at.x % 40.0, 0.0);
-    assert_eq!(at.y % 40.0, 0.0);
+    let table = ui.app().project.layout.table("table-1").unwrap();
+    let (w, h) = table.half_size();
+    let anchor = at.place(-w, -h);
+    let grid = crate::model::SEAT_PITCH;
+    for value in [anchor.0, anchor.1] {
+        assert!(value.rem_euclid(grid).min(grid - value.rem_euclid(grid)) < 0.01);
+    }
     assert_eq!(ui.option().assignment, assignment);
     let disk: crate::model::Project =
         crate::io::parse(&ui.app().file.store.read().unwrap()).unwrap();
@@ -68,7 +73,7 @@ fn table_row_selector_keeps_seating_and_free_canvas_drag_is_saved() {
     let start = ui.node(&label).rect().center();
     ui.drag(start, start + egui::vec2(31.0, 23.0));
     let at = ui.app().project.layout.table_positions["table-1"];
-    assert!(at.x % 40.0 != 0.0 || at.y % 40.0 != 0.0);
+    assert!(at.x % 56.0 != 0.0 || at.y % 56.0 != 0.0);
     let start = ui.node(&label).rect().center();
     ui.h.drag_at(start);
     ui.h.step();
@@ -248,4 +253,48 @@ fn free_tables_turn_become_round_and_warn_when_their_cards_overlap() {
     assert!(ui.has("Resize room walls"));
     ui.click("Room walls");
     assert!(ui.app().project.layout.room.is_none());
+}
+
+#[test]
+fn room_text_can_be_edited_moved_cancelled_removed_and_restored() {
+    let mut ui = Ui::with_example();
+    ui.go_to("Room layout");
+    ui.click("Free layout");
+    ui.click("+ Add text");
+    ui.click("Label text");
+    ui.key(Modifiers::COMMAND, Key::A);
+    ui.type_text("X & Y");
+    ui.key(Modifiers::NONE, Key::Tab);
+    assert_eq!(ui.app().project.layout.labels[0].text, "X & Y");
+    let original = ui.app().project.layout.labels[0].clone();
+    let start = ui.node("Move text: X & Y").rect().center();
+    ui.drag(start, start + egui::vec2(50.0, -50.0));
+    let moved = ui.app().project.layout.labels[0].clone();
+    assert!(moved.x != original.x || moved.y != original.y);
+    ui.key(Modifiers::COMMAND, Key::Z);
+    assert_eq!(ui.app().project.layout.labels[0].x, original.x);
+    ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
+    assert_eq!(ui.app().project.layout.labels[0].x, moved.x);
+    let start = ui.node("Move text: X & Y").rect().center();
+    ui.h.drag_at(start);
+    ui.h.step();
+    ui.h.hover_at(start + egui::vec2(30.0, 30.0));
+    ui.h.step();
+    ui.key(Modifiers::NONE, Key::Escape);
+    ui.h.drop_at(start + egui::vec2(30.0, 30.0));
+    ui.settle();
+    assert_eq!(ui.app().project.layout.labels[0].x, moved.x);
+    ui.click("Move text: X & Y");
+    for width in [390.0, 320.0] {
+        ui.h.set_size(egui::vec2(width, 844.0));
+        ui.settle();
+        let field = ui.node("Label text").rect();
+        assert!(field.left() >= 0.0 && field.right() <= width);
+    }
+    ui.click("Remove text");
+    assert!(ui.app().project.layout.labels.is_empty());
+    ui.key(Modifiers::COMMAND, Key::Z);
+    assert_eq!(ui.app().project.layout.labels[0].text, "X & Y");
+    let ui = ui.reopen();
+    assert_eq!(ui.app().project.layout.labels[0].text, "X & Y");
 }

@@ -19,6 +19,7 @@ mod input;
 mod memo;
 mod project_file;
 mod projects;
+mod room_labels;
 mod search;
 mod shell;
 mod solving;

@@ -166,9 +166,34 @@
   measure(block(width: 50mm, one)).height - 10mm
 }
 
+// A physical room map keeps landmarks and table names in their actual places.
+#let room-map(m) = context {
+  header(t("Room layout", "Tilan asettelu"), compact: true)
+  let scale = calc.min(269mm / m.w, 145mm / m.h)
+  let cx = m.x + m.w / 2
+  let cy = m.y + m.h / 2
+  let at(x, y, body) = place(center + horizon, dx: (x - cx) * scale, dy: (y - cy) * scale, body)
+  block(width: 269mm, height: 145mm, {
+    if m.walls != none {
+      let r = m.walls
+      at(r.x + r.width / 2, r.y + r.height / 2, rect(width: r.width * scale, height: r.height * scale, stroke: 0.8pt + hair))
+    }
+    for tbl in m.tables {
+      let shape = if tbl.round { ellipse } else { rect }
+      at(tbl.x, tbl.y, rotate(tbl.rotation * 1deg, shape(width: tbl.w * scale, height: tbl.h * scale, fill: tint, stroke: 0.7pt + hair)))
+      at(tbl.x, tbl.y, text(size: 9pt, weight: "semibold", fill: accent, tbl.label))
+    }
+    for label in m.labels {
+      at(label.x, label.y, block(width: 280 * scale, align(center, text(size: calc.min(14pt, calc.max(8pt, 22 * scale)), label.text))))
+    }
+  })
+  pagebreak()
+}
+
 // ---------------------------------------------------------------- chart --
 #let chart() = {
   set page(paper: "a4", flipped: true, margin: (x: 14mm, top: 12mm, bottom: 14mm), footer: pages-footer)
+  if data.at("room_map", default: none) != none { room-map(data.room_map) }
   let kicker = t("Seating", "Istumajärjestys")
   header(kicker)
   context {

@@ -28,6 +28,7 @@ impl PlassiApp {
             .collect();
         let mut changed = false;
         let mut delete = None;
+        let mut show_people = None;
         for (index, category) in self.project.catalog.list_mut(kind).iter_mut().enumerate() {
             ui.push_id(index, |ui| {
                 theme::card(p).show(ui, |ui| {
@@ -39,7 +40,13 @@ impl PlassiApp {
                                     .desired_width(ui.available_width().min(260.0)),
                             )
                             .lost_focus();
-                        theme::hint(ui, p, super::unmapped::people_count(counts[index]));
+                        if ui
+                            .link(super::unmapped::people_count(counts[index]))
+                            .on_hover_text(tr("Show people with this entry"))
+                            .clicked()
+                        {
+                            show_people = Some(index);
+                        }
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if ui
                                 .add(theme::ghost_button(tr("Delete"), p))
@@ -67,6 +74,17 @@ impl PlassiApp {
                 });
             });
             ui.add_space(theme::space::S);
+        }
+        if let Some(index) = show_people {
+            let ids = self
+                .project
+                .attendees
+                .iter()
+                .filter(|a| lookup.find_all(kind.raw(a)).contains(&index))
+                .map(|a| a.id)
+                .collect();
+            self.categories.entry_people =
+                Some((self.project.catalog.list(kind)[index].name.clone(), ids));
         }
         if let Some(index) = delete {
             self.project.catalog.remove(kind, index);

@@ -89,6 +89,11 @@ impl PlassiApp {
         let view = self.update_viewport(ui, rect, &background, scene);
         paint_grid(&painter, &view, p);
         self.paint_walls(&painter, &view, p);
+        if self.project.layout.free_layout {
+            for label in &self.project.layout.labels {
+                crate::app::room_labels::paint(&painter, &view, label, p.muted);
+            }
+        }
         self.paint_tables(&painter, &view, p, scene);
         self.paint_wish_lines(ui, &painter, &view, p, scene);
         self.paint_group_highlights(&painter, &view, p, scene);
@@ -129,6 +134,14 @@ impl PlassiApp {
             .values()
             .map(|at| Rect::from_center_size(*at, card))
             .chain(scene.seats.iter().map(card_rect))
+            .chain(
+                self.project
+                    .layout
+                    .labels
+                    .iter()
+                    .filter(|_| self.project.layout.free_layout)
+                    .map(crate::app::room_labels::bounds),
+            )
             .fold(Rect::NOTHING, Rect::union)
             .expand2(Vec2::new(30.0, 50.0));
         let view = &mut self.chart.view;

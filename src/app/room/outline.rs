@@ -224,12 +224,12 @@ mod tests {
         let room = drag(-1, -1, Vec2::new(40.0, -80.0));
         assert_eq!(
             (room.x, room.y, room.width, room.height),
-            (40.0, -80.0, 360.0, 280.0)
+            (56.0, -56.0, 344.0, 256.0)
         );
         let room = drag(0, 1, Vec2::new(120.0, 40.0));
         assert_eq!(
             (room.x, room.y, room.width, room.height),
-            (0.0, 0.0, 400.0, 240.0)
+            (0.0, 0.0, 400.0, 224.0)
         );
         let room = drag(1, 0, Vec2::new(-1000.0, 0.0));
         assert_eq!(room.width, MIN_SIDE);

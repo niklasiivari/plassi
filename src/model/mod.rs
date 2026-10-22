@@ -43,6 +43,9 @@ pub struct Attendee {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
 pub struct Layout {
     pub rows: Vec<RowSpec>,
+    /// Movable landmarks shown on the room plan and chart.
+    #[serde(default)]
+    pub labels: Vec<RoomLabel>,
     /// Use explicit table origins instead of the row geometry.
     #[serde(default)]
     pub free_layout: bool,
@@ -51,6 +54,14 @@ pub struct Layout {
     /// The room's walls in the free layout, to see how the tables fit.
     #[serde(default)]
     pub room: Option<RoomOutline>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct RoomLabel {
+    pub id: u64,
+    pub text: String,
+    pub x: f32,
+    pub y: f32,
 }
 
 /// Where a table stands: its centre, and how far it is turned.

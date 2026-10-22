@@ -110,6 +110,10 @@ impl PlassiApp {
         ui.add_space(theme::space::XS);
         let info = self.people_list_info();
         let to_review = info.rows.values().filter(|row| row.unreviewed > 0).count();
+        if !self.people.picked.is_empty() && ui.button(tr("Clear selection")).clicked() {
+            self.people.picked.clear();
+            self.people.selecting = false;
+        }
         self.filter_chips(ui, p, to_review);
         self.bulk_bar(ui);
         ui.add_space(theme::space::XS);
@@ -168,6 +172,7 @@ impl PlassiApp {
             rows(ui);
         }
         if let Some(id) = select {
+            self.people.end_review();
             self.selected_person = Some(id);
             self.people.wish_draft = None;
             self.people.picked.clear();

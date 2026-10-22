@@ -357,6 +357,10 @@ impl<'t> Field<'t> {
         Self(self.0.desired_width(width))
     }
 
+    pub fn char_limit(self, limit: usize) -> Self {
+        Self(self.0.char_limit(limit))
+    }
+
     pub fn desired_rows(self, rows: usize) -> Self {
         Self(self.0.desired_rows(rows))
     }

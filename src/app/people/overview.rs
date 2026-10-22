@@ -81,13 +81,7 @@ impl PlassiApp {
                                 .add(theme::primary_button(tr("Review notes"), p))
                                 .clicked()
                         {
-                            self.people.filter = PeopleFilter::ToReview;
-                            self.selected_person = self
-                                .project
-                                .notes
-                                .iter()
-                                .find(|n| !n.reviewed)
-                                .map(|n| n.person);
+                            self.start_review();
                         }
                     });
                 });

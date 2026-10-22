@@ -17,10 +17,12 @@ pub(super) struct LayoutCanvas {
     project: String,
     size: Option<Vec2>,
     pub(super) selected: Option<String>,
+    pub(super) selected_label: Option<u64>,
+    pub(super) label_drag: Option<(u64, crate::model::Point, Pos2)>,
     /// Tables too close for their name cards on the chart, as last drawn.
     pub(super) crowded: std::collections::BTreeSet<String>,
     context_at: Option<TablePosition>,
-    center: Option<TablePosition>,
+    pub(super) center: Option<TablePosition>,
 }
 
 impl Default for LayoutCanvas {
@@ -35,6 +37,8 @@ impl Default for LayoutCanvas {
             project: String::new(),
             size: None,
             selected: None,
+            selected_label: None,
+            label_drag: None,
             crowded: Default::default(),
             context_at: None,
             center: None,
@@ -42,7 +46,13 @@ impl Default for LayoutCanvas {
     }
 }
 
-pub(super) const GRID: f32 = 40.0;
+impl LayoutCanvas {
+    pub(super) fn camera_navigation(&self) -> bool {
+        self.camera.is_touch_navigation()
+    }
+}
+
+pub(super) const GRID: f32 = crate::model::SEAT_PITCH;
 const CARD_MARGIN: f32 = 190.0;
 /// How far a long table's top reaches past its end seats.
 const TABLE_END: f32 = 28.0;
@@ -52,6 +62,21 @@ pub(super) fn snapped(value: f32, snap: bool) -> f32 {
         (value / GRID).round() * GRID
     } else {
         value
+    }
+}
+
+/// Anchor the first seat row / upper-left edge, so unlike-length tables can
+/// line up their end seats instead of their centres.
+pub(super) fn snap_table(table: &TableSpec, position: TablePosition, snap: bool) -> TablePosition {
+    if !snap {
+        return position;
+    }
+    let (across, along) = table.half_size();
+    let (x, y) = position.place(-across, -along);
+    TablePosition {
+        x: position.x + snapped(x, snap) - x,
+        y: position.y + snapped(y, snap) - y,
+        ..position
     }
 }
 
@@ -74,7 +99,11 @@ impl PlassiApp {
             ui.selectable_value(&mut free, true, tr("Free layout"));
             if free {
                 add = ui.button(tr("+ Add table")).clicked();
-                ui.checkbox(&mut self.room.canvas.snap, tr("Snap to grid"));
+                if ui.button(tr("+ Add text")).clicked() {
+                    edit.labels |= self.add_room_label();
+                }
+                ui.checkbox(&mut self.room.canvas.snap, tr("Snap to grid"))
+                    .on_hover_text(tr("Align table edges and end seats to the grid"));
                 if ui.button(tr("Fit room")).clicked() {
                     self.room.canvas.fit_pending = true;
                 }
@@ -104,6 +133,7 @@ impl PlassiApp {
         if state.project != self.file.name || state.size != Some(rect.size()) {
             if state.project != self.file.name {
                 state.selected = None;
+                state.selected_label = None;
             }
             state.project = self.file.name.clone();
             state.size = Some(rect.size());
@@ -111,12 +141,14 @@ impl PlassiApp {
             state.drag = None;
             state.outline_drag = None;
             state.turning = None;
+            state.label_drag = None;
         }
         // A second finger yields the drag to camera navigation, without changing the room.
         if ui.input(|i| i.multi_touch().is_some()) {
             state.drag = None;
             state.outline_drag = None;
             state.turning = None;
+            state.label_drag = None;
         }
         let view = state.camera.viewport(rect);
         // The room as it is drawn: with a dragged or turned table where the
@@ -143,6 +175,7 @@ impl PlassiApp {
             .iter()
             .map(|(_, top)| top.bounds().expand2(Vec2::new(CARD_MARGIN, 42.0)))
             .chain(room)
+            .chain(layout.labels.iter().map(crate::app::room_labels::bounds))
             .fold(Rect::NOTHING, Rect::union);
         if state.fit_pending && world.is_finite() {
             state.camera.fit(rect.shrink(20.0), world, 1.0);
@@ -153,6 +186,7 @@ impl PlassiApp {
         state.center = Some(at(view.world(rect.center())));
         if background.clicked() {
             state.selected = None;
+            state.selected_label = None;
         }
         let mut add_at = None;
         add_menu(&background, &view, &mut state.context_at, &mut add_at);
@@ -173,6 +207,7 @@ impl PlassiApp {
             );
             if response.clicked() {
                 state.selected = Some(table.id.clone());
+                state.selected_label = None;
             }
             add_menu(&response, &view, &mut state.context_at, &mut add_at);
             response.widget_info(|| {
@@ -207,6 +242,7 @@ impl PlassiApp {
                 self.turn_handle(ui, &painter, &view, p, (table, top));
             }
         }
+        let label_changed = self.room_label_canvas(ui, &painter, &view, p);
         let mut moved = dragged.filter(|_| ui.input(|i| i.pointer.any_released()));
         let outline_changed = self.outline_handles(ui, &painter, &view, p);
         let state = &mut self.room.canvas;
@@ -214,13 +250,18 @@ impl PlassiApp {
             state.drag = None;
             state.turning = None;
             state.selected = None;
+            state.selected_label = None;
+            state.label_drag = None;
             moved = None;
         }
         state.camera.handle_input(
             ui,
             rect,
             &background,
-            state.drag.is_none() && state.outline_drag.is_none() && state.turning.is_none(),
+            state.drag.is_none()
+                && state.outline_drag.is_none()
+                && state.turning.is_none()
+                && state.label_drag.is_none(),
         );
         if ui.input(|i| i.pointer.any_released()) {
             state.drag = None;
@@ -232,7 +273,7 @@ impl PlassiApp {
             state.crowded = crowded;
         }
         let mut edit = RoomEdit {
-            labels: outline_changed,
+            labels: outline_changed || label_changed,
             geometry: false,
         };
         if let Some(at) = add_at {
@@ -254,11 +295,14 @@ impl PlassiApp {
         let delta = view.world(ui.input(|i| i.pointer.interact_pos())?) - *start;
         let snap = self.room.canvas.snap;
         let position = TablePosition {
-            x: snapped(original.x + delta.x, snap),
-            y: snapped(original.y + delta.y, snap),
+            x: original.x + delta.x,
+            y: original.y + delta.y,
             ..*original
         };
-        Some((id.clone(), position))
+        Some((
+            id.clone(),
+            snap_table(self.project.layout.table(id)?, position, snap),
+        ))
     }
 
     fn add_free_table(&mut self, at: TablePosition) {
@@ -279,15 +323,13 @@ impl PlassiApp {
         let row = &mut self.project.layout.rows[0];
         add_table(row, &ids);
         let id = row.tables.last().unwrap().id.clone();
-        self.project.layout.table_positions.insert(
-            id.clone(),
-            TablePosition {
-                x: snapped(at.x, self.room.canvas.snap),
-                y: snapped(at.y, self.room.canvas.snap),
-                rotation: 0.0,
-            },
-        );
+        let position = snap_table(row.tables.last().unwrap(), at, self.room.canvas.snap);
+        self.project
+            .layout
+            .table_positions
+            .insert(id.clone(), position);
         self.room.canvas.selected = Some(id);
+        self.room.canvas.selected_label = None;
     }
 }
 
@@ -386,4 +428,46 @@ fn add_menu(
             ui.close();
         }
     });
+}
+
+#[cfg(test)]
+mod snapping_tests {
+    use super::*;
+    #[test]
+    fn unequal_tables_snap_their_first_seat_rows_and_edges_including_after_turning() {
+        for rotation in [0.0, 45.0, 90.0, 180.0, 270.0] {
+            let mut anchors = Vec::new();
+            for length in [4, 5, 12, 17] {
+                let table = TableSpec {
+                    id: "t".into(),
+                    label: "X".into(),
+                    left: length,
+                    right: length,
+                    shape: TableShape::Long,
+                };
+                let (w, h) = table.half_size();
+                let frame = TablePosition {
+                    x: 0.0,
+                    y: 0.0,
+                    rotation,
+                };
+                let offset = frame.place(-w, -h);
+                let at = TablePosition {
+                    x: 83.0 - offset.0,
+                    y: 121.0 - offset.1,
+                    rotation,
+                };
+                let snapped = snap_table(&table, at, true);
+                let anchor = snapped.place(-w, -h);
+                assert!((anchor.0 - 56.0).abs() < 0.01 && (anchor.1 - 112.0).abs() < 0.01);
+                assert_eq!(snap_table(&table, at, false), at);
+                anchors.push(anchor);
+            }
+            assert!(
+                anchors
+                    .windows(2)
+                    .all(|a| (a[0].0 - a[1].0).abs() < 0.01 && (a[0].1 - a[1].1).abs() < 0.01)
+            );
+        }
+    }
 }

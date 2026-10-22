@@ -78,6 +78,8 @@ pub struct Category {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(default)]
 pub struct Catalog {
+    /// Imported entries deliberately left without a category, by kind.
+    pub ignored: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
     pub organizations: Vec<Category>,
     pub tickets: Vec<Category>,
     pub foods: Vec<Category>,
@@ -88,12 +90,19 @@ pub struct Catalog {
 /// Lowercase, single-spaced, without punctuation at either end: the form in
 /// which names and spellings are compared.
 pub fn normalize(text: &str) -> String {
-    text.trim()
+    let trimmed = text.trim();
+    let words = trimmed
         .trim_matches(|c: char| c.is_ascii_punctuation())
         .to_lowercase()
         .split_whitespace()
         .collect::<Vec<_>>()
-        .join(" ")
+        .join(" ");
+    // A dash or other punctuation-only entry is still a distinct spelling.
+    if words.is_empty() {
+        trimmed.to_lowercase()
+    } else {
+        words
+    }
 }
 
 /// Spellings to categories, as `Catalog::find_all` finds them.
@@ -114,6 +123,29 @@ impl Category {
 }
 
 impl Catalog {
+    pub fn is_ignored(&self, kind: Kind, raw: &str) -> bool {
+        let key = normalize(raw);
+        self.ignored
+            .get(kind.key())
+            .is_some_and(|entries| entries.contains(&key))
+    }
+
+    pub fn ignore(&mut self, kind: Kind, raw: &str, ignored: bool) {
+        let key = normalize(raw);
+        let entries = self.ignored.entry(kind.key().into()).or_default();
+        entries.remove(&key);
+        if ignored && !key.is_empty() {
+            entries.insert(key);
+        }
+    }
+
+    /// Category indices in display order, without changing stored memberships.
+    pub fn sorted_indices(&self, kind: Kind) -> Vec<usize> {
+        let mut indices: Vec<_> = (0..self.list(kind).len()).collect();
+        indices.sort_by_cached_key(|&i| normalize(&self.list(kind)[i].name));
+        indices
+    }
+
     /// A category entered by the planner, even if its name was previously an
     /// alias of another category. Empty and duplicate names are rejected.
     pub fn create_named(&mut self, kind: Kind, name: &str) -> Option<usize> {
@@ -191,6 +223,7 @@ impl Catalog {
 
     /// Adds a spelling to a category (by index). It keeps any other categories.
     pub fn assign(&mut self, kind: Kind, raw: &str, target: usize) {
+        self.ignore(kind, raw, false);
         let category = &mut self.list_mut(kind)[target];
         if !category.matches(raw) {
             category.aliases.push(raw.trim().to_string());
@@ -199,6 +232,7 @@ impl Catalog {
 
     /// Creates a category named after a spelling and maps the spelling to it.
     pub fn create(&mut self, kind: Kind, raw: &str) -> usize {
+        self.ignore(kind, raw, false);
         if let Some(existing) = self.find(kind, raw) {
             return existing;
         }
@@ -254,5 +288,31 @@ mod tests {
         assert_eq!(catalog.find(Kind::Organization, "Aa-Bb Cc"), Some(abc));
         assert_eq!(catalog.find(Kind::Organization, "XYZ"), None);
         assert_eq!(initials("Aa-Bb Cc"), "abc");
+    }
+}
+
+#[cfg(test)]
+mod resolution_tests {
+    use super::*;
+    #[test]
+    fn punctuation_entries_can_be_mapped_ignored_reopened_and_persisted() {
+        let mut catalog = Catalog::default();
+        let none = catalog.create_named(Kind::Organization, "ABC").unwrap();
+        catalog.assign(Kind::Organization, "-", none);
+        assert_eq!(catalog.find_all(Kind::Organization, " - "), [none]);
+        assert_eq!(catalog.lookup(Kind::Organization).find_all("-"), [none]);
+        assert!(catalog.find(Kind::Organization, ".").is_none());
+        catalog.ignore(Kind::Organization, "?", true);
+        let mut catalog: Catalog =
+            serde_json::from_str(&serde_json::to_string(&catalog).unwrap()).unwrap();
+        assert!(catalog.is_ignored(Kind::Organization, " ? "));
+        assert!(!catalog.is_ignored(Kind::Food, "?"));
+        catalog.ignore(Kind::Organization, "?", false);
+        assert!(!catalog.is_ignored(Kind::Organization, "?"));
+        catalog.ignore(Kind::Organization, "?", true);
+        catalog.assign(Kind::Organization, "?", none);
+        assert!(!catalog.is_ignored(Kind::Organization, "?"));
+        assert!(catalog.create_named(Kind::Organization, "-").is_some());
+        assert_eq!(catalog.sorted_indices(Kind::Organization), [1, 0]);
     }
 }

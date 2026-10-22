@@ -54,12 +54,25 @@ impl PlassiApp {
 
     /// The selected table's settings, or the room overview.
     fn room_inspector(&mut self, ui: &mut egui::Ui, p: Palette) -> RoomEdit {
+        if let Some(id) = self.room.canvas.selected_label {
+            return self.room_label_settings(ui, p, id);
+        }
         if let Some(id) = self.room.canvas.selected.clone()
             && self.project.layout.table(&id).is_some()
         {
             return self.table_settings(ui, p, &id);
         }
         self.room_header(ui, p);
+        for label in &self.project.layout.labels {
+            let text = if label.text.trim().is_empty() {
+                tr("Label")
+            } else {
+                &label.text
+            };
+            if ui.add(egui::Button::new(text).wrap()).clicked() {
+                self.room.canvas.selected_label = Some(label.id);
+            }
+        }
         ui.add_space(theme::space::L);
         theme::section_title(ui, p, tr("Controls"));
         theme::text_rows(ui, |ui| {

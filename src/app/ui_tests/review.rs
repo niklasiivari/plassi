@@ -147,3 +147,63 @@ fn many_wishes_can_be_accepted_and_reviewed_on_desktop_and_phone() {
         assert!(ui.app().people.shown.contains(&64));
     }
 }
+
+#[test]
+fn review_navigation_can_skip_backtrack_and_keep_reviewed_people_in_the_session() {
+    let mut ui = Ui::with_example();
+    ui.go_to("People & wishes");
+    ui.click("Review notes");
+    let first = ui.app().selected_person.unwrap();
+    let first_notes: Vec<_> = ui
+        .app()
+        .project
+        .notes
+        .iter()
+        .filter(|n| n.person == first)
+        .map(|n| n.reviewed)
+        .collect();
+    ui.click("Next person");
+    let second = ui.app().selected_person.unwrap();
+    assert_ne!(first, second);
+    assert_eq!(
+        ui.app()
+            .project
+            .notes
+            .iter()
+            .filter(|n| n.person == first)
+            .map(|n| n.reviewed)
+            .collect::<Vec<_>>(),
+        first_notes
+    );
+    ui.click("Previous person");
+    assert_eq!(ui.app().selected_person, Some(first));
+    ui.click("Review and next");
+    assert_eq!(ui.app().selected_person, Some(second));
+    ui.click("Previous person");
+    assert_eq!(ui.app().selected_person, Some(first));
+    assert!(ui.has("Reopen"));
+    ui.click("Reopen");
+    assert!(
+        ui.app()
+            .project
+            .notes
+            .iter()
+            .any(|n| n.person == first && !n.reviewed)
+    );
+    ui.click("Next person");
+    ui.click("Finish review");
+    assert_eq!(ui.app().selected_person, None);
+}
+
+#[test]
+fn select_all_can_be_cleared_from_the_top_of_the_people_list() {
+    let mut ui = Ui::with_example();
+    ui.go_to("People & wishes");
+    ui.click("Select all shown");
+    assert_eq!(ui.app().people.picked.len(), 48);
+    ui.click("Clear selection");
+    assert!(ui.app().people.picked.is_empty());
+    ui.click("Select all shown");
+    ui.key(Modifiers::NONE, Key::Escape);
+    assert!(ui.app().people.picked.is_empty());
+}

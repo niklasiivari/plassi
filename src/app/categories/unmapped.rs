@@ -47,7 +47,18 @@ impl PlassiApp {
                         tr("is the same as")
                     };
                     theme::hint(ui, p, relation);
-                    ui.label(merge.targets.join(tr(" and ")));
+                    for target in &merge.targets {
+                        let existing = self.project.catalog.find(kind, target).is_some();
+                        let label = fill(
+                            if existing {
+                                "{} · Existing"
+                            } else {
+                                "{} · New"
+                            },
+                            &[target],
+                        );
+                        theme::status_pill(ui, p, label, if existing { p.accent } else { p.good });
+                    }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.add(theme::small_button(tr("Merge"))).clicked() {
                             apply = Some(index);
@@ -82,7 +93,9 @@ impl PlassiApp {
         let lookup = self.project.catalog.lookup(kind);
         let unmapped: Vec<_> = spellings
             .iter()
-            .filter(|(s, _)| lookup.find_all(s).is_empty())
+            .filter(|(s, _)| {
+                lookup.find_all(s).is_empty() && !self.project.catalog.is_ignored(kind, s)
+            })
             .collect();
         let mut changed = false;
         let mut create_all = false;
@@ -112,17 +125,67 @@ impl PlassiApp {
                 egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, search_label)
             });
             let search = crate::catalog::normalize(&self.categories.mapping_search);
+            ui.horizontal_wrapped(|ui| {
+                for (filter, label) in [
+                    (MappingFilter::All, "All entries"),
+                    (MappingFilter::Unresolved, "Unresolved"),
+                    (MappingFilter::Resolved, "Resolved"),
+                ] {
+                    ui.selectable_value(&mut self.categories.mapping_filter, filter, tr(label));
+                }
+            });
             ui.add_space(theme::space::S);
             for (spelling, count) in &spellings {
+                let ignored = self.project.catalog.is_ignored(kind, spelling);
+                let resolved = ignored || !lookup.find_all(spelling).is_empty();
+                if matches!(self.categories.mapping_filter, MappingFilter::Unresolved) && resolved
+                    || matches!(self.categories.mapping_filter, MappingFilter::Resolved)
+                        && !resolved
+                {
+                    continue;
+                }
                 if !crate::catalog::normalize(spelling).contains(&search) {
                     continue;
                 }
                 ui.push_id(spelling, |ui| {
                     ui.add(egui::Label::new(RichText::new(spelling).strong()).wrap());
-                    theme::hint(ui, p, people_count(*count));
-                    let mapped = lookup.find_all(spelling);
-                    changed |=
-                        mapping_picker(ui, p, &mut self.project.catalog, kind, (spelling, mapped));
+                    if ui
+                        .link(people_count(*count))
+                        .on_hover_text(tr("Show people with this entry"))
+                        .clicked()
+                    {
+                        let key = crate::catalog::normalize(spelling);
+                        let ids = self
+                            .project
+                            .attendees
+                            .iter()
+                            .filter(|a| crate::catalog::normalize(kind.raw(a)) == key)
+                            .map(|a| a.id)
+                            .collect();
+                        self.categories.entry_people = Some((spelling.clone(), ids));
+                    }
+                    if ignored {
+                        theme::status_pill(ui, p, tr("Ignored"), p.muted);
+                        if ui.button(tr("Reopen")).clicked() {
+                            self.project.catalog.ignore(kind, spelling, false);
+                            changed = true;
+                        }
+                    } else {
+                        let mapped = lookup.find_all(spelling);
+                        changed |= mapping_picker(
+                            ui,
+                            p,
+                            &mut self.project.catalog,
+                            kind,
+                            (spelling, mapped),
+                        );
+                        if mapped.is_empty()
+                            && ui.add(theme::small_button(tr("Ignore entry"))).clicked()
+                        {
+                            self.project.catalog.ignore(kind, spelling, true);
+                            changed = true;
+                        }
+                    }
                     ui.add_space(theme::space::S);
                     ui.separator();
                     ui.add_space(theme::space::S);
@@ -160,7 +223,7 @@ fn mapping_picker(
                 .width(ui.available_width().min(220.0))
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show_ui(ui, |ui| {
-                    for index in 0..catalog.list(kind).len() {
+                    for index in catalog.sorted_indices(kind) {
                         let category = &catalog.list(kind)[index];
                         let mut selected = mapped.contains(&index);
                         let own_name = crate::catalog::normalize(&category.name)

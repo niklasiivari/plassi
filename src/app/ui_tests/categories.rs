@@ -143,3 +143,94 @@ fn category_creation_and_mapping_fit_phone_and_tablet_widths() {
         }
     }
 }
+
+#[test]
+fn imported_entries_show_memberships_link_people_and_support_ignore_reopen_and_filters() {
+    let mut ui = Ui::with_example();
+    let mut project = crate::model::Project::new();
+    project.attendees = crate::example::project()
+        .attendees
+        .into_iter()
+        .take(3)
+        .collect();
+    for (person, spelling) in project.attendees.iter_mut().zip(["ABC / XYZ", "-", "?"]) {
+        person.organization = spelling.into();
+    }
+    project.catalog.create_named(Kind::Organization, "XYZ");
+    ui.app_mut().replace_project(project);
+    ui.app_mut().commit("Saved changes");
+    ui.go_to("Categories");
+    assert!(ui.has("XYZ · Existing"));
+    assert!(ui.has("ABC · New"));
+    ui.click("Merge");
+    assert_eq!(
+        ui.app()
+            .project
+            .category_names(Kind::Organization, &ui.app().project.attendees[0]),
+        ["XYZ", "ABC"]
+    );
+    ui.click("Unresolved");
+    // Only the two unresolved spellings remain in the imported-entry section.
+    assert_eq!(ui.count("Choose organizations…"), 2);
+    ui.open_combo("Choose organizations…");
+    let order: Vec<_> =
+        ui.h.query_all_by(|n| n.role() == egui::accesskit::Role::CheckBox)
+            .map(|n| n.accesskit_node().label().unwrap_or_default())
+            .collect();
+    assert_eq!(order, ["ABC", "XYZ"]);
+    ui.choose("ABC");
+    ui.key(Modifiers::NONE, Key::Escape);
+    assert_eq!(
+        ui.app().project.catalog.find_all(Kind::Organization, "-"),
+        [1]
+    );
+    ui.click("Ignore entry");
+    assert!(ui.app().project.catalog.is_ignored(Kind::Organization, "?"));
+    assert_eq!(ui.count("Choose organizations…"), 0);
+    ui.click("Resolved");
+    assert!(ui.has("Ignored"));
+    ui.click("Reopen");
+    assert!(!ui.app().project.catalog.is_ignored(Kind::Organization, "?"));
+    ui.click("Unresolved");
+    ui.click("1 person");
+    assert!(ui.has("People with this entry"));
+    ui.click("Guest 03");
+    assert_eq!(ui.app().selected_person, Some(2));
+    assert!(ui.app().page == crate::app::Page::People);
+}
+
+#[test]
+fn suggestion_targets_wrap_as_separate_pills_on_phones_and_tablets() {
+    let mut ui = Ui::with_example();
+    let mut project = crate::model::Project::new();
+    project.attendees = crate::example::project()
+        .attendees
+        .into_iter()
+        .take(1)
+        .collect();
+    project.attendees[0].organization =
+        "ABC with a long category label / XYZ with another long category label".into();
+    project
+        .catalog
+        .create_named(Kind::Organization, "XYZ with another long category label");
+    ui.app_mut().replace_project(project);
+    ui.app_mut().commit("Saved changes");
+    ui.go_to("Categories");
+    for width in [320.0, 390.0, 768.0, 1024.0, 1440.0] {
+        ui.h.set_size(egui::vec2(width, 900.0));
+        ui.settle();
+        ui.h.run_steps(4);
+        assert!(ui.has_text("ABC with a long category label"));
+        assert!(ui.has_text("XYZ with another long category label"));
+        for node in ui.h.query_all_by(|n| {
+            n.value()
+                .is_some_and(|v| v.contains("· New") || v.contains("· Existing"))
+        }) {
+            let rect = node.rect();
+            assert!(
+                rect.left() >= -1.0 && rect.right() <= width + 1.0,
+                "width={width}: {rect:?}"
+            );
+        }
+    }
+}
