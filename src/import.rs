@@ -12,9 +12,12 @@ pub use workbook::read_sheets;
 use crate::catalog::normalize;
 use crate::i18n::{fill, tr};
 use std::collections::{BTreeMap, HashMap, HashSet};
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
-use anyhow::{Context, Result, bail};
+#[cfg(not(target_arch = "wasm32"))]
+use anyhow::Context;
+use anyhow::{Result, bail};
 
 use crate::model::{
     Attendee, ImportField, ImportNote, Importance, Project, Rule, RuleKind, Target, WishKind,
@@ -305,6 +308,7 @@ fn rows(sheet: &Sheet) -> Vec<Row> {
         .collect()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn import_tsv(path: &Path) -> Result<Project> {
     let text = std::fs::read_to_string(path)
         .with_context(|| fill("Could not open {}", &[&path.display()]))?;
@@ -326,6 +330,7 @@ pub struct MergeSummary {
 
 /// Adds or updates attendees from a sheet, matching by name. Existing rules,
 /// layout and options are kept; new sign-up text becomes unreviewed notes.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn merge(project: &mut Project, sheet: &Sheet) -> Result<MergeSummary> {
     let (next, summary) = prepare(project, sheet, ImportMode::UpdateMatching)?;
     *project = next;

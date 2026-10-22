@@ -124,10 +124,6 @@ impl PlassiApp {
                         }
                         self.file_actions(ui);
                         self.backup_menu_items(ui);
-                        if ui.button(tr("Activity history")).clicked() {
-                            self.activity.open = true;
-                            ui.close();
-                        }
                         ui.separator();
                         if self.projects.confirm_delete {
                             ui.label(

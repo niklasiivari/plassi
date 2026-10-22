@@ -2,6 +2,40 @@
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
     (
+        "Set the price for each ticket type.",
+        "Määritä kunkin lipputyypin hinta.",
+    ),
+    (
+        "Match imported entries to categories, then set prices and print marks.",
+        "Yhdistä tuodut merkinnät luokkiin ja määritä sitten hinnat ja tulostusmerkit.",
+    ),
+    ("Review entries", "Tarkista merkinnät"),
+    ("Review imported entries", "Tarkista tuodut merkinnät"),
+    ("Manage categories", "Muokkaa luokkia"),
+    (
+        "Create organizations and combine their different spellings.",
+        "Luo järjestöt ja yhdistä niiden eri kirjoitusasut.",
+    ),
+    (
+        "Set a shared price and print mark for each category.",
+        "Määritä kullekin luokalle yhteinen hinta ja tulostusmerkki.",
+    ),
+    (
+        "Group different spellings of the same choice. The original sign-up text is kept.",
+        "Yhdistä saman valinnan eri kirjoitusasut. Alkuperäinen ilmoittautumisteksti säilyy.",
+    ),
+    (
+        "No imported entries for this type yet.",
+        "Tähän tyyppiin ei ole vielä tuotu merkintöjä.",
+    ),
+    (
+        "Import people first, or create categories to use when adding people.",
+        "Tuo ensin henkilöitä tai luo luokat henkilöiden lisäämistä varten.",
+    ),
+    ("All entries categorized", "Kaikki merkinnät luokiteltu"),
+    ("{} entries to categorize", "{} merkintää luokittelematta"),
+    ("{} imported entries", "{} tuotua merkintää"),
+    (
         "People without wishes sit with their own organization.",
         "Toiveettomat istuvat oman järjestönsä kanssa.",
     ),
@@ -400,27 +434,6 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Remove text", "Poista teksti"),
     ("Move text: {}", "Siirrä tekstiä: {}"),
-    ("Activity history", "Muutoshistoria"),
-    ("Find a change", "Etsi muutosta"),
-    (
-        "Recent changes are saved with this project. Open an item to return to it.",
-        "Viimeisimmät muutokset tallennetaan projektiin. Avaa merkintä palataksesi sen kohteeseen.",
-    ),
-    ("No changes recorded yet", "Muutoksia ei ole vielä kirjattu"),
-    ("Just now", "Juuri nyt"),
-    ("{} minutes ago", "{} minuuttia sitten"),
-    (
-        "This item is no longer in the project",
-        "Kohdetta ei enää ole projektissa",
-    ),
-    ("Reviewed {}", "Tarkistettiin {}"),
-    (
-        "Reopened notes for {}",
-        "Avattiin uudelleen henkilön {} merkinnät",
-    ),
-    ("Mapped {} to {}", "Yhdistettiin {} luokkaan {}"),
-    ("Updated {}", "Päivitettiin {}"),
-    ("Updated wishes for {}", "Päivitettiin henkilön {} toiveet"),
     ("Mark reviewed & next", "Merkitse tarkistetuksi ja seuraava"),
     (
         "K: previous · J: next · R: review and next",
@@ -461,13 +474,4 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Distribute horizontal gaps", "Tasaa vaakavälit"),
     ("Distribute vertical gaps", "Tasaa pystyvälit"),
     ("Clear table selection", "Tyhjennä pöytävalinta"),
-    (
-        "Updated notes for {} people",
-        "Päivitettiin {} henkilön merkintöjä",
-    ),
-    (
-        "Updated {} category mappings",
-        "Päivitettiin {} luokkakohdistusta",
-    ),
-    ("Updated {} tables", "Päivitettiin {} pöytää"),
 ];

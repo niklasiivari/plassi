@@ -4,9 +4,6 @@ use std::collections::{BTreeMap, HashSet};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-mod activity;
-pub use activity::*;
-
 mod layout;
 mod pins;
 mod policy;
@@ -163,9 +160,6 @@ impl ImportField {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Project {
-    /// Recent changes, retained with the project.
-    #[serde(default)]
-    pub activity: Vec<Activity>,
     pub version: u32,
     pub attendees: Vec<Attendee>,
     pub layout: Layout,
@@ -524,7 +518,6 @@ impl Project {
     pub fn new() -> Self {
         Self {
             version: 1,
-            activity: Vec::new(),
             attendees: Vec::new(),
             layout: Layout::default(),
             rules: Vec::new(),

@@ -27,15 +27,6 @@ pub(super) struct RoomState {
     canvas: layout_canvas::LayoutCanvas,
 }
 
-impl RoomState {
-    pub(in crate::app) fn focus_tables(&mut self, ids: &[String]) {
-        self.canvas.selected_tables = ids.iter().cloned().collect();
-        self.canvas.selected = ids.first().cloned();
-        self.canvas.selected_label = None;
-        self.canvas.fit_pending = true;
-    }
-}
-
 impl Default for RoomState {
     fn default() -> Self {
         Self {

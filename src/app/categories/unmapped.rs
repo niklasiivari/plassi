@@ -121,7 +121,14 @@ impl PlassiApp {
         let catalog = &mut self.project.catalog;
         for merge in chosen {
             for target in &merge.targets {
-                let index = catalog.create(kind, target);
+                let index = catalog
+                    .list(kind)
+                    .iter()
+                    .position(|category| {
+                        crate::catalog::normalize(&category.name)
+                            == crate::catalog::normalize(target)
+                    })
+                    .unwrap_or_else(|| catalog.create(kind, target));
                 catalog.assign(kind, &merge.spelling, index);
             }
         }
@@ -192,7 +199,7 @@ impl PlassiApp {
                 if !crate::catalog::normalize(spelling).contains(&search) {
                     continue;
                 }
-                let row = ui.push_id(spelling, |ui| {
+                ui.push_id(spelling, |ui| {
                     ui.add(egui::Label::new(RichText::new(spelling).strong()).wrap());
                     if ui
                         .link(people_count(*count))
@@ -235,17 +242,6 @@ impl PlassiApp {
                     ui.separator();
                     ui.add_space(theme::space::S);
                 });
-                if self
-                    .categories
-                    .focus_spelling
-                    .as_ref()
-                    .is_some_and(|target| {
-                        crate::catalog::normalize(target) == crate::catalog::normalize(spelling)
-                    })
-                {
-                    row.response.scroll_to_me(Some(egui::Align::Center));
-                    self.categories.focus_spelling = None;
-                }
             }
         });
         ui.add_space(theme::space::L);

@@ -9,7 +9,7 @@ Runs on Windows and Linux, or [in the browser](https://plassi.niklasiivari.fi). 
 - Adjust seats by dragging, pin guests, compare options, and undo changes.
 - Arrange tables in rows or freely on a canvas, with alignment guides and group spacing tools.
 - Export seating, kitchen, bar and door lists as PDFs, or a seating workbook as Excel.
-- Review wishes with keyboard shortcuts and return to recent changes through the activity history.
+- Review wishes with keyboard shortcuts.
 
 Projects stay on your device. The desktop app saves files locally; the browser uses browser storage. Guest data is not sent to a server.
 

@@ -144,6 +144,8 @@ pub fn save_file(_store: &Store, name: &str, bytes: &[u8]) -> Result<Saved> {
         "application/pdf"
     } else if name.ends_with(".xlsx") {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    } else if name.ends_with(".zip") {
+        "application/zip"
     } else {
         "application/json"
     });

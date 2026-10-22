@@ -81,15 +81,11 @@ The chart separates **Chart**, **Details** and **Not seated**. Select a person, 
 
 On **People & wishes**, tap a person to edit them and **Back to people** to return. Tablet-sized windows keep a compact sidebar and show the list beside the editor when space permits.
 
-## Review shortcuts and activity
+## Review shortcuts
 
 On a person's notes, use K for the previous person, J for the next person,
 and R to mark all their notes reviewed and continue. The buttons show the
 same actions. Shortcuts pause while typing or using a popup.
-
-Open **Activity history** from the project menu to find a recent edit and
-return to its person, imported entry, tables or seating option. The last 200
-changes are saved in the project, including undo and redo actions.
 
 ## Arranging several tables
 

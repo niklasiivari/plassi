@@ -1,32 +1,63 @@
-//! Cross-page history and room grouping.
+//! Canonical category choices and room grouping.
 use super::harness::Ui;
 use eframe::egui::{self, Key, Modifiers, PointerButton};
 
 #[test]
-fn activity_links_back_to_the_reviewed_person_survives_undo_and_reopens() {
-    let mut ui = Ui::with_example();
-    ui.go_to("People & wishes");
-    ui.click("Review notes");
-    let first = ui.app().selected_person.unwrap();
-    let name = ui.app().project.person_name(first).to_string();
-    ui.click("Mark reviewed & next");
-    let message = format!("Reviewed {name}");
-    assert!(
-        ui.app()
+fn canonical_category_choice_does_not_follow_another_category_alias() {
+    use crate::catalog::Kind;
+    for action in ["Merge", "Apply all"] {
+        let mut ui = Ui::with_example();
+        let mut project = crate::model::Project::new();
+        project.attendees = crate::example::project()
+            .attendees
+            .into_iter()
+            .take(1)
+            .collect();
+        project.attendees[0].organization = "XYZ / ABC 2".into();
+        let first = project
+            .catalog
+            .create_named(Kind::Organization, "ABC")
+            .unwrap();
+        project.catalog.assign(Kind::Organization, "XYZ", first);
+        project
+            .catalog
+            .create_named(Kind::Organization, "XYZ")
+            .unwrap();
+        ui.app_mut().replace_project(project);
+        ui.app_mut().commit("Saved changes");
+        ui.go_to("Categories");
+        ui.open_combo("Choose a match…");
+        ui.choose("XYZ");
+        ui.click(action);
+        let names = ui
+            .app()
             .project
-            .activity
-            .iter()
-            .any(|a| a.message == message)
-    );
-    let count = ui.app().project.activity.len();
-    ui.key(Modifiers::COMMAND, Key::Z);
-    ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
-    assert_eq!(ui.app().project.activity.len(), count + 2);
-    let mut ui = ui.reopen();
-    ui.open_project_menu();
-    ui.click("Activity history");
-    ui.click(&message);
-    assert_eq!(ui.app().selected_person, Some(first));
+            .category_names(Kind::Organization, &ui.app().project.attendees[0]);
+        assert!(
+            names.contains(&"XYZ".to_string()),
+            "chosen category missing: {names:?}"
+        );
+        assert!(
+            !names.contains(&"ABC".to_string()),
+            "unselected category used: {names:?}"
+        );
+        ui.key(Modifiers::COMMAND, Key::Z);
+        assert!(
+            ui.app()
+                .project
+                .catalog
+                .find(Kind::Organization, "XYZ / ABC 2")
+                .is_none()
+        );
+        ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
+        let ui = ui.reopen();
+        assert_eq!(
+            ui.app()
+                .project
+                .category_names(Kind::Organization, &ui.app().project.attendees[0]),
+            names
+        );
+    }
 }
 
 #[test]
@@ -64,7 +95,7 @@ fn selected_tables_align_move_together_and_undo_as_one_edit() {
 }
 
 #[test]
-fn group_controls_and_activity_history_fit_narrow_screens() {
+fn group_controls_fit_narrow_screens() {
     use egui_kittest::kittest::Queryable;
     let mut ui = Ui::with_example();
     ui.go_to("Room layout");
@@ -88,21 +119,5 @@ fn group_controls_and_activity_history_fit_narrow_screens() {
                 );
             }
         }
-    }
-    for i in 0..200 {
-        ui.app_mut().project.record_activity(
-            i,
-            format!("X {i:03}: X X X X X X X X X X X X X X X X X X"),
-            None,
-        );
-    }
-    ui.app_mut().commit("Saved changes");
-    ui.open_project_menu();
-    ui.click("Activity history");
-    for node in
-        ui.h.query_all_by(|n| n.role() == egui::accesskit::Role::TextInput)
-    {
-        let rect = node.rect();
-        assert!(rect.left() >= 0.0 && rect.right() <= 320.0);
     }
 }

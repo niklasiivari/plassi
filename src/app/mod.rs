@@ -11,7 +11,6 @@ mod room;
 
 // App infrastructure.
 mod about;
-mod activity;
 mod backups;
 mod camera;
 mod copy_reminder;
@@ -97,7 +96,6 @@ pub(super) struct PlassiApp {
     projects: projects::ProjectsState,
     tour: tour::TourState,
     backups: backups::BackupsState,
-    activity: activity::ActivityState,
     #[cfg(target_arch = "wasm32")]
     copy_reminder: copy_reminder::CopyReminder,
     /// Evaluation of the selected option, keyed by (revision, option).
@@ -214,7 +212,6 @@ impl eframe::App for PlassiApp {
         }
         about::show(ui.ctx(), p);
         self.backups_window(ui.ctx(), p);
-        self.activity_window(ui.ctx(), p);
         self.toast(ui.ctx(), p);
         ui.ctx()
             .request_repaint_after(Duration::from_millis(if self.solving.is_some() {
@@ -356,7 +353,6 @@ impl PlassiApp {
             projects: Default::default(),
             tour: Default::default(),
             backups: Default::default(),
-            activity: Default::default(),
             #[cfg(target_arch = "wasm32")]
             copy_reminder: Default::default(),
         }

@@ -55,18 +55,17 @@ impl PlassiApp {
         let typing = ui
             .memory(|m| m.focused())
             .is_some_and(|id| egui::TextEdit::load_state(ui.ctx(), id).is_some());
-        let (previous, next, review) =
-            if !typing && !self.activity.open && !egui::Popup::is_any_open(ui.ctx()) {
-                ui.input_mut(|i| {
-                    (
-                        i.consume_key(egui::Modifiers::NONE, egui::Key::K),
-                        i.consume_key(egui::Modifiers::NONE, egui::Key::J),
-                        i.consume_key(egui::Modifiers::NONE, egui::Key::R),
-                    )
-                })
-            } else {
-                (false, false, false)
-            };
+        let (previous, next, review) = if !typing && !egui::Popup::is_any_open(ui.ctx()) {
+            ui.input_mut(|i| {
+                (
+                    i.consume_key(egui::Modifiers::NONE, egui::Key::K),
+                    i.consume_key(egui::Modifiers::NONE, egui::Key::J),
+                    i.consume_key(egui::Modifiers::NONE, egui::Key::R),
+                )
+            })
+        } else {
+            (false, false, false)
+        };
         let mut go = if previous && pos > 0 {
             Some(queue[pos - 1])
         } else if next && pos + 1 < queue.len() {
@@ -81,38 +80,50 @@ impl PlassiApp {
                 .iter()
                 .any(|n| n.person == current && !n.reviewed);
         let mut changed = false;
-        ui.horizontal_wrapped(|ui| {
-            if ui
-                .add_enabled(pos > 0, egui::Button::new(tr("Previous person")))
-                .clicked()
-            {
-                go = Some(queue[pos - 1]);
-            }
-            theme::hint(ui, p, fill("Person {} of {}", &[&(pos + 1), &queue.len()]));
-            if ui
-                .add_enabled(pos + 1 < queue.len(), egui::Button::new(tr("Next person")))
-                .on_hover_text(tr("Continue without marking reviewed"))
-                .clicked()
-            {
-                go = Some(queue[pos + 1]);
-            }
-            let pending = self
-                .project
-                .notes
-                .iter()
-                .any(|n| n.person == current && !n.reviewed);
-            mark |= ui
-                .add_enabled(
-                    pending,
-                    theme::primary_button(tr("Mark reviewed & next"), p),
-                )
-                .clicked();
-            if self.people.review.is_some() && ui.button(tr("Finish review")).clicked() {
-                self.people.review = None;
-                self.selected_person = None;
-            }
+        theme::card(p).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(tr("Review sign-up notes")).strong())
+                    .on_hover_text(tr("K: previous · J: next · R: review and next"));
+                theme::hint(ui, p, fill("Person {} of {}", &[&(pos + 1), &queue.len()]));
+            });
+            theme::hint(
+                ui,
+                p,
+                tr("Read the note below and add any missing wishes before marking it reviewed."),
+            );
+            ui.add_space(theme::space::S);
+            ui.horizontal_wrapped(|ui| {
+                if ui
+                    .add_enabled(pos > 0, egui::Button::new(tr("Previous person")))
+                    .clicked()
+                {
+                    go = Some(queue[pos - 1]);
+                }
+                if ui
+                    .add_enabled(pos + 1 < queue.len(), egui::Button::new(tr("Next person")))
+                    .on_hover_text(tr("Continue without marking reviewed"))
+                    .clicked()
+                {
+                    go = Some(queue[pos + 1]);
+                }
+                let pending = self
+                    .project
+                    .notes
+                    .iter()
+                    .any(|n| n.person == current && !n.reviewed);
+                mark |= ui
+                    .add_enabled(
+                        pending,
+                        theme::primary_button(tr("Mark reviewed & next"), p),
+                    )
+                    .clicked();
+                if self.people.review.is_some() && ui.button(tr("Finish review")).clicked() {
+                    self.people.review = None;
+                    self.selected_person = None;
+                }
+            });
         });
-        theme::hint(ui, p, tr("K: previous · J: next · R: review and next"));
         if mark {
             for note in self
                 .project

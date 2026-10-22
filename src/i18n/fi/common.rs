@@ -319,7 +319,7 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Help for this page", "Ohje tälle sivulle"),
     ("Keys", "Näppäimet"),
     ("Undo / redo", "Kumoa / tee uudelleen"),
-    ("Download all PDFs", "Lataa kaikki PDF:t"),
+    ("Download all PDFs (.zip)", "Lataa kaikki PDF:t (.zip)"),
     ("Download PDF", "Lataa PDF"),
     ("This browser", "Tämä selain"),
     (

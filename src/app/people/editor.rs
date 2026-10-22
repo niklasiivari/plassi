@@ -10,12 +10,16 @@ impl PlassiApp {
             ui.scroll_to_cursor(Some(egui::Align::Min));
             self.people.scroll_to_person = false;
         }
-        let mut changed = self.review_navigation(ui, p, id);
         self.person_header(ui, p, id);
-        changed |= self.person_details_block(ui, p, id);
+        let mut changed = self.review_navigation(ui, p, id);
         changed |= self.sign_up_notes(ui, p, id);
         changed |= self.wishes_section(ui, p, id);
         self.wished_for_by(ui, p, id);
+        ui.add_space(theme::space::XL);
+        theme::card(p).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            changed |= self.person_details_block(ui, p, id);
+        });
         if changed {
             self.commit(tr("Saved changes"));
         }
@@ -64,7 +68,7 @@ impl PlassiApp {
         });
         let affiliation = self.project.affiliation(&person);
         ui.label(RichText::new(affiliation).color(p.muted));
-        ui.add_space(theme::space::XL);
+        ui.add_space(theme::space::L);
     }
 
     /// The person's wishes as readable rows, the new-wish form, and an Add button.
@@ -127,7 +131,7 @@ impl PlassiApp {
     /// tr("+ Add") menu: a wish (opens the form) or a ready-made rule.
     fn add_rule_menu(&mut self, ui: &mut egui::Ui, id: usize) -> bool {
         let mut added = false;
-        egui::containers::menu::MenuButton::new(tr("+ Add"))
+        egui::containers::menu::MenuButton::new(tr("+ Add wish"))
             .config(egui::containers::menu::MenuConfig::new().style(theme::menu_style))
             .ui(ui, |ui| {
                 if ui.button(tr("Sit near…")).clicked() {

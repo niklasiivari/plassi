@@ -136,9 +136,9 @@ fn many_wishes_can_be_accepted_and_reviewed_on_desktop_and_phone() {
         assert!(ui.has("Review and next"));
         ui.key(Modifiers::COMMAND, Key::Z);
         assert_eq!(ui.app().project.rules.len(), 64);
-        assert_eq!(ui.count("+ Add"), 3);
-        ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
         assert_eq!(ui.count("+ Add"), 2);
+        ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
+        assert_eq!(ui.count("+ Add"), 1);
         // The list must refresh after review and after undo, including on phone.
         ui.app_mut().selected_person = None;
         ui.settle();
@@ -193,6 +193,28 @@ fn review_navigation_can_skip_backtrack_and_keep_reviewed_people_in_the_session(
     ui.click("Next person");
     ui.click("Finish review");
     assert_eq!(ui.app().selected_person, None);
+}
+
+#[test]
+fn people_overview_has_a_return_path_and_phone_review_starts_from_the_list() {
+    let mut ui = Ui::with_example();
+    ui.go_to("People & wishes");
+    ui.click("Review notes");
+    assert!(ui.app().selected_person.is_some());
+    ui.click("Overview");
+    assert!(ui.app().selected_person.is_none());
+    assert!(ui.has("Review categories"));
+    assert!(!ui.has("Paste rows with column headers…"));
+    ui.click("Review categories");
+    assert!(ui.app().page == Page::Categories);
+    ui.h.set_size(egui::vec2(390.0, 844.0));
+    ui.settle();
+    ui.click("Menu");
+    ui.go_to("People & wishes");
+    ui.click("Review notes");
+    assert!(ui.app().selected_person.is_some());
+    assert!(ui.has("Review sign-up notes"));
+    assert!(ui.has("Mark reviewed & next"));
 }
 
 #[test]

@@ -12,6 +12,47 @@ fn create_organization(ui: &mut Ui, name: &str) {
 }
 
 #[test]
+fn compact_category_tasks_keep_creation_reachable_and_preserve_mappings() {
+    for width in [320.0, 768.0, 1024.0] {
+        let mut ui = Ui::with_example();
+        let mut project = crate::model::Project::new();
+        project.attendees = crate::example::project()
+            .attendees
+            .into_iter()
+            .take(1)
+            .collect();
+        project.attendees[0].organization = "ABC / XYZ".into();
+        ui.app_mut().replace_project(project);
+        ui.app_mut().commit("Saved changes");
+        ui.h.set_size(egui::vec2(width, 900.0));
+        ui.settle();
+        if !ui.has("Categories") {
+            ui.click("Menu");
+        }
+        ui.go_to("Categories");
+        assert!(ui.has("Imported entries"));
+        assert!(!ui.has("Organization name"));
+        ui.click("Manage categories");
+        create_organization(&mut ui, "XYZ");
+        assert!(!ui.has("Find imported entry"));
+        ui.click("Review entries");
+        ui.open_combo("Choose organizations…");
+        ui.choose("XYZ");
+        ui.key(Modifiers::NONE, Key::Escape);
+        assert_eq!(
+            ui.app()
+                .project
+                .catalog
+                .find_all(Kind::Organization, "ABC / XYZ"),
+            [0]
+        );
+        ui.click("Manage categories");
+        assert_eq!(ui.app().project.catalog.organizations.len(), 1);
+        assert!(ui.has_text("1 person"));
+    }
+}
+
+#[test]
 fn organization_dropdown_search_preserves_memberships_and_has_an_independent_query() {
     let mut ui = Ui::open();
     ui.go_to("People & wishes");

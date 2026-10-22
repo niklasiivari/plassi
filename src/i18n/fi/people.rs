@@ -1,6 +1,25 @@
 //! Finnish text: people.
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
+    (
+        "People and event setup",
+        "Henkilöt ja tapahtuman valmistelu",
+    ),
+    (
+        "Choose a person to edit their wishes and details. Review categories before printing.",
+        "Valitse henkilö muokataksesi toiveita ja tietoja. Tarkista luokat ennen tulostamista.",
+    ),
+    ("Review categories", "Tarkista luokat"),
+    ("Edit details", "Muokkaa tietoja"),
+    (
+        "Read each note, add the wishes it describes, then mark it reviewed.",
+        "Lue jokainen merkintä, lisää sen kuvaamat toiveet ja merkitse se tarkistetuksi.",
+    ),
+    ("Review sign-up notes", "Tarkista ilmoittautumistoiveet"),
+    (
+        "Read the note below and add any missing wishes before marking it reviewed.",
+        "Lue alla oleva merkintä ja lisää puuttuvat toiveet ennen kuin merkitset sen tarkistetuksi.",
+    ),
     ("+ Add wish", "+ Lisää toive"),
     // Repeat spreadsheet imports
     (

@@ -383,6 +383,19 @@ pub fn file_name(project: &Project, project_name: &str, kind: PrintKind) -> Stri
     format!("{project_name} - {word}.pdf")
 }
 
+/// Bundle PDFs into a single download without recompressing their streams.
+pub fn pdf_archive(files: &[(String, &[u8])]) -> Result<Vec<u8>> {
+    use std::io::{Cursor, Write};
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let options =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    for (name, bytes) in files {
+        archive.start_file(name, options)?;
+        archive.write_all(bytes)?;
+    }
+    Ok(archive.finish()?.into_inner())
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 /// Writes the PDF next to the project file and returns its path.
 pub fn export(
@@ -402,4 +415,30 @@ pub fn export(
     let path = dir.join(file_name(project, &name, kind));
     std::fs::write(&path, pdf)?;
     Ok(path)
+}
+
+#[cfg(test)]
+mod archive_tests {
+    #[test]
+    fn batch_download_preserves_every_pdf_name_and_content() {
+        use std::io::{Cursor, Read};
+        let files = [
+            ("X - seating.pdf".to_owned(), b"%PDF-chart".as_slice()),
+            ("X - kitchen.pdf".to_owned(), b"%PDF-kitchen".as_slice()),
+            ("X - bar.pdf".to_owned(), b"%PDF-bar".as_slice()),
+            ("X - door list.pdf".to_owned(), b"%PDF-door".as_slice()),
+        ];
+        let bytes = super::pdf_archive(&files).unwrap();
+        let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+        assert_eq!(archive.len(), files.len());
+        for (name, expected) in files {
+            let mut actual = Vec::new();
+            archive
+                .by_name(&name)
+                .unwrap()
+                .read_to_end(&mut actual)
+                .unwrap();
+            assert_eq!(actual, expected);
+        }
+    }
 }

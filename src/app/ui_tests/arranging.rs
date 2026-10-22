@@ -229,8 +229,13 @@ fn arrow_keys_move_the_selected_person_one_seat() {
 fn a_block_with_someone_from_the_list_keeps_its_shape() {
     let mut ui = solved();
     let [[a, b], [c, d]] = two_blocks(&ui);
-    let u = *ui.option().assignment.keys().max().expect("someone seated");
-    assert!(![a, b, c, d].contains(&u));
+    let u = *ui
+        .option()
+        .assignment
+        .keys()
+        .filter(|person| ![a, b, c, d].contains(person))
+        .max()
+        .expect("someone seated outside the two blocks");
     let secondary = PointerButton::Secondary;
     ui.click_at(ui.card_of(u).center(), secondary, Modifiers::NONE);
     ui.click("Take off the seat");
