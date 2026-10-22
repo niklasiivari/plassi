@@ -166,35 +166,74 @@
   measure(block(width: 50mm, one)).height - 10mm
 }
 
-// A physical room map keeps landmarks and table names in their actual places.
-#let room-map(m) = context {
-  header(t("Room layout", "Tilan asettelu"), compact: true)
-  let scale = calc.min(269mm / m.w, 145mm / m.h)
-  let cx = m.x + m.w / 2
-  let cy = m.y + m.h / 2
-  let at(x, y, body) = place(center + horizon, dx: (x - cx) * scale, dy: (y - cy) * scale, body)
-  block(width: 269mm, height: 145mm, {
+// The room as it stands, `width` by `height`: walls, landmarks, tables in
+// their places and each seated person beside their seat, reaching away from
+// the table; `draw(seat, width, height, side)` draws a person in the space
+// they have. Needs a context.
+#let room-map(m, width, height, draw) = {
+  let scale = calc.min(width / m.w, height / m.h)
+  let (ox, oy) = ((width - m.w * scale) / 2, (height - m.h * scale) / 2)
+  let pos(x, y) = (ox + (x - m.x) * scale, oy + (y - m.y) * scale)
+  let at(x, y, body) = {
+    let (px, py) = pos(x, y)
+    place(top + left, dx: px, dy: py, place(center + horizon, body))
+  }
+  let line-h = m.line * scale
+  let name-w = m.name_width * scale
+  let name(seat) = {
+    let (dx, dy) = (seat.dx, seat.dy)
+    // A name beside its seat keeps the whole gap sideways, clear of the dot.
+    let across = if dx > 0.2 { 1 } else if dx < -0.2 { -1 } else { dx }
+    let (ax, ay) = pos(seat.x + across * m.name_gap, seat.y + dy * m.name_gap)
+    let label(side) = box(width: name-w, height: line-h, align(side + horizon, draw(seat, name-w, line-h, side)))
+    // Above or below the table the name runs upwards, starting at its seat.
+    let (x, y, body) = if dx > 0.2 { (ax, ay - line-h / 2, label(left)) } else if dx < -0.2 {
+      (ax - name-w, ay - line-h / 2, label(right))
+    } else if dy < 0 { (ax - line-h / 2, ay - name-w, rotate(-90deg, reflow: true, label(left))) } else {
+      (ax - line-h / 2, ay, rotate(-90deg, reflow: true, label(right)))
+    }
+    place(top + left, dx: x, dy: y, body)
+  }
+  block(width: width, height: height, {
     if m.walls != none {
       let r = m.walls
       at(r.x + r.width / 2, r.y + r.height / 2, rect(width: r.width * scale, height: r.height * scale, stroke: 0.8pt + hair))
     }
+    for label in m.labels {
+      at(label.x, label.y, block(width: 280 * scale, align(center, text(size: calc.min(14pt, calc.max(8pt, 22 * scale)), fill: muted, label.text))))
+    }
     for tbl in m.tables {
       let shape = if tbl.round { ellipse } else { rect }
       at(tbl.x, tbl.y, rotate(tbl.rotation * 1deg, shape(width: tbl.w * scale, height: tbl.h * scale, fill: tint, stroke: 0.7pt + hair)))
-      at(tbl.x, tbl.y, text(size: 9pt, weight: "semibold", fill: accent, tbl.label))
+      // Along a long table, turned so it never reads upside down.
+      let (turn, room) = if tbl.round { (0deg, tbl.w) } else {
+        let a = calc.rem(calc.rem(tbl.rotation + 90, 180) + 180, 180)
+        (if a > 90 { a - 180 } else { a } * 1deg, tbl.h)
+      }
+      at(tbl.x, tbl.y, rotate(turn, fit(text(weight: "semibold", fill: accent, tbl.label), room * scale * 0.9, 9pt)))
     }
-    for label in m.labels {
-      at(label.x, label.y, block(width: 280 * scale, align(center, text(size: calc.min(14pt, calc.max(8pt, 22 * scale)), label.text))))
+    let dot = calc.max(0.8mm, 14 * scale)
+    for seat in m.seats {
+      if seat.name == none {
+        at(seat.x, seat.y, circle(radius: dot / 2, fill: white, stroke: 0.5pt + muted))
+      } else {
+        at(seat.x, seat.y, circle(radius: dot / 2, fill: accent))
+        name(seat)
+      }
     }
   })
-  pagebreak()
 }
 
 // ---------------------------------------------------------------- chart --
 #let chart() = {
   set page(paper: "a4", flipped: true, margin: (x: 14mm, top: 12mm, bottom: 14mm), footer: pages-footer)
-  if data.at("room_map", default: none) != none { room-map(data.room_map) }
   let kicker = t("Seating", "Istumajärjestys")
+  let m = data.at("room_map", default: none)
+  if m != none {
+    header(kicker, compact: true)
+    let draw(seat, width, height, side) = fit(seat.name, width, calc.min(10pt, height * 0.72))
+    block(height: 1fr, layout(size => room-map(m, size.width, size.height, draw)))
+  } else {
   header(kicker)
   context {
     // The page inside its margins.
@@ -225,14 +264,15 @@
     let draw(tbl) = table-box(tbl, row-h, band, (p, side) => person(p))
     for line in p.lines { room-line(line, p.table-w, gap, 6mm, draw) }
   }
+  }
 }
 
 // ------------------------------------------------------- kitchen and bar --
 // Tables as on the wall chart, each seat with a short mark for the meal or
 // drink (none for the most common one) and its allergies; a legend and long
 // allergy notes below. The title line repeats on every page.
-#let mark-chip(mark) = if mark != "" {
-  box(fill: accent, radius: 2pt, inset: (x: 2.5pt, y: 1.5pt), text(size: 7pt, weight: "bold", fill: white, mark))
+#let mark-chip(mark, size: 7pt) = if mark != "" {
+  box(fill: accent, radius: 2pt, inset: (x: size * 0.36, y: size * 0.2), text(size: size, weight: "bold", fill: white, mark))
 }
 
 #let service-chart(service) = {
@@ -254,6 +294,28 @@
     header: top, header-ascent: 3mm, footer: pages-footer,
   )
 
+  let m = data.at("room_map", default: none)
+  if m != none {
+    // The name, and under it the mark and the allergies.
+    let draw(seat, width, height, side) = {
+      let d = seat.service
+      let size = calc.min(9pt, height * 0.42)
+      let mark = mark-chip(d.mark, size: size * 0.72)
+      let room = width - if d.mark != "" { measure(mark).width + 3pt } else { 0pt }
+      let allergy = if d.note != none {
+        text(size: size * 0.8, fill: warn, weight: "bold", t("Allergy note ", "Allergia, ks. ") + str(d.note))
+      } else if d.allergy != "" {
+        text(fill: warn, fit(d.allergy, room, size * 0.8))
+      }
+      set par(leading: 0.25em)
+      fit(seat.name, width, size)
+      if d.mark != "" or allergy != none {
+        linebreak()
+        if side == right [#allergy #mark] else [#mark #allergy]
+      }
+    }
+    block(height: 1fr, layout(size => room-map(m, size.width, size.height, draw)))
+  } else {
   context {
     // The page inside its margins.
     let width = 277mm
@@ -292,6 +354,7 @@
     let draw(tbl) = table-box(tbl, row-h, band, seat, big: false)
     for line in p.lines { room-line(line, p.table-w, gap, 3mm, draw) }
   }
+  }
 
   // Legend: each mark with its meal and count.
   let entry(mark, name, count) = box[#mark #text(size: 8pt)[#name] #text(size: 8pt, weight: "bold", str(count))]
@@ -304,12 +367,12 @@
     v(3mm)
     eyebrow(t("Allergy notes", "Allergiat"))
     v(2pt)
-    columns(3, gutter: 6mm, {
+    {
       set text(size: 7.5pt)
-      for note in marks.notes {
-        block(below: 3pt)[#text(fill: warn, weight: "bold", str(note.n)) #h(2pt) *#note.name:* #note.text]
-      }
-    })
+      grid(columns: (1fr,) * 3, column-gutter: 6mm, row-gutter: 3pt, ..marks.notes.map(note => [
+        #text(fill: warn, weight: "bold", str(note.n)) #h(2pt) *#note.name:* #note.text
+      ]))
+    }
   }
 }
 

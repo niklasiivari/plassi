@@ -7,7 +7,7 @@ use anyhow::{Result, anyhow};
 use serde_json::{Value, json};
 
 use crate::catalog::Kind;
-use crate::model::{Project, Seat, Side, TableSpec};
+use crate::model::{Project, Seat, Side, TableShape, TableSpec};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PrintKind {
@@ -98,14 +98,26 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
         "marks": marks.as_ref().map(Marks::summary),
         "people": people_json(project),
         "max_rows": max_rows,
-        "room_map": room_map(project),
+        "room_map": room_map(project, &option.assignment, marks.as_ref()),
     }))
 }
 
-/// The physical room with landmarks, on a page before the wall chart.
-fn room_map(project: &Project) -> Option<Value> {
+/// How far a printed name reaches out from its seat, in room units: the gap
+/// to the seat and the name itself.
+const NAME_GAP: f32 = 16.0;
+const NAME_WIDTH: f32 = 190.0;
+
+/// The room as it stands, with each seat's occupant beside it, for layouts
+/// a grid of long tables cannot show: placed freely or with round tables.
+/// With `marks`, each seat also carries its meal or drink mark and allergies.
+fn room_map(
+    project: &Project,
+    assignment: &BTreeMap<usize, String>,
+    marks: Option<&Marks>,
+) -> Option<Value> {
     let layout = &project.layout;
-    if !layout.free_layout || layout.labels.is_empty() {
+    let tables = || layout.rows.iter().flat_map(|r| &r.tables);
+    if !layout.free_layout && tables().all(|t| t.shape == TableShape::Long) {
         return None;
     }
     let frames = layout.table_frames();
@@ -119,14 +131,27 @@ fn room_map(project: &Project) -> Option<Value> {
         max_x = max_x.max(x + w / 2.0);
         max_y = max_y.max(y + h / 2.0);
     };
-    let tables: Vec<_> = layout.rows.iter().flat_map(|r| &r.tables).map(|table| {
+    let tables: Vec<_> = tables().map(|table| {
         let at = frames[&table.id];
         let (w, h) = table.half_size();
-        let h = if table.shape == crate::model::TableShape::Long { h + 28.0 } else { h };
-        let (sin, cos) = at.radians().sin_cos();
-        include(at.x, at.y, 2.0 * (w * cos.abs() + h * sin.abs()), 2.0 * (w * sin.abs() + h * cos.abs()));
-        json!({ "x": at.x, "y": at.y, "w": w * 2.0, "h": h * 2.0, "rotation": at.rotation, "round": table.shape == crate::model::TableShape::Round, "label": table_name(project, &table.id) })
+        let h = if table.shape == TableShape::Long { h + 28.0 } else { h };
+        json!({ "x": at.x, "y": at.y, "w": w * 2.0, "h": h * 2.0, "rotation": at.rotation, "round": table.shape == TableShape::Round, "label": table_name(project, &table.id) })
     }).collect();
+    let occupant: HashMap<&str, usize> = assignment.iter().map(|(p, s)| (s.as_str(), *p)).collect();
+    let seats: Vec<_> = layout
+        .seats()
+        .iter()
+        .map(|seat| {
+            let (dy, dx) = seat.out.sin_cos();
+            let reach = NAME_GAP + NAME_WIDTH;
+            include(seat.x + dx * reach, seat.y + dy * reach, 60.0, 60.0);
+            include(seat.x, seat.y, 60.0, 60.0);
+            let person = occupant.get(seat.id.as_str()).copied();
+            let name = person.and_then(|p| project.person(p)).map(|a| a.name.as_str());
+            let service = person.and_then(|p| marks.and_then(|m| m.seat.get(&p)));
+            json!({ "x": seat.x, "y": seat.y, "dx": dx, "dy": dy, "name": name, "service": service })
+        })
+        .collect();
     for label in &layout.labels {
         include(label.x, label.y, 300.0, 150.0);
     }
@@ -138,9 +163,41 @@ fn room_map(project: &Project) -> Option<Value> {
             room.height,
         );
     }
-    Some(
-        json!({ "x": min_x - 30.0, "y": min_y - 30.0, "w": max_x - min_x + 60.0, "h": max_y - min_y + 60.0, "tables": tables, "labels": layout.labels, "walls": layout.room }),
-    )
+    Some(json!({
+        "x": min_x - 20.0, "y": min_y - 20.0, "w": max_x - min_x + 40.0, "h": max_y - min_y + 40.0,
+        "tables": tables, "seats": seats, "labels": layout.labels, "walls": layout.room,
+        "name_gap": NAME_GAP, "name_width": NAME_WIDTH, "line": label_line(&layout.seats()),
+    }))
+}
+
+/// Height of a printed name line, in room units: as tall as the closest
+/// neighbouring names at one table allow, which at a round table of many
+/// seats is less than a seat pitch. Names reach sideways from seats facing
+/// sideways and up or down from the rest, as the template draws them.
+fn label_line(seats: &[Seat]) -> f32 {
+    let mut groups: HashMap<(&str, u8), Vec<f32>> = HashMap::new();
+    for seat in seats {
+        let (dy, dx) = seat.out.sin_cos();
+        let (x, y) = (seat.x + dx * NAME_GAP, seat.y + dy * NAME_GAP);
+        let (way, across) = match (dx, dy) {
+            (dx, _) if dx > 0.2 => (0, y),
+            (dx, _) if dx < -0.2 => (1, y),
+            (_, dy) if dy < 0.0 => (2, x),
+            _ => (3, x),
+        };
+        groups
+            .entry((seat.table_id.as_str(), way))
+            .or_default()
+            .push(across);
+    }
+    let closest = groups
+        .values_mut()
+        .flat_map(|places| {
+            places.sort_by(f32::total_cmp);
+            places.windows(2).map(|w| w[1] - w[0]).collect::<Vec<_>>()
+        })
+        .fold(f32::INFINITY, f32::min);
+    closest.clamp(24.0, 44.0)
 }
 
 /// The layout's rows and tables with each seat's occupant.
