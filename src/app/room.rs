@@ -8,6 +8,7 @@ use crate::model::{RowSpec, TableShape, TableSpec};
 use super::PlassiApp;
 use super::theme::{self, Palette};
 
+mod arrange;
 mod footprint;
 mod free_page;
 mod labels;
@@ -24,6 +25,15 @@ pub(super) struct RoomState {
     pub(super) quick_seats: usize,
     pub(super) quick_columns: usize,
     canvas: layout_canvas::LayoutCanvas,
+}
+
+impl RoomState {
+    pub(in crate::app) fn focus_tables(&mut self, ids: &[String]) {
+        self.canvas.selected_tables = ids.iter().cloned().collect();
+        self.canvas.selected = ids.first().cloned();
+        self.canvas.selected_label = None;
+        self.canvas.fit_pending = true;
+    }
 }
 
 impl Default for RoomState {

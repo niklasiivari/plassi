@@ -3,6 +3,14 @@
   "title": "Project",
   "type": "object",
   "properties": {
+    "activity": {
+      "description": "Recent changes, retained with the project.",
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Activity"
+      }
+    },
     "attendees": {
       "type": "array",
       "items": {
@@ -98,6 +106,139 @@
     "notes"
   ],
   "$defs": {
+    "Activity": {
+      "type": "object",
+      "properties": {
+        "at": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "message": {
+          "type": "string"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ActivityTarget"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "at",
+        "message"
+      ]
+    },
+    "ActivityTarget": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "person"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ids": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "people"
+            }
+          },
+          "required": [
+            "kind",
+            "ids"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "category_kind": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "category"
+            },
+            "spelling": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "category_kind",
+            "spelling"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "tables"
+            }
+          },
+          "required": [
+            "kind",
+            "ids"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "index": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "option"
+            }
+          },
+          "required": [
+            "kind",
+            "index"
+          ]
+        }
+      ]
+    },
     "Area": {
       "oneOf": [
         {

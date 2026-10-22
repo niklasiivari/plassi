@@ -102,11 +102,18 @@ impl PlassiApp {
             theme::hint(ui, p, tr("Paste a sheet or add people."));
             return;
         }
-        ui.add(
+        let search_field = ui.add(
             theme::field(&mut self.people.search)
                 .hint_text(tr("Search name or organization"))
                 .desired_width(f32::INFINITY),
         );
+        search_field.widget_info(|| {
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::TextEdit,
+                true,
+                tr("Search name or organization"),
+            )
+        });
         ui.add_space(theme::space::XS);
         let info = self.people_list_info();
         let to_review = info.rows.values().filter(|row| row.unreviewed > 0).count();

@@ -17,6 +17,7 @@ impl PlassiApp {
         });
         self.room.canvas.selected_label = Some(id);
         self.room.canvas.selected = None;
+        self.room.canvas.selected_tables.clear();
         true
     }
 
@@ -107,6 +108,7 @@ impl PlassiApp {
             if response.clicked() {
                 self.room.canvas.selected_label = Some(label.id);
                 self.room.canvas.selected = None;
+                self.room.canvas.selected_tables.clear();
             }
             if !navigation
                 && !cancel
@@ -124,6 +126,7 @@ impl PlassiApp {
                 ));
                 self.room.canvas.selected_label = Some(label.id);
                 self.room.canvas.selected = None;
+                self.room.canvas.selected_tables.clear();
             }
             if response.hovered() || self.room.canvas.selected_label == Some(label.id) {
                 painter.rect_stroke(rect, 4.0, Stroke::new(1.0, p.accent), StrokeKind::Outside);

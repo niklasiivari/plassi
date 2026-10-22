@@ -54,6 +54,9 @@ impl PlassiApp {
 
     /// The selected table's settings, or the room overview.
     fn room_inspector(&mut self, ui: &mut egui::Ui, p: Palette) -> RoomEdit {
+        if self.room.canvas.selected_tables.len() > 1 {
+            return self.table_arrangement(ui, p);
+        }
         if let Some(id) = self.room.canvas.selected_label {
             return self.room_label_settings(ui, p, id);
         }

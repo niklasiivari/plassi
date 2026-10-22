@@ -29,7 +29,12 @@ impl PlassiApp {
         self.people.filter = PeopleFilter::ToReview;
     }
 
-    pub(super) fn review_navigation(&mut self, ui: &mut egui::Ui, p: Palette, current: usize) {
+    pub(super) fn review_navigation(
+        &mut self,
+        ui: &mut egui::Ui,
+        p: Palette,
+        current: usize,
+    ) -> bool {
         let queue = self.people.review.clone().unwrap_or_else(|| {
             let with_notes: std::collections::HashSet<_> =
                 self.project.notes.iter().map(|n| n.person).collect();
@@ -45,9 +50,37 @@ impl PlassiApp {
             .filter(|id| self.project.person(*id).is_some())
             .collect();
         let Some(pos) = queue.iter().position(|id| *id == current) else {
-            return;
+            return false;
         };
-        let mut go = None;
+        let typing = ui
+            .memory(|m| m.focused())
+            .is_some_and(|id| egui::TextEdit::load_state(ui.ctx(), id).is_some());
+        let (previous, next, review) =
+            if !typing && !self.activity.open && !egui::Popup::is_any_open(ui.ctx()) {
+                ui.input_mut(|i| {
+                    (
+                        i.consume_key(egui::Modifiers::NONE, egui::Key::K),
+                        i.consume_key(egui::Modifiers::NONE, egui::Key::J),
+                        i.consume_key(egui::Modifiers::NONE, egui::Key::R),
+                    )
+                })
+            } else {
+                (false, false, false)
+            };
+        let mut go = if previous && pos > 0 {
+            Some(queue[pos - 1])
+        } else if next && pos + 1 < queue.len() {
+            Some(queue[pos + 1])
+        } else {
+            None
+        };
+        let mut mark = review
+            && self
+                .project
+                .notes
+                .iter()
+                .any(|n| n.person == current && !n.reviewed);
+        let mut changed = false;
         ui.horizontal_wrapped(|ui| {
             if ui
                 .add_enabled(pos > 0, egui::Button::new(tr("Previous person")))
@@ -63,15 +96,46 @@ impl PlassiApp {
             {
                 go = Some(queue[pos + 1]);
             }
+            let pending = self
+                .project
+                .notes
+                .iter()
+                .any(|n| n.person == current && !n.reviewed);
+            mark |= ui
+                .add_enabled(
+                    pending,
+                    theme::primary_button(tr("Mark reviewed & next"), p),
+                )
+                .clicked();
             if self.people.review.is_some() && ui.button(tr("Finish review")).clicked() {
                 self.people.review = None;
                 self.selected_person = None;
             }
         });
+        theme::hint(ui, p, tr("K: previous · J: next · R: review and next"));
+        if mark {
+            for note in self
+                .project
+                .notes
+                .iter_mut()
+                .filter(|n| n.person == current)
+            {
+                note.reviewed = true;
+            }
+            self.people.wish_draft = None;
+            if pos + 1 < queue.len() {
+                go = Some(queue[pos + 1]);
+            } else {
+                self.people.review = None;
+                self.selected_person = None;
+            }
+            changed = true;
+        }
         if let Some(id) = go {
             self.selected_person = Some(id);
             self.people.wish_draft = None;
         }
         ui.add_space(theme::space::M);
+        changed
     }
 }

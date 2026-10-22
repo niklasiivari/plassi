@@ -39,6 +39,7 @@ pub(super) struct Step {
     pub(super) change: String,
     /// The option shown in this state, as its index there.
     pub(super) option: Option<usize>,
+    pub(super) target: Option<crate::model::ActivityTarget>,
 }
 
 /// A name that works as a file name: no path separators or reserved characters.
@@ -171,6 +172,7 @@ impl PlassiApp {
                 self.file.redo_stack.clear();
                 self.file.library.remember(name);
                 self.backups = Default::default();
+                self.activity = Default::default();
                 self.selected_candidate = saved_option(&project);
                 self.selected_person = None;
                 self.people.clear_import();
@@ -279,6 +281,22 @@ impl PlassiApp {
     /// edit is discarded so the app never shows unsaved changes.
     pub(super) fn commit(&mut self, message: &str) {
         let before = self.file.last_bytes.clone();
+        let (description, target) = before
+            .as_deref()
+            .and_then(|bytes| serde_json::from_slice::<Project>(bytes).ok())
+            .map(|old| activity::describe(&old, &self.project, self.selected_candidate, message))
+            .unwrap_or_else(|| (message.to_string(), None));
+        let generic = [
+            tr("Saved changes"),
+            tr("Saved categories"),
+            tr("Saved room layout"),
+        ]
+        .contains(&message);
+        self.project.record_activity(
+            platform::now_stamp(),
+            if generic { description } else { message.into() },
+            target,
+        );
         if self.save(message) {
             if let Some(before) = before {
                 self.push_undo(before, message.into());
@@ -289,10 +307,16 @@ impl PlassiApp {
 
     fn push_undo(&mut self, bytes: Vec<u8>, change: String) {
         let option = self.file.shown_option;
+        let target = if change == tr("External edits") {
+            None
+        } else {
+            self.project.activity.last().and_then(|a| a.target.clone())
+        };
         self.file.undo_stack.push(Step {
             bytes,
             change,
             option,
+            target,
         });
         if self.file.undo_stack.len() > HISTORY {
             self.file.undo_stack.remove(0);
@@ -311,9 +335,12 @@ impl PlassiApp {
             return;
         };
         let change = step.change.clone();
+        let target = step.target.clone();
         let option = step.option;
         let current = self.file.last_bytes.clone();
+        let activity = self.project.activity.clone();
         self.project = project;
+        self.project.activity = activity;
         // Back on the option shown in that state.
         if let Some(index) = option.filter(|i| *i < self.project.candidates.len()) {
             self.selected_candidate = index;
@@ -323,6 +350,8 @@ impl PlassiApp {
         } else {
             fill("Undid: {}", &[&change])
         };
+        self.project
+            .record_activity(platform::now_stamp(), message.clone(), target.clone());
         if !self.save(&message) {
             return;
         }
@@ -337,6 +366,7 @@ impl PlassiApp {
             bytes,
             change,
             option,
+            target,
         }));
     }
 
@@ -392,7 +422,7 @@ impl PlassiApp {
     pub(super) fn replace_project(&mut self, project: Project) {
         self.project = project;
         self.people.end_review();
-        self.categories.close_people();
+        self.categories.forget_project();
         self.after_change();
     }
 

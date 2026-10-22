@@ -18,14 +18,24 @@ pub(in crate::app) struct CategoriesState {
     new_name: String,
     mapping_search: String,
     mapping_filter: MappingFilter,
+    focus_spelling: Option<String>,
+    choices: std::collections::BTreeMap<(String, String, usize), String>,
     entry_people: Option<(String, Vec<usize>)>,
     /// Suggested merges, by project revision and kind.
     merges: crate::app::memo::Memo<(u64, Kind), Vec<crate::catalog::Merge>>,
 }
 
 impl CategoriesState {
-    pub(in crate::app) fn close_people(&mut self) {
+    pub(in crate::app) fn focus_entry(&mut self, kind: Kind, spelling: &str) {
+        self.kind = kind;
+        self.mapping_search = spelling.into();
+        self.focus_spelling = Some(spelling.into());
+        self.mapping_filter = MappingFilter::All;
+    }
+    pub(in crate::app) fn forget_project(&mut self) {
         self.entry_people = None;
+        self.focus_spelling = None;
+        self.choices.clear();
     }
 }
 
@@ -36,6 +46,8 @@ impl Default for CategoriesState {
             new_name: String::new(),
             mapping_search: String::new(),
             mapping_filter: MappingFilter::All,
+            focus_spelling: None,
+            choices: Default::default(),
             entry_people: None,
             merges: Default::default(),
         }
@@ -51,6 +63,10 @@ enum MappingFilter {
 
 impl PlassiApp {
     pub(in crate::app) fn categories_page(&mut self, ui: &mut egui::Ui, p: Palette) {
+        if self.categories.focus_spelling.as_deref() == Some("") {
+            ui.scroll_to_cursor(Some(egui::Align::Min));
+            self.categories.focus_spelling = None;
+        }
         crate::app::help::page_header(
             ui,
             p,

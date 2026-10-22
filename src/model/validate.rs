@@ -14,6 +14,10 @@ impl Project {
         if self.version != 1 {
             bail!(fill("Unsupported project version: {}", &[&self.version]));
         }
+        let history_ids: HashSet<_> = self.activity.iter().map(|a| a.id).collect();
+        if self.activity.len() > 200 || history_ids.len() != self.activity.len() {
+            bail!("Invalid activity history");
+        }
         let people: HashSet<_> = self.attendees.iter().map(|p| p.id).collect();
         if people.len() != self.attendees.len() {
             bail!(tr("Duplicate person ID"));

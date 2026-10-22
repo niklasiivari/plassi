@@ -6,8 +6,11 @@ use crate::i18n::tr;
 impl PlassiApp {
     /// The whole editor for one attendee; saves once if anything changed.
     pub(super) fn person_editor(&mut self, ui: &mut egui::Ui, p: Palette, id: usize) {
-        let mut changed = false;
-        self.review_navigation(ui, p, id);
+        if self.people.scroll_to_person {
+            ui.scroll_to_cursor(Some(egui::Align::Min));
+            self.people.scroll_to_person = false;
+        }
+        let mut changed = self.review_navigation(ui, p, id);
         self.person_header(ui, p, id);
         changed |= self.person_details_block(ui, p, id);
         changed |= self.sign_up_notes(ui, p, id);

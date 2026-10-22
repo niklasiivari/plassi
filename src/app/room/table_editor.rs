@@ -53,12 +53,14 @@ impl PlassiApp {
         }
         if close {
             self.room.canvas.selected = None;
+            self.room.canvas.selected_tables.clear();
         }
         if remove {
             for row in &mut self.project.layout.rows {
                 row.tables.retain(|t| t.id != id);
             }
             self.room.canvas.selected = None;
+            self.room.canvas.selected_tables.clear();
             edit.geometry = true;
         }
         edit

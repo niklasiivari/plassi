@@ -234,3 +234,47 @@ fn suggestion_targets_wrap_as_separate_pills_on_phones_and_tablets() {
         }
     }
 }
+
+#[test]
+fn apply_all_skips_ambiguous_matches_until_a_person_chooses_one() {
+    let mut ui = Ui::with_example();
+    let mut project = crate::model::Project::new();
+    project.attendees = crate::example::project()
+        .attendees
+        .into_iter()
+        .take(2)
+        .collect();
+    project.attendees[0].organization = "AX".into();
+    project.attendees[1].organization = "ABC / XYZ".into();
+    project.catalog.create_named(Kind::Organization, "ABC XYZ");
+    project.catalog.create_named(Kind::Organization, "ABC-XYZ");
+    ui.app_mut().replace_project(project);
+    ui.app_mut().commit("Saved changes");
+    ui.go_to("Categories");
+    assert!(ui.has("Abbreviation match"));
+    ui.click("Apply all");
+    assert!(
+        ui.app()
+            .project
+            .catalog
+            .find(Kind::Organization, "AX")
+            .is_none()
+    );
+    assert_eq!(
+        ui.app()
+            .project
+            .catalog
+            .find_all(Kind::Organization, "ABC / XYZ")
+            .len(),
+        2
+    );
+    ui.h.set_size(egui::vec2(390.0, 844.0));
+    ui.settle();
+    ui.open_combo("Choose a match…");
+    ui.choose("ABC-XYZ");
+    ui.click("Merge");
+    assert_eq!(
+        ui.app().project.catalog.find_all(Kind::Organization, "AX"),
+        [1]
+    );
+}

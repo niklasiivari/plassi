@@ -22,6 +22,26 @@ impl PlassiApp {
         if suggestions.is_empty() {
             return false;
         }
+        let mut prepared = suggestions.clone();
+        let mut ready = vec![true; suggestions.len()];
+        for (i, merge) in prepared.iter_mut().enumerate() {
+            for (part, alternatives) in merge.alternatives.iter().enumerate() {
+                if alternatives.is_empty() {
+                    continue;
+                }
+                let key = (kind.key().into(), merge.spelling.clone(), part);
+                if let Some(choice) = self
+                    .categories
+                    .choices
+                    .get(&key)
+                    .filter(|c| alternatives.contains(c))
+                {
+                    merge.targets[part] = choice.clone();
+                } else {
+                    ready[i] = false;
+                }
+            }
+        }
         let mut apply = None;
         let mut apply_all = false;
         theme::card(p).show(ui, |ui| {
@@ -33,12 +53,13 @@ impl PlassiApp {
                         .strong(),
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    apply_all = ui.add(theme::primary_button(tr("Apply all"), p)).clicked();
+                    apply_all = ui.add_enabled(ready.iter().any(|r| *r), theme::primary_button(tr("Apply all"), p)).clicked();
                 });
             });
             theme::hint(ui, p, tr("Similar names and combined entries."));
+            if ready.iter().any(|r| !*r) { theme::hint(ui, p, tr("Choose ambiguous matches individually. Apply all skips unresolved choices.")); }
             ui.add_space(theme::space::S);
-            for (index, merge) in suggestions.iter().enumerate() {
+            for (index, merge) in prepared.iter().enumerate() {
                 ui.horizontal_wrapped(|ui| {
                     ui.label(RichText::new(&merge.spelling).strong());
                     let relation = if merge.targets.len() > 1 {
@@ -47,7 +68,7 @@ impl PlassiApp {
                         tr("is the same as")
                     };
                     theme::hint(ui, p, relation);
-                    for target in &merge.targets {
+                    for (part, target) in merge.targets.iter().enumerate() {
                         let existing = self.project.catalog.find(kind, target).is_some();
                         let label = fill(
                             if existing {
@@ -58,9 +79,18 @@ impl PlassiApp {
                             &[target],
                         );
                         theme::status_pill(ui, p, label, if existing { p.accent } else { p.good });
+                        theme::hint(ui, p, merge.reasons[part].label());
+                        let alternatives = &merge.alternatives[part];
+                        if !alternatives.is_empty() {
+                            let key = (kind.key().into(), merge.spelling.clone(), part);
+                            let chosen = self.categories.choices.get(&key).cloned();
+                            theme::combo(("match-choice", index, part), chosen.as_deref().unwrap_or(tr("Choose a match…"))).show_ui(ui, |ui| {
+                                for choice in alternatives { if ui.action(chosen.as_ref() == Some(choice), choice) { self.categories.choices.insert(key.clone(), choice.clone()); } }
+                            });
+                        }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.add(theme::small_button(tr("Merge"))).clicked() {
+                        if ui.add_enabled(ready[index], theme::small_button(tr("Merge"))).clicked() {
                             apply = Some(index);
                         }
                     });
@@ -69,10 +99,18 @@ impl PlassiApp {
         });
         ui.add_space(theme::space::L);
         let chosen: Vec<_> = match (apply_all, apply) {
-            (true, _) => suggestions,
-            (false, Some(i)) => vec![suggestions[i].clone()],
+            (true, _) => prepared
+                .into_iter()
+                .enumerate()
+                .filter(|(i, _)| ready[*i])
+                .map(|(_, m)| m)
+                .collect(),
+            (false, Some(i)) => vec![prepared[i].clone()],
             _ => return false,
         };
+        if chosen.is_empty() {
+            return false;
+        }
         let catalog = &mut self.project.catalog;
         for merge in chosen {
             for target in &merge.targets {
@@ -147,7 +185,7 @@ impl PlassiApp {
                 if !crate::catalog::normalize(spelling).contains(&search) {
                     continue;
                 }
-                ui.push_id(spelling, |ui| {
+                let row = ui.push_id(spelling, |ui| {
                     ui.add(egui::Label::new(RichText::new(spelling).strong()).wrap());
                     if ui
                         .link(people_count(*count))
@@ -190,6 +228,17 @@ impl PlassiApp {
                     ui.separator();
                     ui.add_space(theme::space::S);
                 });
+                if self
+                    .categories
+                    .focus_spelling
+                    .as_ref()
+                    .is_some_and(|target| {
+                        crate::catalog::normalize(target) == crate::catalog::normalize(spelling)
+                    })
+                {
+                    row.response.scroll_to_me(Some(egui::Align::Center));
+                    self.categories.focus_spelling = None;
+                }
             }
         });
         ui.add_space(theme::space::L);
