@@ -71,6 +71,10 @@ pub(in crate::app) struct PeopleState {
     pub(in crate::app) suggest_cache: crate::app::memo::Memo<u64, Vec<crate::suggest::Suggestion>>,
     /// What each note names, kept across revisions.
     pub(in crate::app) suggester: crate::suggest::Suggester,
+    /// Suggestions for the note being reviewed, without rematching on every frame.
+    note_suggestions: crate::app::memo::Memo<(u64, usize), Vec<crate::suggest::Suggestion>>,
+    /// Attendee list values, without repeating membership scans on every frame.
+    list_cache: crate::app::memo::Memo<u64, std::rc::Rc<list::ListInfo>>,
     /// An add, replace or remove being prepared.
     pub(in crate::app) roster: Option<roster::RosterEdit>,
     /// The one rule whose full editor is open.
