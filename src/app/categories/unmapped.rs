@@ -60,40 +60,47 @@ impl PlassiApp {
             if ready.iter().any(|r| !*r) { theme::hint(ui, p, tr("Choose ambiguous matches individually. Apply all skips unresolved choices.")); }
             ui.add_space(theme::space::S);
             for (index, merge) in prepared.iter().enumerate() {
+                if index > 0 {
+                    ui.separator();
+                }
                 ui.horizontal_wrapped(|ui| {
                     ui.label(RichText::new(&merge.spelling).strong());
-                    let relation = if merge.targets.len() > 1 {
+                    theme::hint(ui, p, if merge.targets.len() > 1 {
                         tr("belongs to")
                     } else {
                         tr("is the same as")
-                    };
-                    theme::hint(ui, p, relation);
-                    for (part, target) in merge.targets.iter().enumerate() {
+                    });
+                });
+                for (part, target) in merge.targets.iter().enumerate() {
+                    ui.horizontal_wrapped(|ui| {
                         let existing = self.project.catalog.find(kind, target).is_some();
                         let label = fill(
-                            if existing {
-                                "{} · Existing"
-                            } else {
-                                "{} · New"
-                            },
+                            if existing { "{} · Existing" } else { "{} · New" },
                             &[target],
                         );
-                        theme::status_pill(ui, p, label, if existing { p.accent } else { p.good });
-                        theme::hint(ui, p, merge.reasons[part].label());
                         let alternatives = &merge.alternatives[part];
-                        if !alternatives.is_empty() {
+                        if alternatives.is_empty() {
+                            theme::status_pill(ui, p, label, if existing { p.accent } else { p.good });
+                        } else {
                             let key = (kind.key().into(), merge.spelling.clone(), part);
-                            let chosen = self.categories.choices.get(&key).cloned();
-                            theme::combo(("match-choice", index, part), chosen.as_deref().unwrap_or(tr("Choose a match…"))).show_ui(ui, |ui| {
-                                for choice in alternatives { if ui.action(chosen.as_ref() == Some(choice), choice) { self.categories.choices.insert(key.clone(), choice.clone()); } }
+                            let chosen = self.categories.choices.get(&key)
+                                .filter(|choice| alternatives.contains(choice)).cloned();
+                            let selected = if chosen.is_some() { label.as_str() } else { tr("Choose a match…") };
+                            theme::combo(("match-choice", index, part), selected).show_ui(ui, |ui| {
+                                for choice in alternatives {
+                                    if ui.action(chosen.as_ref() == Some(choice), choice) {
+                                        self.categories.choices.insert(key.clone(), choice.clone());
+                                    }
+                                }
                             });
                         }
-                    }
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.add_enabled(ready[index], theme::small_button(tr("Merge"))).clicked() {
-                            apply = Some(index);
-                        }
+                        theme::hint(ui, p, merge.reasons[part].label());
                     });
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.add_enabled(ready[index], theme::small_button(tr("Merge"))).clicked() {
+                        apply = Some(index);
+                    }
                 });
             }
         });

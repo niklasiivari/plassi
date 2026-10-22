@@ -252,6 +252,21 @@ fn apply_all_skips_ambiguous_matches_until_a_person_chooses_one() {
     ui.app_mut().commit("Saved changes");
     ui.go_to("Categories");
     assert!(ui.has("Abbreviation match"));
+    for width in [1440.0, 390.0] {
+        ui.h.set_size(egui::vec2(width, 900.0));
+        ui.settle();
+        let chooser =
+            ui.h.query_all_by(|n| {
+                n.role() == egui::accesskit::Role::ComboBox
+                    && n.value().as_deref() == Some("Choose a match…")
+            })
+            .next()
+            .unwrap()
+            .rect();
+        for merge in ui.h.query_all_by_label("Merge") {
+            assert!(!chooser.intersects(merge.rect()), "width={width}");
+        }
+    }
     ui.click("Apply all");
     assert!(
         ui.app()
