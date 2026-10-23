@@ -2,6 +2,26 @@
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
     (
+        "Marks all notes for this person reviewed.",
+        "Merkitsee tämän henkilön kaikki merkinnät tarkistetuiksi.",
+    ),
+    ("In wishes or rules", "Mukana toiveissa tai säännöissä"),
+    ("No wishes or rules", "Ei toiveita tai sääntöjä"),
+    (
+        "{} people · {} in wishes or rules · {} rules",
+        "{} henkilöä · {} mukana toiveissa tai säännöissä · {} sääntöä",
+    ),
+    (
+        "Seat selected people in an option before pinning.",
+        "Sijoita valitut henkilöt paikoilleen jossakin vaihtoehdossa ennen lukitsemista.",
+    ),
+    (
+        "Selected people have no pins.",
+        "Valituilla henkilöillä ei ole lukittuja paikkoja.",
+    ),
+    ("Added {} to the guest list", "{} lisätty henkilölistaan"),
+    ("Replaced {} with {}", "{} korvattu henkilöllä {}"),
+    (
         "People and event setup",
         "Henkilöt ja tapahtuman valmistelu",
     ),
@@ -381,4 +401,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Previous choice", "Aiempi valinta"),
     ("Choose a field", "Valitse kenttä"),
     ("Could not read {}", "Tiedoston lukeminen epäonnistui: {}"),
+    (
+        "Review all notes for this person and add missing wishes, then mark reviewed.",
+        "Tarkista tämän henkilön kaikki merkinnät ja lisää puuttuvat toiveet. Merkitse sitten tarkistetuksi.",
+    ),
 ];

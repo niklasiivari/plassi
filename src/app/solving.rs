@@ -161,7 +161,7 @@ impl PlassiApp {
         let outcome = match outcome {
             Ok(outcome) => outcome,
             Err(error) => {
-                self.status = fill("Cannot solve: {}", &[&error]);
+                self.status = search_failure_status(&job.kind, error);
                 return;
             }
         };
@@ -195,5 +195,75 @@ impl PlassiApp {
             "Saved: score {} · {} hard rules broken",
             &[&evaluation.penalty(), &evaluation.hard_violations],
         ));
+    }
+}
+
+fn search_failure_status(kind: &JobKind, error: platform::SearchError) -> String {
+    match error {
+        platform::SearchError::Invalid(reason) => fill(
+            match kind {
+                JobKind::New => "Cannot solve: {}",
+                JobKind::Improve { .. } => "Cannot improve: {}",
+                JobKind::Continue { .. } => "Cannot continue searching: {}",
+            },
+            &[&reason],
+        ),
+        platform::SearchError::Interrupted(detail) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            eprintln!("Seating search failed: {detail}");
+            #[cfg(target_arch = "wasm32")]
+            web_sys::console::error_1(&format!("Seating search failed: {detail}").into());
+            tr(match kind {
+                JobKind::New => "The seating search stopped unexpectedly. Try again.",
+                JobKind::Improve { .. } => {
+                    "The seating improvement stopped unexpectedly. Try again."
+                }
+                JobKind::Continue { .. } => "The continued search stopped unexpectedly. Try again.",
+            })
+            .into()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn worker_failures_use_localized_recovery_and_keep_validation_reasons() {
+        crate::i18n::set(crate::i18n::Lang::Fi);
+        for (kind, expected) in [
+            (
+                JobKind::New,
+                "The seating search stopped unexpectedly. Try again.",
+            ),
+            (
+                JobKind::Improve {
+                    from: "Existing".into(),
+                    hand_placed: Default::default(),
+                },
+                "The seating improvement stopped unexpectedly. Try again.",
+            ),
+            (
+                JobKind::Continue {
+                    from: "Existing".into(),
+                    before: (0, 100),
+                },
+                "The continued search stopped unexpectedly. Try again.",
+            ),
+        ] {
+            let message = search_failure_status(
+                &kind,
+                platform::SearchError::Interrupted("technical worker diagnostic".into()),
+            );
+            assert_eq!(message, tr(expected));
+            assert_ne!(message, expected, "missing Finnish translation");
+            assert!(!message.contains("technical worker diagnostic"));
+            let reason = tr("Add enough seats for everyone");
+            let invalid =
+                search_failure_status(&kind, platform::SearchError::Invalid(reason.into()));
+            assert!(invalid.ends_with(&format!(": {reason}")), "{invalid}");
+            assert!(!invalid.contains("Cannot"), "{invalid}");
+        }
     }
 }

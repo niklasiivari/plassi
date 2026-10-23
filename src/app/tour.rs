@@ -32,7 +32,7 @@ const STEPS: [(Target, &str, &str); 5] = [
     (
         Target::Options,
         "Options and scores",
-        "Choose an option. Lower scores are better.",
+        "Lower scores are better.",
     ),
     (
         Target::Canvas,
@@ -47,7 +47,7 @@ const STEPS: [(Target, &str, &str); 5] = [
     (
         Target::Canvas,
         "Group or keep apart",
-        "Ctrl-click to select, then group (G) or keep apart.",
+        "{}-click to select, then group (G) or keep apart.",
     ),
     (
         Target::Panel,
@@ -178,7 +178,8 @@ fn card(
     let mut choice = None;
     ui.label(RichText::new(tr(title)).size(theme::text::LEAD).strong());
     ui.add_space(theme::space::XS);
-    ui.add(egui::Label::new(tr(text)).wrap());
+    let modifier = ui.ctx().format_modifiers(egui::Modifiers::COMMAND);
+    ui.add(egui::Label::new(fill(text, &[&modifier])).wrap());
     ui.add_space(theme::space::M);
     ui.horizontal(|ui| {
         theme::hint(ui, p, fill("Step {} of {}", &[&(step + 1), &STEPS.len()]));

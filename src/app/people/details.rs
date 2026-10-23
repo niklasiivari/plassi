@@ -12,6 +12,7 @@ impl PlassiApp {
         p: Palette,
         id: usize,
     ) -> bool {
+        let mut done = false;
         ui.horizontal(|ui| {
             theme::section_title(ui, p, tr("Details"));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -21,20 +22,37 @@ impl PlassiApp {
                     tr("Edit details")
                 };
                 if ui.add(theme::small_button(label)).clicked() {
-                    self.people.editing_details = !self.people.editing_details;
+                    if self.people.editing_details {
+                        done = true;
+                    } else {
+                        self.people.editing_details = true;
+                    }
                 }
             });
         });
-        let changed = if self.people.editing_details {
+        let mut changed = if self.people.editing_details {
             self.details_fields(ui, p, id)
         } else {
             self.details_values(ui, p, id);
             false
         };
+        // Keep the inputs alive through the Done click so the focused field
+        // can report its final edit before the values replace the inputs.
+        if done {
+            changed |= self.people.details_dirty;
+            self.people.editing_details = false;
+        }
         ui.add_space(theme::space::L);
         let changed = self.tags_editor(ui, p, &[id]) | changed;
         ui.add_space(theme::space::XL);
         changed
+    }
+
+    /// Navigation may remove the focused input before it can report a blur.
+    pub(in crate::app) fn flush_people_details(&mut self) {
+        if self.people.details_dirty {
+            self.commit(tr("Saved changes"));
+        }
     }
 
     fn details_values(&self, ui: &mut egui::Ui, p: Palette, id: usize) {
@@ -67,19 +85,25 @@ impl PlassiApp {
         ];
         rows.extend(a.extra.iter().map(|(k, v)| (k.as_str(), v.as_str())));
         let mobile = theme::narrow(ui);
+        let column_width = if mobile {
+            ui.available_width()
+        } else {
+            (ui.available_width() - theme::space::XL) / 2.0
+        };
         egui::Grid::new("details")
             .num_columns(if mobile { 1 } else { 2 })
+            .max_col_width(column_width)
             .spacing([theme::space::XL, theme::space::S])
             .show(ui, |ui| {
                 for (label, value) in rows {
-                    ui.label(RichText::new(label).color(p.muted));
+                    ui.add(egui::Label::new(RichText::new(label).color(p.muted)).wrap());
                     if mobile {
                         ui.end_row();
                     }
                     if value.trim().is_empty() {
                         ui.label(RichText::new("—").color(p.muted));
                     } else {
-                        ui.label(value);
+                        ui.add(egui::Label::new(value).wrap());
                     }
                     ui.end_row();
                 }
@@ -93,6 +117,7 @@ impl PlassiApp {
             return false;
         };
         let mut changed = false;
+        let mut edited = false;
         let mobile = theme::narrow(ui);
         let field_width = if mobile { ui.available_width() } else { 360.0 };
         egui::Grid::new("details-edit")
@@ -103,7 +128,10 @@ impl PlassiApp {
                 if mobile {
                     ui.end_row();
                 }
-                changed |= theme::price_input(ui, tr("Custom price"), &mut a.price_override_cents);
+                let price_changed =
+                    theme::price_input(ui, tr("Custom price"), &mut a.price_override_cents);
+                changed |= price_changed;
+                edited |= price_changed;
                 ui.end_row();
                 for (label, value, choices) in [
                     (tr("Food"), &mut a.food, &foods[..]),
@@ -114,11 +142,14 @@ impl PlassiApp {
                     if mobile {
                         ui.end_row();
                     }
-                    changed |=
+                    let field =
                         super::roster::field_with_choices(ui, label, value, choices, field_width);
+                    changed |= field.committed;
+                    edited |= field.changed;
                     ui.end_row();
                 }
             });
-        changed
+        self.people.details_dirty |= edited;
+        changed && self.people.details_dirty
     }
 }

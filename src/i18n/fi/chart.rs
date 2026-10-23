@@ -1,6 +1,18 @@
 //! Finnish text: chart.
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
+    (
+        "{}-click to select a group.",
+        "Valitse ryhmä {}-napsautuksella.",
+    ),
+    (
+        "{}-click to select multiple people.",
+        "Valitse useita henkilöitä {}-napsautuksella.",
+    ),
+    (
+        "{}-click to select, then group (G) or keep apart.",
+        "Valitse {}-napsautuksella ja ryhmitä sitten (G) tai pidä erillään.",
+    ),
     ("all of {}: {}", "kaikki seuraavista: {} · {}"),
     // Cards and drag previews
     ("spare seat", "vapaa paikka"),
@@ -276,8 +288,8 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Laske: uusi istumajärjestys. Paranna: säilytä käsin asetetut paikat.",
     ),
     (
-        "Choose an option. Lower scores are better.",
-        "Valitse vaihtoehto. Pienempi pistemäärä on parempi.",
+        "Lower scores are better.",
+        "Pienempi pistemäärä on parempi.",
     ),
     (
         "Drag to move or swap. Ctrl-click or Shift-drag to select.",
@@ -438,4 +450,25 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
         "Valitse henkilö nähdäksesi toiveet tai pöytä nähdäksesi sen yhteenvedon.",
     ),
     ("Change card colours", "Vaihda korttien värit"),
+    (
+        "Stop the current search before starting another",
+        "Pysäytä käynnissä oleva haku ennen uuden aloittamista",
+    ),
+    (
+        "Restore or open a valid project before solving",
+        "Palauta tai avaa toimiva projekti ennen laskemista",
+    ),
+    (
+        "Add people before solving",
+        "Lisää henkilöitä ennen laskemista",
+    ),
+    (
+        "Add enough seats for everyone",
+        "Lisää riittävästi paikkoja kaikille",
+    ),
+    ("Find person ({})", "Etsi henkilö ({})"),
+    ("Undo ({})", "Kumoa ({})"),
+    ("Redo ({})", "Tee uudelleen ({})"),
+    ("Undo: {} ({})", "Kumoa: {} ({})"),
+    ("Redo: {} ({})", "Tee uudelleen: {} ({})"),
 ];

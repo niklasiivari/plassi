@@ -90,29 +90,27 @@ impl PlassiApp {
                 .strong(),
         );
         ui.label(RichText::new(self.project.affiliation(&attendee)).color(p.muted));
-        ui.horizontal_wrapped(|ui| {
-            let place = match scene.seat_of.get(&id) {
-                Some(seat) => self.project.seat_label(seat),
-                None => tr("Not seated").into(),
-            };
-            theme::pill(ui, place, p.text, p.surface_hi);
-            // Without a seat, "Not seated" says it all.
-            if !scene.seat_of.contains_key(&id) {
-                return;
-            }
-            let mut status = scene.status(id);
-            if scene.waits(id) && status.is_none_or(|s| s == Outcome::Met) {
-                status = None;
-            }
-            let text = match status {
-                None if scene.waits(id) => tr("Waiting for people not seated"),
-                Some(Outcome::Met) => tr("All wishes met"),
-                Some(Outcome::Partial) => tr("Partly met"),
-                Some(Outcome::Broken) => tr("Hard rule broken"),
-                None => tr("No wishes"),
-            };
-            theme::status_pill(ui, p, text, theme::outcome_color(p, status));
-        });
+        let place = match scene.seat_of.get(&id) {
+            Some(seat) => self.project.seat_label(seat),
+            None => tr("Not seated").into(),
+        };
+        theme::pill(ui, place, p.text, p.surface_hi);
+        // Without a seat, "Not seated" says it all.
+        if !scene.seat_of.contains_key(&id) {
+            return;
+        }
+        let mut status = scene.status(id);
+        if scene.waits(id) && status.is_none_or(|s| s == Outcome::Met) {
+            status = None;
+        }
+        let text = match status {
+            None if scene.waits(id) => tr("Waiting for people not seated"),
+            Some(Outcome::Met) => tr("All wishes met"),
+            Some(Outcome::Partial) => tr("Partly met"),
+            Some(Outcome::Broken) => tr("Hard rule broken"),
+            None => tr("No wishes"),
+        };
+        theme::status_pill(ui, p, text, theme::outcome_color(p, status));
     }
 
     /// Pin or unpin; a seated person can also be kept at their table, and

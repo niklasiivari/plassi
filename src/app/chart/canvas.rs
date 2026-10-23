@@ -94,7 +94,7 @@ impl PlassiApp {
                 crate::app::room_labels::paint(&painter, &view, label, p.muted);
             }
         }
-        self.paint_tables(&painter, &view, p, scene);
+        self.paint_tables(ui, &painter, &view, p, scene);
         self.paint_wish_lines(ui, &painter, &view, p, scene);
         self.paint_group_highlights(&painter, &view, p, scene);
         let targets = self.drop_targets(ui, &view, scene);
@@ -188,7 +188,14 @@ impl PlassiApp {
         );
     }
 
-    fn paint_tables(&self, painter: &egui::Painter, view: &Viewport, p: Palette, scene: &Scene) {
+    fn paint_tables(
+        &self,
+        ui: &egui::Ui,
+        painter: &egui::Painter,
+        view: &Viewport,
+        p: Palette,
+        scene: &Scene,
+    ) {
         for table in self.project.layout.rows.iter().flat_map(|r| &r.tables) {
             let Some(top) = scene.tops.get(&table.id) else {
                 continue;
@@ -209,13 +216,24 @@ impl PlassiApp {
             } else {
                 Pos2::new(body.center().x, body.min.y - 16.0)
             };
-            painter.text(
-                view.point(at),
-                Align2::CENTER_CENTER,
-                &table.label,
+            let color = if selected { p.accent } else { p.muted };
+            let mut job = egui::text::LayoutJob::simple_singleline(
+                table.label.clone(),
                 FontId::proportional((13.0 * view.zoom).max(8.0)),
-                if selected { p.accent } else { p.muted },
+                color,
             );
+            job.wrap.max_width = view.rect(body).width().min(view.clip.width()).max(0.0);
+            job.wrap.max_rows = 1;
+            job.wrap.break_anywhere = true;
+            let label = painter.layout_job(job);
+            let rect = Rect::from_center_size(view.point(at), label.size());
+            painter.galley(rect.min, label, color);
+            ui.interact(
+                rect,
+                ui.id().with(("table-label", &table.id)),
+                Sense::hover(),
+            )
+            .on_hover_text(&table.label);
         }
     }
 

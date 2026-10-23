@@ -10,6 +10,7 @@ impl PeopleState {
 
 impl PlassiApp {
     pub(super) fn start_review(&mut self) {
+        self.flush_people_details();
         let pending: std::collections::HashSet<_> = self
             .project
             .notes
@@ -87,11 +88,7 @@ impl PlassiApp {
                     .on_hover_text(tr("K: previous · J: next · R: review and next"));
                 theme::hint(ui, p, fill("Person {} of {}", &[&(pos + 1), &queue.len()]));
             });
-            theme::hint(
-                ui,
-                p,
-                tr("Read the note below and add any missing wishes before marking it reviewed."),
-            );
+            theme::hint(ui, p, tr("Marks all notes for this person reviewed."));
             ui.add_space(theme::space::S);
             ui.horizontal_wrapped(|ui| {
                 if ui
@@ -119,6 +116,7 @@ impl PlassiApp {
                     )
                     .clicked();
                 if self.people.review.is_some() && ui.button(tr("Finish review")).clicked() {
+                    self.flush_people_details();
                     self.people.review = None;
                     self.selected_person = None;
                 }
@@ -143,6 +141,9 @@ impl PlassiApp {
             changed = true;
         }
         if let Some(id) = go {
+            if !changed {
+                self.flush_people_details();
+            }
             self.selected_person = Some(id);
             self.people.wish_draft = None;
         }

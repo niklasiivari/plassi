@@ -27,6 +27,7 @@ pub(super) struct RoomState {
     pub(super) quick_columns: usize,
     canvas: layout_canvas::LayoutCanvas,
     problem: super::memo::Memo<(u64, crate::i18n::Lang), Option<String>>,
+    text_input_frame: Option<u64>,
 }
 
 impl Default for RoomState {
@@ -37,6 +38,7 @@ impl Default for RoomState {
             quick_columns: 4,
             canvas: Default::default(),
             problem: Default::default(),
+            text_input_frame: None,
         }
     }
 }
@@ -398,16 +400,28 @@ fn table_card(
 }
 
 /// "−  n  +" control; returns whether the value changed.
-fn stepper(ui: &mut egui::Ui, value: &mut usize) -> bool {
+fn stepper(ui: &mut egui::Ui, value: &mut usize, maximum: usize) -> bool {
     let before = *value;
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = theme::space::XS;
-        if ui.add(theme::glyph_button("−")).clicked() {
+        let decrease = ui
+            .add_enabled(*value > 0, theme::glyph_button("−"))
+            .clicked();
+        ui.add(
+            egui::DragValue::new(value)
+                .range(0..=maximum)
+                .clamp_existing_to_range(false)
+                .update_while_editing(false),
+        );
+        let increase = ui
+            .add_enabled(*value < maximum, theme::glyph_button("+"))
+            .clicked();
+        // Resolve typed input before applying a button that ended the edit.
+        if decrease {
             *value = value.saturating_sub(1);
         }
-        ui.add(egui::DragValue::new(value).range(0..=200));
-        if ui.add(theme::glyph_button("+")).clicked() {
-            *value = (*value + 1).min(200);
+        if increase {
+            *value += 1;
         }
     });
     *value != before
@@ -439,23 +453,62 @@ fn seat_controls(ui: &mut egui::Ui, p: Palette, table: &mut TableSpec) -> bool {
         ui.vertical(|ui| match table.shape {
             TableShape::Long => {
                 caption(ui, tr("Left"));
-                changed |= ui.push_id("left", |ui| stepper(ui, &mut table.left)).inner;
+                changed |= ui
+                    .push_id("left", |ui| {
+                        stepper(ui, &mut table.left, crate::model::MAX_SIDE_SEATS)
+                    })
+                    .inner;
                 caption(ui, tr("Right"));
                 changed |= ui
-                    .push_id("right", |ui| stepper(ui, &mut table.right))
+                    .push_id("right", |ui| {
+                        stepper(ui, &mut table.right, crate::model::MAX_SIDE_SEATS)
+                    })
                     .inner;
             }
             TableShape::Round => {
                 caption(ui, tr("Seats"));
                 let mut seats = table.left + table.right;
-                if ui.push_id("seats", |ui| stepper(ui, &mut seats)).inner {
-                    (table.left, table.right) = (seats.div_ceil(2), seats / 2);
+                if ui
+                    .push_id("seats", |ui| {
+                        stepper(ui, &mut seats, 2 * crate::model::MAX_SIDE_SEATS)
+                    })
+                    .inner
+                {
+                    resize_round(table, seats);
                     changed = true;
                 }
             }
         });
     });
     changed
+}
+
+/// Change only the requested number of seat IDs. Round tables imported with
+/// unequal sides must not lose existing seats when their total increases.
+fn resize_round(table: &mut TableSpec, seats: usize) {
+    let before = table.left + table.right;
+    let difference = table.left.abs_diff(table.right);
+    if seats >= before {
+        let balance = (seats - before).min(difference);
+        if table.left < table.right {
+            table.left += balance;
+        } else {
+            table.right += balance;
+        }
+        let rest = seats - before - balance;
+        table.left += rest.div_ceil(2);
+        table.right += rest / 2;
+    } else {
+        let balance = (before - seats).min(difference);
+        if table.left > table.right {
+            table.left -= balance;
+        } else {
+            table.right -= balance;
+        }
+        let rest = before - seats - balance;
+        table.left -= rest / 2;
+        table.right -= rest.div_ceil(2);
+    }
 }
 
 /// Tiny drawing of a table with its seats.

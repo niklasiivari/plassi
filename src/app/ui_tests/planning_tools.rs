@@ -5,7 +5,7 @@ use eframe::egui::{self, Key, Modifiers, PointerButton};
 #[test]
 fn canonical_category_choice_does_not_follow_another_category_alias() {
     use crate::catalog::Kind;
-    for action in ["Merge", "Apply all"] {
+    for action in ["Merge", "Apply ready matches"] {
         let mut ui = Ui::with_example();
         let mut project = crate::model::Project::new();
         project.attendees = crate::example::project()

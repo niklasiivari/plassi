@@ -55,4 +55,25 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Hard rule broken", "Ehdoton sääntö rikkoutuu"),
     ("Legend", "Selite"),
+    (
+        "Wishes for specific people. Organization, tag and group preferences are not shown.",
+        "Toiveet nimetyistä henkilöistä. Järjestö-, tunniste- ja ryhmätoiveet eivät näy tässä.",
+    ),
+    ("Show everyone", "Näytä kaikki"),
+    (
+        "{} connections between {} people",
+        "{} yhteyttä {} henkilön välillä",
+    ),
+    (
+        "{} people with no shown connections hidden",
+        "Piilotettu {} henkilöä, joilla ei ole tässä näkyviä yhteyksiä",
+    ),
+    (
+        "{} of {} connections fully met",
+        "{} / {} yhteydestä toteutuu kokonaan",
+    ),
+    (
+        "Arrow points to the wished-for person. No arrow: mutual. Circle colour: organization. Circle size: connections.",
+        "Nuoli osoittaa toivotun pöytäseuran. Viiva ilman nuolta tarkoittaa molemminpuolista toivetta. Pisteen väri kertoo järjestön, koko yhteyksien määrän.",
+    ),
 ];

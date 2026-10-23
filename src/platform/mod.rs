@@ -10,6 +10,13 @@ pub use backup_plan::{Keep, now_stamp};
 mod search_request;
 pub use search_request::SearchRequest;
 
+/// Keep expected input failures separate from an interrupted background job.
+#[derive(Debug)]
+pub enum SearchError {
+    Invalid(String),
+    Interrupted(String),
+}
+
 /// A picked spreadsheet, read without changing the open project.
 pub struct SheetFile {
     pub name: String,

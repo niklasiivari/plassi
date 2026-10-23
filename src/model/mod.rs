@@ -19,6 +19,9 @@ pub use refit::RoomFit;
 pub use spots::{Point, Spot};
 pub use tables::*;
 
+/// Seats on one side of a table, at most; shared by validation and editors.
+pub(crate) const MAX_SIDE_SEATS: usize = 500;
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Attendee {
     pub id: usize,

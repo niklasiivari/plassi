@@ -21,6 +21,13 @@ impl PlassiApp {
             });
             return;
         }
+        let has_seat = self
+            .project
+            .candidates
+            .get(self.selected_candidate)
+            .is_some_and(|c| picked.iter().any(|id| c.assignment.contains_key(id)));
+        let pins = self.project.pins();
+        let has_pin = picked.iter().any(|id| pins.contains_key(id));
         ui.horizontal_wrapped(|ui| {
             ui.label(RichText::new(fill("{} selected", &[&picked.len()])).strong());
             if ui
@@ -30,12 +37,17 @@ impl PlassiApp {
                 self.bulk_mark_reviewed(&picked);
             }
             if ui
-                .add(theme::small_button(tr("Pin to current seats")))
+                .add_enabled(has_seat, theme::small_button(tr("Pin to current seats")))
+                .on_disabled_hover_text(tr("Seat selected people in an option before pinning."))
                 .clicked()
             {
                 self.bulk_pin(&picked, true);
             }
-            if ui.add(theme::small_button(tr("Unpin"))).clicked() {
+            if ui
+                .add_enabled(has_pin, theme::small_button(tr("Unpin")))
+                .on_disabled_hover_text(tr("Selected people have no pins."))
+                .clicked()
+            {
                 self.bulk_pin(&picked, false);
             }
             if picked.len() >= 2 && ui.add(theme::small_button(tr("Group together"))).clicked() {
@@ -43,7 +55,7 @@ impl PlassiApp {
                     crate::preferences::PreferenceKind::together(picked.clone()),
                     crate::preferences::Strength::Important,
                 );
-                self.commit(&fill("Grouped {} people", &[&picked.len()]));
+                self.commit(tr("Preference added; solve again to apply"));
             }
             if ui
                 .add(theme::small_button(tr("Remove from event")))
@@ -84,20 +96,31 @@ impl PlassiApp {
             .get(self.selected_candidate)
             .map(|c| c.assignment.clone())
             .unwrap_or_default();
+        let pins = self.project.pins();
+        let mut affected = Vec::new();
         for &id in picked {
             match (pin, seats.get(&id)) {
                 (true, Some(seat)) => {
                     self.project.pin(id, crate::model::Pin::Seat(seat.clone()));
+                    affected.push(id);
                 }
                 (true, None) => {}
-                (false, _) => self.project.unpin(id),
+                (false, _) if pins.contains_key(&id) => {
+                    self.project.unpin(id);
+                    affected.push(id);
+                }
+                (false, _) => {}
             }
         }
-        let template = if pin {
-            "Pinned {} people"
-        } else {
-            "Unpinned {} people"
+        if affected.is_empty() {
+            return;
+        }
+        let message = match (pin, affected.as_slice()) {
+            (true, [one]) => fill("Pinned {}", &[&self.project.person_name(*one)]),
+            (false, [one]) => fill("Unpinned {}", &[&self.project.person_name(*one)]),
+            (true, _) => fill("Pinned {} people", &[&affected.len()]),
+            (false, _) => fill("Unpinned {} people", &[&affected.len()]),
         };
-        self.commit(&fill(template, &[&picked.len()]));
+        self.commit(&message);
     }
 }

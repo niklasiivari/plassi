@@ -142,8 +142,14 @@ impl PlassiApp {
             Stroke::new(2.0, p.muted),
             egui::StrokeKind::Inside,
         );
+        let target = if theme::mobile(ui.ctx()) || ui.input(|i| i.has_touch_screen()) {
+            44.0
+        } else {
+            14.0
+        };
         for grip in GRIPS {
-            let handle = Rect::from_center_size(grip.point(walls), Vec2::splat(14.0));
+            let centre = grip.point(walls);
+            let handle = Rect::from_center_size(centre, Vec2::splat(target));
             let response = ui
                 .interact(
                     handle,
@@ -154,7 +160,11 @@ impl PlassiApp {
             response.widget_info(|| {
                 egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tr("Resize room walls"))
             });
-            painter.rect_filled(handle.shrink(3.0), 2.0, p.accent);
+            painter.rect_filled(
+                Rect::from_center_size(centre, Vec2::splat(8.0)),
+                2.0,
+                p.accent,
+            );
             if response.drag_started()
                 && let Some(start) = pointer
             {

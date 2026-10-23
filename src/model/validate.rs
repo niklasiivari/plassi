@@ -6,9 +6,6 @@ use anyhow::{Result, anyhow, bail};
 
 use super::*;
 
-/// Seats on one side of a table, at most.
-const MAX_SIDE_SEATS: usize = 500;
-
 impl Project {
     pub fn validate(&self) -> Result<()> {
         if self.version != 1 {

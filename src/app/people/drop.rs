@@ -91,6 +91,7 @@ impl PlassiApp {
     pub(in crate::app) fn load_sheet_file(&mut self, name: &str, bytes: &[u8]) {
         match crate::import::read_sheets(name, bytes) {
             Ok(sheets) => {
+                self.flush_people_details();
                 self.people.import_text = sheets[0].1.clone();
                 self.people.import_sheets = sheets;
                 self.people.import_sheet = 0;

@@ -4,7 +4,7 @@ use super::*;
 use crate::app::camera::{Camera, Viewport};
 use crate::app::turned::TableTop;
 use crate::model::TablePosition;
-use egui::{Align2, FontId, Pos2, Rect, Sense, Stroke, Vec2};
+use egui::{FontId, Pos2, Rect, Sense, Stroke, Vec2};
 use std::collections::BTreeMap;
 
 use super::geometry::{RoomGeometry, TABLE_END};
@@ -319,14 +319,25 @@ impl PlassiApp {
                 .is_some_and(|(id, _, _)| id == &table.id)
                 || state.selected_tables.contains(&table.id)
                 || state.selected.as_deref() == Some(&table.id);
-            let dots = geometry
-                .table(&table.id)
-                .expect("shown table")
-                .dots
-                .iter()
-                .copied();
-            paint_table(&painter, &view, p, (table, top), dots, active);
-            response.on_hover_cursor(egui::CursorIcon::Grab);
+            let shown = geometry.table(&table.id).expect("shown table");
+            let label = paint_table(
+                &painter,
+                &view,
+                p,
+                (table, top),
+                shown.dots.iter().copied(),
+                active,
+                shown.footprint.bounds(),
+            );
+            ui.interact(
+                label.intersect(rect),
+                ui.id().with(("table-label", &table.id)),
+                Sense::hover(),
+            )
+            .on_hover_text(&table.label);
+            response
+                .on_hover_text(&table.label)
+                .on_hover_cursor(egui::CursorIcon::Grab);
         }
         self.room_selection_box(ui, &painter, &view, &background, &tables, p);
         self.paint_alignment_guides(&painter, &view, &geometry, dragged.as_ref(), p);
@@ -397,7 +408,9 @@ impl PlassiApp {
         if ui.input(|i| i.pointer.any_released()) {
             self.room.canvas.group_drag.clear();
         }
-        if self.room.canvas.selected_tables.len() <= 1 {
+        if self.room.canvas.selected_tables.len() <= 1
+            && self.room.text_input_frame != Some(ui.ctx().cumulative_frame_nr())
+        {
             edit.labels |= self.rotate_by_key(ui);
         }
         self.room.canvas.geometry = Some((self.file.revision, geometry));
@@ -521,7 +534,7 @@ fn paint_grid(
     }
 }
 
-/// A table's top with its name on it, and its seats as dots.
+/// A table's top, its seats as dots and a bounded caption below its footprint.
 fn paint_table(
     painter: &egui::Painter,
     view: &Viewport,
@@ -529,22 +542,35 @@ fn paint_table(
     (table, top): (&TableSpec, &TableTop),
     seats: impl Iterator<Item = Pos2>,
     active: bool,
-) {
+    footprint: Rect,
+) -> Rect {
     let stroke = Stroke::new(
         if active { 2.0 } else { 1.0 },
         if active { p.accent } else { p.muted },
     );
     top.paint(painter, view, p.table, stroke, 4);
-    painter.text(
-        view.point(top.top.centre),
-        Align2::CENTER_CENTER,
-        &table.label,
-        FontId::proportional((14.0 * view.zoom).max(9.0)),
-        p.text,
-    );
     for seat in seats {
         painter.circle_filled(view.point(seat), (5.0 * view.zoom).max(1.5), p.accent);
     }
+    // Names must not cross neighbouring tables or obscure seat markers. The
+    // full value remains available on hover and in the selected table editor.
+    let bounds = view.rect(footprint);
+    let left = (bounds.left() + 4.0).max(painter.clip_rect().left());
+    let right = (bounds.right() - 4.0).min(painter.clip_rect().right());
+    let width = (right - left).max(0.0);
+    let mut job = egui::text::LayoutJob::simple_singleline(
+        table.label.clone(),
+        FontId::proportional((14.0 * view.zoom).max(9.0)),
+        p.text,
+    );
+    job.wrap.max_width = width;
+    job.wrap.max_rows = 1;
+    job.wrap.break_anywhere = true;
+    let name = painter.layout_job(job);
+    let at = Pos2::new(left + (width - name.size().x) / 2.0, bounds.bottom() + 4.0);
+    let label = Rect::from_min_size(at, name.size());
+    painter.galley(at, name, p.text);
+    label
 }
 
 fn add_menu(

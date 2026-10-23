@@ -88,64 +88,72 @@ impl PlassiApp {
                     .close_behavior(config.close_behavior)
                     .style(theme::menu_style)
                     .show(|ui| {
-                        // Separators and rows fill the width, so cap it.
-                        let width = (ui.ctx().content_rect().width() - 48.0).clamp(0.0, MENU_WIDTH);
-                        ui.set_max_width(width);
-                        ui.set_min_width(240.0_f32.min(width));
-                        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
-                        theme::section_title(ui, p, tr("Projects"));
-                        for name in self.file.library.projects() {
-                            if ui.selectable_label(name == current, &name).clicked()
-                                && name != current
-                            {
-                                self.switch_project(&name);
-                                ui.close();
-                            }
-                        }
-                        ui.separator();
-                        if ui.button(tr("New project")).clicked() {
-                            self.create_project(tr("New event"), Project::new());
-                            ui.close();
-                        }
-                        if ui.button(tr("Rename project")).clicked() {
-                            self.projects.rename = current.clone();
-                            if sidebar {
-                                self.sidebar_compact = false;
-                                self.tablet_sidebar_expanded = true;
-                            }
-                            self.projects.editing_name = true;
-                            self.projects.focus_name = true;
-                            ui.close();
-                        }
-                        if ui.button(tr("Duplicate project")).clicked() {
-                            let copy = self.project.clone();
-                            self.create_project(&fill("{} (copy)", &[&current]), copy);
-                            ui.close();
-                        }
-                        self.file_actions(ui);
-                        self.backup_menu_items(ui);
-                        ui.separator();
-                        if self.projects.confirm_delete {
-                            ui.label(
-                                RichText::new(fill(
-                                    "Delete {}? Restore it from Deleted projects.",
-                                    &[&current],
-                                ))
-                                .color(p.bad),
-                            );
-                            ui.horizontal(|ui| {
-                                if ui.add(theme::danger_button(tr("Delete"), p)).clicked() {
-                                    self.projects.confirm_delete = false;
-                                    self.delete_project();
+                        let height = (ui.ctx().content_rect().height() - 32.0).max(100.0);
+                        ui.set_max_height(height);
+                        egui::ScrollArea::vertical()
+                            .id_salt("project-menu-content")
+                            .max_height(height)
+                            .show(ui, |ui| {
+                                // Separators and rows fill the width, so cap it.
+                                let width =
+                                    (ui.ctx().content_rect().width() - 48.0).clamp(0.0, MENU_WIDTH);
+                                ui.set_max_width(width);
+                                ui.set_min_width(240.0_f32.min(width));
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                                theme::section_title(ui, p, tr("Projects"));
+                                for name in self.file.library.projects() {
+                                    if ui.selectable_label(name == current, &name).clicked()
+                                        && name != current
+                                    {
+                                        self.switch_project(&name);
+                                        ui.close();
+                                    }
+                                }
+                                ui.separator();
+                                if ui.button(tr("New project")).clicked() {
+                                    self.create_project(tr("New event"), Project::new());
                                     ui.close();
                                 }
-                                if ui.button(tr("Cancel")).clicked() {
-                                    self.projects.confirm_delete = false;
+                                if ui.button(tr("Rename project")).clicked() {
+                                    self.projects.rename = current.clone();
+                                    if sidebar {
+                                        self.sidebar_compact = false;
+                                        self.tablet_sidebar_expanded = true;
+                                    }
+                                    self.projects.editing_name = true;
+                                    self.projects.focus_name = true;
+                                    ui.close();
+                                }
+                                if ui.button(tr("Duplicate project")).clicked() {
+                                    let copy = self.project.clone();
+                                    self.create_project(&fill("{} (copy)", &[&current]), copy);
+                                    ui.close();
+                                }
+                                self.file_actions(ui);
+                                self.backup_menu_items(ui);
+                                ui.separator();
+                                if self.projects.confirm_delete {
+                                    ui.label(
+                                        RichText::new(fill(
+                                            "Delete {}? Restore it from Deleted projects.",
+                                            &[&current],
+                                        ))
+                                        .color(p.bad),
+                                    );
+                                    ui.horizontal(|ui| {
+                                        if ui.add(theme::danger_button(tr("Delete"), p)).clicked() {
+                                            self.projects.confirm_delete = false;
+                                            self.delete_project();
+                                            ui.close();
+                                        }
+                                        if ui.button(tr("Cancel")).clicked() {
+                                            self.projects.confirm_delete = false;
+                                        }
+                                    });
+                                } else if ui.button(tr("Delete project…")).clicked() {
+                                    self.projects.confirm_delete = true;
                                 }
                             });
-                        } else if ui.button(tr("Delete project…")).clicked() {
-                            self.projects.confirm_delete = true;
-                        }
                     });
                 if button.clicked() {
                     self.projects.rename = current.clone();

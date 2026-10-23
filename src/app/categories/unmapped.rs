@@ -53,11 +53,21 @@ impl PlassiApp {
                         .strong(),
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    apply_all = ui.add_enabled(ready.iter().any(|r| *r), theme::primary_button(tr("Apply all"), p)).clicked();
+                    apply_all = ui
+                        .add_enabled(
+                            ready.iter().any(|r| *r),
+                            theme::primary_button(tr("Apply ready matches"), p),
+                        )
+                        .clicked();
                 });
             });
-            theme::hint(ui, p, tr("Similar names and combined entries."));
-            if ready.iter().any(|r| !*r) { theme::hint(ui, p, tr("Choose ambiguous matches individually. Apply all skips unresolved choices.")); }
+            if ready.iter().any(|r| !*r) {
+                theme::hint(
+                    ui,
+                    p,
+                    tr("Choose unresolved matches individually. Only ready matches are applied."),
+                );
+            }
             ui.add_space(theme::space::S);
             for (index, merge) in prepared.iter().enumerate() {
                 if index > 0 {
@@ -65,40 +75,69 @@ impl PlassiApp {
                 }
                 ui.horizontal_wrapped(|ui| {
                     ui.label(RichText::new(&merge.spelling).strong());
-                    theme::hint(ui, p, if merge.targets.len() > 1 {
-                        tr("belongs to")
-                    } else {
-                        tr("is the same as")
-                    });
+                    theme::hint(
+                        ui,
+                        p,
+                        if merge.targets.len() > 1 {
+                            tr("belongs to")
+                        } else {
+                            tr("is the same as")
+                        },
+                    );
                 });
                 for (part, target) in merge.targets.iter().enumerate() {
                     ui.horizontal_wrapped(|ui| {
                         let existing = self.project.catalog.find(kind, target).is_some();
                         let label = fill(
-                            if existing { "{} · Existing" } else { "{} · New" },
+                            if existing {
+                                "{} · Existing"
+                            } else {
+                                "{} · New"
+                            },
                             &[target],
                         );
                         let alternatives = &merge.alternatives[part];
                         if alternatives.is_empty() {
-                            theme::status_pill(ui, p, label, if existing { p.accent } else { p.good });
+                            theme::status_pill(
+                                ui,
+                                p,
+                                label,
+                                if existing { p.accent } else { p.good },
+                            );
                         } else {
                             let key = (kind.key().into(), merge.spelling.clone(), part);
-                            let chosen = self.categories.choices.get(&key)
-                                .filter(|choice| alternatives.contains(choice)).cloned();
-                            let selected = if chosen.is_some() { label.as_str() } else { tr("Choose a match…") };
-                            theme::combo(("match-choice", index, part), selected).show_ui(ui, |ui| {
-                                for choice in alternatives {
-                                    if ui.action(chosen.as_ref() == Some(choice), choice) {
-                                        self.categories.choices.insert(key.clone(), choice.clone());
+                            let chosen = self
+                                .categories
+                                .choices
+                                .get(&key)
+                                .filter(|choice| alternatives.contains(choice))
+                                .cloned();
+                            let selected = if chosen.is_some() {
+                                label.as_str()
+                            } else {
+                                tr("Choose a match…")
+                            };
+                            theme::combo(("match-choice", index, part), selected).show_ui(
+                                ui,
+                                |ui| {
+                                    for choice in alternatives {
+                                        if ui.action(chosen.as_ref() == Some(choice), choice) {
+                                            self.categories
+                                                .choices
+                                                .insert(key.clone(), choice.clone());
+                                        }
                                     }
-                                }
-                            });
+                                },
+                            );
                         }
                         theme::hint(ui, p, merge.reasons[part].label());
                     });
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add_enabled(ready[index], theme::small_button(tr("Merge"))).clicked() {
+                    if ui
+                        .add_enabled(ready[index], theme::small_button(tr("Merge")))
+                        .clicked()
+                    {
                         apply = Some(index);
                     }
                 });
@@ -218,7 +257,7 @@ impl PlassiApp {
                     }
                     if ignored {
                         theme::status_pill(ui, p, tr("Ignored"), p.muted);
-                        if ui.button(tr("Reopen")).clicked() {
+                        if ui.button(tr("Unignore entry")).clicked() {
                             self.project.catalog.ignore(kind, spelling, false);
                             changed = true;
                         }

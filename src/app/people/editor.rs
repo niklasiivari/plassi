@@ -30,44 +30,40 @@ impl PlassiApp {
         let Some(person) = self.project.person(id).cloned() else {
             return;
         };
-        theme::responsive_row(ui, |ui| {
-            ui.label(RichText::new(&person.name).size(theme::text::PAGE).strong());
-            ui.horizontal(|ui| {
-                ui.with_layout(
-                    egui::Layout::right_to_left(egui::Align::Center).with_main_wrap(true),
-                    |ui| {
-                        egui::containers::menu::MenuButton::new(tr("More"))
-                            .config(
-                                egui::containers::menu::MenuConfig::new().style(theme::menu_style),
-                            )
-                            .ui(ui, |ui| {
-                                if let Some(next) = self.next_to_review(id)
-                                    && ui.button(tr("Next unreviewed person")).clicked()
-                                {
-                                    self.selected_person = Some(next);
-                                    self.people.wish_draft = None;
-                                    ui.close();
-                                }
-                                if ui.button(tr("Replace with someone else…")).clicked() {
-                                    self.people.roster =
-                                        Some(roster::RosterEdit::Replace(id, Default::default()));
-                                    ui.close();
-                                }
-                                if ui.button(tr("Remove from event")).clicked() {
-                                    self.remove_people(&[id]);
-                                    ui.close();
-                                }
-                            });
-                        if ui.button(tr("Show on chart")).clicked() {
-                            self.page = crate::app::Page::Chart;
-                            self.chart.view.focus_person = Some(id);
-                        }
-                    },
-                );
-            });
+        ui.add(
+            egui::Label::new(RichText::new(&person.name).size(theme::text::PAGE).strong()).wrap(),
+        );
+        ui.horizontal_wrapped(|ui| {
+            if ui.button(tr("Show on chart")).clicked() {
+                self.flush_people_details();
+                self.page = crate::app::Page::Chart;
+                self.chart.view.focus_person = Some(id);
+            }
+            egui::containers::menu::MenuButton::new(tr("More"))
+                .config(egui::containers::menu::MenuConfig::new().style(theme::menu_style))
+                .ui(ui, |ui| {
+                    if let Some(next) = self.next_to_review(id)
+                        && ui.button(tr("Next unreviewed person")).clicked()
+                    {
+                        self.flush_people_details();
+                        self.selected_person = Some(next);
+                        self.people.wish_draft = None;
+                        ui.close();
+                    }
+                    if ui.button(tr("Replace with someone else…")).clicked() {
+                        self.flush_people_details();
+                        self.people.roster =
+                            Some(roster::RosterEdit::Replace(id, Default::default()));
+                        ui.close();
+                    }
+                    if ui.button(tr("Remove from event")).clicked() {
+                        self.remove_people(&[id]);
+                        ui.close();
+                    }
+                });
         });
         let affiliation = self.project.affiliation(&person);
-        ui.label(RichText::new(affiliation).color(p.muted));
+        ui.add(egui::Label::new(RichText::new(affiliation).color(p.muted)).wrap());
         ui.add_space(theme::space::L);
     }
 

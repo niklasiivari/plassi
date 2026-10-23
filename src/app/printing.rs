@@ -30,6 +30,8 @@ pub(super) struct PrintJob {
 #[derive(Default)]
 pub(super) struct PrintState {
     pub(super) job: Option<PrintJob>,
+    /// Event text changed while its field is still being edited.
+    pub(super) details_dirty: bool,
     /// Last saved PDF per print kind, its project revision and option.
     pub(super) saved: std::collections::HashMap<PrintKind, (String, u64, usize)>,
     /// File, project revision and selected option of the last Excel snapshot.
@@ -50,7 +52,7 @@ impl PlassiApp {
             }),
         );
         if self.event_settings(ui, p) {
-            self.commit(tr("Saved event details"));
+            self.flush_print_details();
         }
         ui.add_space(theme::space::L);
         self.spreadsheet_card(ui, p);
@@ -201,7 +203,9 @@ impl PlassiApp {
                         let field = theme::field(value)
                             .hint_text(hint)
                             .desired_width(field_width);
-                        changed |= ui.add(field).lost_focus();
+                        let response = ui.add(field);
+                        self.printing.details_dirty |= response.changed();
+                        changed |= response.lost_focus();
                         ui.end_row();
                     }
                     ui.label(RichText::new(tr("Language")).color(p.muted));
@@ -215,9 +219,11 @@ impl PlassiApp {
                             (PrintLanguage::Finnish, "Suomi"),
                             (PrintLanguage::English, "English"),
                         ] {
-                            changed |= ui
+                            let edited = ui
                                 .selectable_value(&mut event.print_language, value, label)
                                 .changed();
+                            self.printing.details_dirty |= edited;
+                            changed |= edited;
                         }
                     });
                     ui.end_row();
@@ -233,6 +239,14 @@ impl PlassiApp {
                 });
         });
         changed
+    }
+
+    /// Navigation can remove a focused field before it receives a blur frame.
+    /// Commit once when editing finishes, rather than writing each keystroke.
+    pub(super) fn flush_print_details(&mut self) {
+        if std::mem::take(&mut self.printing.details_dirty) {
+            self.commit(tr("Saved event details"));
+        }
     }
 
     fn option_picker(&mut self, ui: &mut egui::Ui, p: Palette) {

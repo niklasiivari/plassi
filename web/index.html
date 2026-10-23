@@ -29,6 +29,7 @@
     .screen p { margin: 0 0 8px; max-width: 26rem; }
     .screen .muted { color: var(--muted); }
     .screen a { color: var(--accent); font-weight: 600; }
+    .screen button { margin-top: 8px; padding: 8px 16px; border: 1px solid var(--accent); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; cursor: pointer; }
     .spinner {
       width: 28px; height: 28px; margin: 0 auto 16px; border-radius: 50%;
       border: 3px solid var(--track); border-top-color: var(--accent);
@@ -48,26 +49,42 @@
   </div>
   <div id="failed" class="screen" role="alert">
     <div>
-      <p data-copy="failed">This browser can't run Plassi.</p>
-      <p class="muted" data-copy="browser">Use an up-to-date browser with JavaScript and WebGL enabled.</p>
+      <p data-copy="failed">Couldn't load Plassi.</p>
+      <p class="muted" data-copy="recovery">Reload the page or check your connection.</p>
+      <button id="retry" type="button" data-copy="retry">Reload</button>
     </div>
   </div>
   <noscript><div class="screen" style="z-index:2"><div><p lang="en">Enable JavaScript to use Plassi.</p><p lang="fi">Ota JavaScript käyttöön, jotta voit käyttää Plassia.</p></div></div></noscript>
   <script>
     let language = navigator.language || "en";
     try { language = localStorage.getItem("plassi:language") || language; } catch {}
-    if (language.toLowerCase().startsWith("fi")) {
+    const finnish = language.toLowerCase().startsWith("fi");
+    const copy = finnish ? {
+      loading: "Ladataan Plassia…",
+      failed: "Plassin lataaminen epäonnistui.",
+      recovery: "Lataa sivu uudelleen tai tarkista verkkoyhteys.",
+      retry: "Lataa uudelleen",
+      unsupported: "Plassi ei toimi tässä selaimessa.",
+      browser: "Käytä ajantasaista selainta, jossa JavaScript ja WebGL ovat käytössä.",
+    } : {
+      unsupported: "This browser can't run Plassi.",
+      browser: "Use an up-to-date browser with JavaScript and WebGL enabled.",
+    };
+    if (finnish) {
       document.documentElement.lang = "fi";
-      const copy = {
-        loading: "Ladataan Plassia…",
-        failed: "Plassi ei toimi tässä selaimessa.",
-        browser: "Käytä ajantasaista selainta, jossa JavaScript ja WebGL ovat käytössä.",
-      };
       for (const element of document.querySelectorAll("[data-copy]")) {
         element.textContent = copy[element.dataset.copy];
       }
     }
-    const failed = () => document.body.classList.add("failed");
+    window.plassiFailed = (kind) => {
+      if (kind === "unsupported") {
+        document.querySelector('[data-copy="failed"]').textContent = copy.unsupported;
+        document.querySelector('[data-copy="recovery"]').textContent = copy.browser;
+        document.getElementById("retry").hidden = true;
+      }
+      document.body.classList.add("failed");
+    };
+    document.getElementById("retry").addEventListener("click", () => location.reload());
     // Keep the app's search shortcut from moving focus to the browser's address bar.
     document.addEventListener("keydown", (event) => {
       if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k") {
@@ -75,22 +92,29 @@
       }
     }, { capture: true });
     const gl = document.createElement("canvas");
-    if (typeof WebAssembly !== "object" || !(gl.getContext("webgl2") || gl.getContext("webgl"))) failed();
+    if (typeof WebAssembly !== "object" || !(gl.getContext("webgl2") || gl.getContext("webgl"))) window.plassiFailed("unsupported");
   </script>
-  <script nomodule>document.body.classList.add("failed");</script>
+  <script nomodule>window.plassiFailed("unsupported");</script>
   <script type="module">
-    import init from "./plassi.js";
-    import { startSearch, typeset, pdfArchive } from "./workers.js";
-
-    // Printing lives in its own module, loaded the first time someone prints.
-    window.plassiSearchStart = startSearch;
-    window.plassiTypeset = typeset;
-    window.plassiPdfArchive = pdfArchive;
-
-    init().catch((error) => {
-      console.error(error);
-      document.body.classList.add("failed");
-    });
+    (async () => {
+      try {
+        if (!document.body.classList.contains("failed")) {
+          // Dynamic imports let loading failures show recovery guidance too.
+          const [{ default: init }, { startSearch, typeset, pdfArchive }] = await Promise.all([
+            import("./plassi.js"),
+            import("./workers.js"),
+          ]);
+          // Printing lives in its own module, loaded the first time someone prints.
+          window.plassiSearchStart = startSearch;
+          window.plassiTypeset = typeset;
+          window.plassiPdfArchive = pdfArchive;
+          await init();
+        }
+      } catch (error) {
+        console.error(error);
+        window.plassiFailed("load");
+      }
+    })();
   </script>
 </body>
 </html>

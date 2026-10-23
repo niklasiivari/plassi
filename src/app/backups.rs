@@ -61,11 +61,19 @@ fn civil_date(days: i64) -> (i64, u32, u32) {
 impl PlassiApp {
     /// Keeps the last saved state as a backup, e.g. before a risky operation.
     pub(super) fn backup_now(&mut self) {
-        if let Some(bytes) = &self.file.last_bytes
-            && self.file.library.backup(&self.file.name, bytes).is_ok()
-        {
-            self.backups.last_auto = Some(Instant::now());
-        }
+        let _ = self.try_backup_now();
+    }
+
+    /// Destructive actions must not proceed when the recovery copy fails.
+    pub(super) fn try_backup_now(&mut self) -> anyhow::Result<()> {
+        let bytes = self
+            .file
+            .last_bytes
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!(tr("No saved project to back up")))?;
+        self.file.library.backup(&self.file.name, bytes)?;
+        self.backups.last_auto = Some(Instant::now());
+        Ok(())
     }
 
     pub(super) fn backup_bytes(&mut self, bytes: &[u8]) {

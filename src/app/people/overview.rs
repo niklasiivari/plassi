@@ -6,7 +6,7 @@ use crate::i18n::{fill, tr};
 impl PlassiApp {
     pub(super) fn people_overview(&mut self, ui: &mut egui::Ui, p: Palette) {
         let summary = fill(
-            "{} people · {} with wishes · {} rules",
+            "{} people · {} in wishes or rules · {} rules",
             &[
                 &self.project.attendees.len(),
                 &self.people_list_info().active.len(),
@@ -28,17 +28,29 @@ impl PlassiApp {
         self.suggestions_card(ui, p);
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.label(RichText::new(tr("People and event setup")).size(theme::text::LEAD).strong());
-            theme::hint(ui, p, tr("Choose a person to edit their wishes and details. Review categories before printing."));
+            ui.label(
+                RichText::new(tr("People and event setup"))
+                    .size(theme::text::LEAD)
+                    .strong(),
+            );
             ui.add_space(theme::space::M);
             ui.horizontal_wrapped(|ui| {
-                if ui.add(theme::secondary_button(tr("Review categories"))).clicked() {
+                if ui
+                    .add(theme::secondary_button(tr("Review categories")))
+                    .clicked()
+                {
                     self.page = super::super::Page::Categories;
                 }
-                if ui.add(theme::secondary_button(tr("Set up tables"))).clicked() {
+                if ui
+                    .add(theme::secondary_button(tr("Set up tables")))
+                    .clicked()
+                {
                     self.page = super::super::Page::Room;
                 }
-                if ui.add(theme::secondary_button(tr("Import people"))).clicked() {
+                if ui
+                    .add(theme::secondary_button(tr("Import people")))
+                    .clicked()
+                {
                     self.people.import_open = true;
                     self.people.roster = None;
                 }
@@ -58,7 +70,6 @@ impl PlassiApp {
         self.import_panel(ui, p);
         ui.add_space(theme::space::L);
         ui.horizontal(|ui| {
-            theme::hint(ui, p, tr("No guest list?"));
             if ui
                 .button(tr("Try example"))
                 .on_hover_text(tr("48 guests, wishes and tables"))
@@ -90,9 +101,6 @@ impl PlassiApp {
                         fill("{} reviewed · {} left", &[&(total - pending), &pending])
                     };
                     theme::hint(ui, p, status);
-                    if pending > 0 {
-                        theme::hint(ui, p, tr("Read each note, add the wishes it describes, then mark it reviewed."));
-                    }
                 });
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

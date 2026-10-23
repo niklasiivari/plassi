@@ -79,13 +79,26 @@ impl PlassiApp {
         let result = match edit {
             RosterEdit::Add(person) => {
                 let name = person.name.clone();
-                roster::add(&mut self.project, person)
-                    .map(|id| (id, fill("Added {} to the best free seat", &[&name])))
+                roster::add(&mut self.project, person).map(|id| {
+                    let message = if self.roster_person_is_seated(id) {
+                        fill("Added {} to the best free seat", &[&name])
+                    } else {
+                        fill("Added {} to the guest list", &[&name])
+                    };
+                    (id, message)
+                })
             }
             RosterEdit::Replace(old, person) => {
                 let name = person.name.clone();
-                roster::replace(&mut self.project, old, person)
-                    .map(|id| (id, fill("{} took over the seat", &[&name])))
+                let old_name = self.project.person_name(old).to_string();
+                roster::replace(&mut self.project, old, person).map(|id| {
+                    let message = if self.roster_person_is_seated(id) {
+                        fill("{} took over the seat", &[&name])
+                    } else {
+                        fill("Replaced {} with {}", &[&old_name, &name])
+                    };
+                    (id, message)
+                })
             }
         };
         match result {
@@ -98,6 +111,14 @@ impl PlassiApp {
                 self.status = format!("{error:#}");
             }
         }
+    }
+
+    /// Feedback describes the option currently shown to the user.
+    fn roster_person_is_seated(&self, id: usize) -> bool {
+        self.project
+            .candidates
+            .get(self.selected_candidate)
+            .is_some_and(|c| c.assignment.contains_key(&id))
     }
 }
 
@@ -162,16 +183,21 @@ fn attendee_form(
     action
 }
 
+/// Separate unsaved input changes from blur or dropdown commit events.
+pub(super) struct FieldEdit {
+    pub changed: bool,
+    pub committed: bool,
+}
+
 /// A text field with a dropdown of known values beside it; picking one fills
-/// the field, and any other text can still be typed. True when the text was
-/// committed (focus left) or a value was picked.
+/// the field, and any other text can still be typed.
 pub(super) fn field_with_choices(
     ui: &mut egui::Ui,
     id: &str,
     value: &mut String,
     choices: &[String],
     width: f32,
-) -> bool {
+) -> FieldEdit {
     let width = if theme::narrow(ui) {
         let reserve = if choices.is_empty() { 0.0 } else { 64.0 };
         width.min((ui.available_width() - reserve).max(40.0))
@@ -179,22 +205,25 @@ pub(super) fn field_with_choices(
         width
     };
     ui.horizontal(|ui| {
-        let mut changed = ui
-            .add(theme::field(value).desired_width(width))
-            .lost_focus();
+        let response = ui.add(theme::field(value).desired_width(width));
+        let mut edit = FieldEdit {
+            changed: response.changed(),
+            committed: response.lost_focus(),
+        };
         if !choices.is_empty() {
             theme::combo(("choices", id), "")
                 .width(28.0)
                 .show_ui(ui, |ui| {
                     for choice in choices {
                         if ui.action(value == choice, choice) {
+                            edit.changed |= value != choice;
                             value.clone_from(choice);
-                            changed = true;
+                            edit.committed = true;
                         }
                     }
                 });
         }
-        changed
+        edit
     })
     .inner
 }

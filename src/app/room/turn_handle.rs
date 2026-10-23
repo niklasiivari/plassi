@@ -40,7 +40,12 @@ impl PlassiApp {
         let up = Vec2::angled(top.top.angle - std::f32::consts::FRAC_PI_2);
         let reach = top.top.size.y / 2.0 * view.zoom + HANDLE_GAP;
         let at = centre + up * reach;
-        let handle = Rect::from_center_size(at, Vec2::splat(18.0));
+        let target = if theme::mobile(ui.ctx()) || ui.input(|i| i.has_touch_screen()) {
+            44.0
+        } else {
+            18.0
+        };
+        let handle = Rect::from_center_size(at, Vec2::splat(target));
         let response = ui
             .interact(handle, ui.id().with(("turn-table", id)), Sense::drag())
             .on_hover_text(tr("Drag to turn"))

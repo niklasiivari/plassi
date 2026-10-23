@@ -3,7 +3,7 @@
 use eframe::egui::{self, RichText};
 
 use super::theme::{self, Palette};
-use crate::i18n::tr;
+use crate::i18n::{fill, tr};
 
 /// Pages that have help.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -34,34 +34,26 @@ impl HelpPage {
         match self {
             HelpPage::Chart => &[
                 "Solve: new chart. Improve: keep manual seats.",
-                "Choose an option. Lower scores are better.",
+                "Lower scores are better.",
                 "Drag to move or swap. Ctrl-click or Shift-drag to select.",
                 "Drag a selection to move it as a block.",
                 "Drag people off the tables to seat them later.",
-                "Select a person to see wishes, or a table for its summary.",
             ],
-            HelpPage::People => &[
-                "Import people from another file or paste rows at any time.",
-                "Select a person to edit wishes.",
-                "Review notes and add wishes.",
-            ],
+            HelpPage::People => &["Import people from another file or paste rows at any time."],
             HelpPage::Graph => &[
                 "Colours show whether wishes are met.",
                 "Drag to rearrange the view.",
                 "Scroll to zoom; drag the background to pan.",
             ],
             HelpPage::Categories => &[
-                "Group meals, drinks and other entries.",
                 "Merge different names for the same thing.",
                 "Categories are used in PDFs.",
             ],
             HelpPage::Policy => &[
-                "Set rules for the whole event.",
+                "Policies are preferences; some may be left unmet.",
                 "Solve again to apply changes.",
-                "Reset to restore defaults.",
             ],
             HelpPage::Room => &[
-                "Set up tables and seats.",
                 "Quick setup creates equal tables.",
                 "People keep their seats when tables change.",
                 "Free layout places, turns and rounds tables on a canvas.",
@@ -116,36 +108,67 @@ pub(super) fn page_header(
 /// The (?) button and its panel. Returns true when "Show the tour" was
 /// clicked (offered on the chart only).
 pub(super) fn help_button(ui: &mut egui::Ui, p: Palette, page: HelpPage) -> bool {
-    let id = ui.id().with(("help", page as u8));
+    toggle_button(ui, p, page);
+    show_panel(ui.ctx(), p, page)
+}
+
+/// The mobile toolbar keeps this button in More, but draws its panel after
+/// that menu has closed. Page-scoped state survives the menu's lifetime.
+pub(super) fn toggle_button(ui: &mut egui::Ui, p: Palette, page: HelpPage) {
+    let id = egui::Id::new(("page-help", page as u8));
     let mut open = ui.ctx().data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
     let button = theme::icon_button(ui, p, theme::Icon::Help, tr("Help for this page"), open);
     if button.clicked() {
         open = !open;
     }
+    ui.ctx().data_mut(|d| {
+        d.insert_temp(id, open);
+        d.insert_temp(id.with("anchor"), button.rect);
+    });
+}
+
+pub(super) fn show_panel(ctx: &egui::Context, p: Palette, page: HelpPage) -> bool {
+    let id = egui::Id::new(("page-help", page as u8));
+    let (mut open, anchor) = ctx.data(|d| {
+        (
+            d.get_temp::<bool>(id).unwrap_or(false),
+            d.get_temp::<egui::Rect>(id.with("anchor")),
+        )
+    });
     let mut tour = false;
-    if open {
+    if let Some(anchor) = anchor.filter(|_| open) {
         let area = egui::Area::new(id.with("panel"))
             .order(egui::Order::Foreground)
             .pivot(egui::Align2::RIGHT_TOP)
-            .fixed_pos(button.rect.right_bottom() + egui::vec2(0.0, theme::space::XS))
-            .show(ui.ctx(), |ui| {
+            .fixed_pos(anchor.right_bottom() + egui::vec2(0.0, theme::space::XS))
+            .show(ctx, |ui| {
                 theme::floating(p)
                     .inner_margin(egui::Margin::same(theme::space::M as i8))
                     .show(ui, |ui| {
                         ui.set_width(320.0_f32.min(ui.ctx().content_rect().width() - 64.0));
-                        tour = panel(ui, p, page);
+                        let height = (ctx.content_rect().height()
+                            - 2.0 * theme::space::L
+                            - 2.0 * theme::space::M)
+                            .max(80.0);
+                        egui::ScrollArea::vertical()
+                            .id_salt("help-content")
+                            .max_height(height)
+                            .show(ui, |ui| tour = panel(ui, p, page));
                     });
             });
-        let clicked_outside = ui.input(|i| i.pointer.any_click())
-            && !button.clicked()
-            && !ui
-                .input(|i| i.pointer.interact_pos())
-                .is_some_and(|pos| area.response.rect.contains(pos));
-        if tour || clicked_outside || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        let clicked_outside = ctx.input(|i| {
+            i.pointer.any_click()
+                && !i
+                    .pointer
+                    .interact_pos()
+                    .is_some_and(|pos| anchor.contains(pos) || area.response.rect.contains(pos))
+        });
+        if tour || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             open = false;
+            ctx.request_repaint();
         }
     }
-    ui.ctx().data_mut(|d| d.insert_temp(id, open));
+    ctx.data_mut(|d| d.insert_temp(id, open));
     tour
 }
 
@@ -154,7 +177,15 @@ fn panel(ui: &mut egui::Ui, p: Palette, page: HelpPage) -> bool {
     for bullet in page.bullets() {
         ui.horizontal_top(|ui| {
             ui.label(RichText::new("•").color(p.muted));
-            ui.add(egui::Label::new(tr(bullet)).wrap());
+            let text = if *bullet == "Drag to move or swap. Ctrl-click or Shift-drag to select." {
+                fill(
+                    "Drag to move or swap. {}-click or Shift-drag to select.",
+                    &[&ui.ctx().format_modifiers(egui::Modifiers::COMMAND)],
+                )
+            } else {
+                tr(bullet).to_owned()
+            };
+            ui.add(egui::Label::new(text).wrap());
         });
     }
     let shortcuts = page.shortcuts();
@@ -163,7 +194,7 @@ fn panel(ui: &mut egui::Ui, p: Palette, page: HelpPage) -> bool {
         theme::section_title(ui, p, tr("Keys"));
         theme::text_rows(ui, |ui| {
             for (keys, what) in shortcuts {
-                theme::key_hint(ui, p, keys, tr(what));
+                theme::key_hint(ui, p, &shortcut_keys(ui.ctx(), keys), tr(what));
             }
         });
     }
@@ -173,15 +204,39 @@ fn panel(ui: &mut egui::Ui, p: Palette, page: HelpPage) -> bool {
     }
 }
 
+/// The documented command shortcuts use the same platform modifier as input.
+pub(super) fn shortcut_keys(ctx: &egui::Context, keys: &str) -> String {
+    let command = |key, shift| {
+        ctx.format_shortcut(&egui::KeyboardShortcut::new(
+            egui::Modifiers::COMMAND
+                | if shift {
+                    egui::Modifiers::SHIFT
+                } else {
+                    egui::Modifiers::NONE
+                },
+            key,
+        ))
+    };
+    match keys {
+        "Ctrl+K" => command(egui::Key::K, false),
+        "Ctrl+Z / Ctrl+Shift+Z" => format!(
+            "{} / {}",
+            command(egui::Key::Z, false),
+            command(egui::Key::Z, true)
+        ),
+        _ => keys.to_owned(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn every_page_has_a_few_short_bullets() {
+    fn help_stays_concise_without_requiring_filler() {
         for page in HelpPage::ALL {
             let n = page.bullets().len();
-            assert!((3..=6).contains(&n), "{page:?} has {n} bullets");
+            assert!(n <= 6, "{page:?} has {n} bullets");
             for bullet in page.bullets() {
                 assert!(bullet.len() < 140, "too long: {bullet}");
             }

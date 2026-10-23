@@ -20,7 +20,7 @@ impl PlassiApp {
             });
         });
         ui.label(
-            RichText::new(tr("Seating wishes between people."))
+            RichText::new(tr("Wishes for specific people. Organization, tag and group preferences are not shown."))
                 .size(theme::text::SMALL)
                 .color(p.muted),
         );
@@ -34,13 +34,12 @@ impl PlassiApp {
 
     fn graph_settings(&mut self, ui: &mut egui::Ui) {
         let state = &mut self.graph;
-        ui.checkbox(&mut state.show_everyone, tr("Show people without wishes"));
-        ui.checkbox(&mut state.by_table, tr("Arrange by table"))
-            .on_hover_text(tr("Group by the current seating"));
+        ui.checkbox(&mut state.show_everyone, tr("Show everyone"));
+        ui.checkbox(&mut state.by_table, tr("Arrange by table"));
         ui.checkbox(&mut state.labels, tr("Show names"));
     }
 
-    /// Counts of people, wishes and groups, and how many wishes are met.
+    /// Counts of people and visual connections, and how many are fully met.
     fn graph_structure(&self, ui: &mut egui::Ui, p: Palette) {
         let Some(graph) = &self.graph.graph else {
             return;
@@ -48,7 +47,7 @@ impl PlassiApp {
         theme::section_title(ui, p, tr("Summary"));
         let mut lines = vec![
             fill(
-                "{} wishes between {} people",
+                "{} connections between {} people",
                 &[&graph.edges.len(), &graph.people.len()],
             ),
             fill(
@@ -62,7 +61,10 @@ impl PlassiApp {
                 .attendees
                 .len()
                 .saturating_sub(graph.people.len());
-            lines.push(fill("{} people without wishes hidden", &[&hidden]));
+            lines.push(fill(
+                "{} people with no shown connections hidden",
+                &[&hidden],
+            ));
         }
         if graph.edges.iter().any(|e| e.outcome.is_some()) {
             let met = graph
@@ -70,7 +72,10 @@ impl PlassiApp {
                 .iter()
                 .filter(|e| e.outcome == Some(Outcome::Met))
                 .count();
-            lines.push(fill("{} of {} wishes met", &[&met, &graph.edges.len()]));
+            lines.push(fill(
+                "{} of {} connections fully met",
+                &[&met, &graph.edges.len()],
+            ));
         }
         for line in lines {
             ui.label(RichText::new(line).size(theme::text::SMALL));
@@ -98,6 +103,10 @@ impl PlassiApp {
                 self.chart.view.focus_person = Some(id);
             }
             if ui.add(theme::secondary_button(tr("Edit wishes"))).clicked() {
+                self.people.import_open = false;
+                self.people.roster = None;
+                self.people.wish_draft = None;
+                self.people.end_review();
                 self.page = Page::People;
             }
         });
@@ -138,7 +147,7 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
     });
     ui.label(
         RichText::new(tr(
-            "Arrow: requester. No arrow: mutual. Colour: organization. Size: connections.",
+            "Arrow points to the wished-for person. No arrow: mutual. Circle colour: organization. Circle size: connections.",
         ))
         .size(theme::text::CAPTION)
         .color(p.muted),
