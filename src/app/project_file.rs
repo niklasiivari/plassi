@@ -184,6 +184,12 @@ impl ProjectFile {
 }
 
 impl PlassiApp {
+    /// Save focused text before navigation changes its page or project.
+    pub(super) fn flush_pending_details(&mut self) {
+        self.flush_people_details();
+        self.flush_print_details();
+    }
+
     /// Compress history after drawing, without making a large commit block a
     /// whole frame. All snapshots can be restored while this work is pending.
     pub(super) fn compress_history(&mut self, ctx: &egui::Context) {
@@ -215,6 +221,7 @@ impl PlassiApp {
     /// Offers the project as a JSON file.
     #[cfg(target_arch = "wasm32")]
     pub(super) fn download_project(&mut self) {
+        self.flush_pending_details();
         let result = io::encode(&self.project)
             .and_then(|bytes| platform::save_file(&self.file.store, "plassi.json", &bytes));
         self.status = match result {
@@ -237,6 +244,7 @@ impl PlassiApp {
             .and_then(|bytes| io::parse(&bytes))
         {
             Ok(project) => {
+                self.flush_pending_details();
                 self.backup_now();
                 self.project = project;
                 self.selected_candidate = 0;
@@ -255,6 +263,7 @@ impl PlassiApp {
 
     /// Switches to another project in the library.
     pub(super) fn switch_project(&mut self, name: &str) {
+        self.flush_pending_details();
         let store = self.file.library.store(name);
         match store
             .read()
@@ -286,6 +295,7 @@ impl PlassiApp {
 
     /// Adds a project to the library under a free name based on `name`, and opens it.
     pub(super) fn create_project(&mut self, name: &str, project: Project) {
+        self.flush_pending_details();
         let name = self.file.free_name(name);
         match io::encode(&project).and_then(|bytes| self.file.library.store(&name).write(&bytes)) {
             Ok(()) => self.switch_project(&name),
@@ -296,6 +306,7 @@ impl PlassiApp {
     }
 
     pub(super) fn rename_project(&mut self, to: &str) {
+        self.flush_pending_details();
         if to.trim().is_empty() {
             return;
         }
@@ -321,8 +332,15 @@ impl PlassiApp {
 
     /// Deletes the open project, keeping a backup, and opens another (or a new one).
     pub(super) fn delete_project(&mut self) {
+        self.flush_pending_details();
         let name = self.file.name.clone();
-        self.backup_now();
+        if let Err(error) = self.try_backup_now() {
+            self.status = fill(
+                "Could not delete {} because its backup could not be saved: {}",
+                &[&name, &format!("{error:#}")],
+            );
+            return;
+        }
         if let Err(error) = self.file.library.delete(&name) {
             self.status = format!("{error:#}");
             return;
@@ -390,6 +408,8 @@ impl PlassiApp {
     pub(super) fn commit(&mut self, message: &str) {
         let before = self.file.last_bytes.clone();
         if self.save(message) {
+            self.people.details_dirty = false;
+            self.printing.details_dirty = false;
             if let Some(before) = before {
                 self.push_undo(before, message.into());
             }
@@ -504,6 +524,8 @@ impl PlassiApp {
 
     /// Installs a project and drops everything that referred to the old one.
     pub(super) fn replace_project(&mut self, project: Project) {
+        self.people.details_dirty = false;
+        self.printing.details_dirty = false;
         self.project = project;
         self.people.end_review();
         self.categories.forget_project();

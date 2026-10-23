@@ -88,9 +88,9 @@ impl PlassiApp {
             );
             if ui
                 .add(theme::secondary_button(tr("+ Add person")))
-                .on_hover_text(tr("Add a person"))
                 .clicked()
             {
+                self.flush_people_details();
                 self.people.import_open = false;
                 self.people.roster = Some(roster::RosterEdit::Add(Default::default()));
             }
@@ -99,12 +99,12 @@ impl PlassiApp {
             .add(theme::secondary_button(tr("Import people")))
             .clicked()
         {
+            self.flush_people_details();
             self.people.import_open = true;
             self.people.roster = None;
         }
         ui.add_space(theme::space::M);
         if self.project.attendees.is_empty() {
-            theme::hint(ui, p, tr("Paste a sheet or add people."));
             return;
         }
         if scroll_rows
@@ -118,6 +118,7 @@ impl PlassiApp {
                 ))
                 .clicked()
         {
+            self.flush_people_details();
             self.selected_person = None;
             self.people.end_review();
             self.people.import_open = false;
@@ -222,6 +223,7 @@ impl PlassiApp {
             rows(ui, 0..indices.len());
         }
         if let Some(id) = select {
+            self.flush_people_details();
             self.people.end_review();
             self.selected_person = Some(id);
             self.people.wish_draft = None;
@@ -316,8 +318,14 @@ impl PlassiApp {
                 fill("All {}", &[&self.project.attendees.len()]),
             ),
             (PeopleFilter::ToReview, fill("Unreviewed {}", &[&to_review])),
-            (PeopleFilter::WithWishes, tr("Wishes").to_string()),
-            (PeopleFilter::Unconstrained, tr("No wishes").to_string()),
+            (
+                PeopleFilter::WithWishes,
+                tr("In wishes or rules").to_string(),
+            ),
+            (
+                PeopleFilter::Unconstrained,
+                tr("No wishes or rules").to_string(),
+            ),
             (PeopleFilter::Unmet, tr("Unmet wishes").to_string()),
             (PeopleFilter::NotSeated, tr("Not seated").to_string()),
             (PeopleFilter::Pinned, tr("Pinned").to_string()),
@@ -401,20 +409,27 @@ fn person_row(
     );
     let text_at =
         |dy: f32| rect.left_center() + egui::vec2(theme::space::S + 28.0 + theme::space::M, dy);
-    painter.text(
-        text_at(-8.0),
-        egui::Align2::LEFT_CENTER,
-        &person.name,
-        egui::FontId::proportional(theme::text::BODY),
-        p.text,
-    );
-    painter.text(
-        text_at(9.0),
-        egui::Align2::LEFT_CENTER,
-        &info.subtitle,
-        egui::FontId::proportional(theme::text::CAPTION),
-        p.muted,
-    );
+    let right_padding = if info.unreviewed > 0 {
+        theme::space::L + 4.0 + 12.0 + theme::space::S
+    } else {
+        theme::space::S
+    };
+    let text_width = (rect.right() - right_padding - text_at(0.0).x).max(0.0);
+    let mut elided = false;
+    for (text, dy, size, color) in [
+        (person.name.as_str(), -8.0, theme::text::BODY, p.text),
+        (info.subtitle.as_str(), 9.0, theme::text::CAPTION, p.muted),
+    ] {
+        let galley = egui::WidgetText::from(RichText::new(text).size(size)).into_galley(
+            ui,
+            Some(egui::TextWrapMode::Truncate),
+            text_width,
+            egui::TextStyle::Body,
+        );
+        elided |= galley.elided;
+        let pos = text_at(dy) - egui::vec2(0.0, galley.size().y / 2.0);
+        painter.galley(pos, galley, color);
+    }
     if info.unreviewed > 0 {
         let centre = rect.right_center() - egui::vec2(theme::space::L + 4.0, 0.0);
         let badge = egui::Rect::from_center_size(centre, egui::vec2(24.0, 20.0));
@@ -431,5 +446,10 @@ fn person_row(
             p.warn,
         );
     }
-    response.on_hover_cursor(egui::CursorIcon::PointingHand)
+    let response = response.on_hover_cursor(egui::CursorIcon::PointingHand);
+    if elided {
+        response.on_hover_text(format!("{}\n{}", person.name, info.subtitle))
+    } else {
+        response
+    }
 }

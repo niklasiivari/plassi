@@ -181,7 +181,7 @@ impl<T: Send + 'static> Task<T> {
 
 /// A seating search on its own threads, one per run.
 pub struct SearchRunner {
-    task: Task<Result<Outcome, String>>,
+    task: Task<Result<Outcome, super::SearchError>>,
     progress: Progress,
 }
 
@@ -193,16 +193,20 @@ impl SearchRunner {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let mut search = request
                     .build_with_progress(shared)
-                    .map_err(|error| format!("{error:#}"))?;
+                    .map_err(|error| super::SearchError::Invalid(format!("{error:#}")))?;
                 search.run_to_end();
                 Ok(search.finish())
             }))
-            .unwrap_or_else(|_| Err("solver worker panicked".into()))
+            .unwrap_or_else(|_| {
+                Err(super::SearchError::Interrupted(
+                    "solver worker panicked".into(),
+                ))
+            })
         });
         Self { task, progress }
     }
 
-    pub fn poll(&mut self) -> Option<Result<Outcome, String>> {
+    pub fn poll(&mut self) -> Option<Result<Outcome, super::SearchError>> {
         self.task.poll()
     }
 

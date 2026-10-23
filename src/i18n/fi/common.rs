@@ -1,6 +1,14 @@
 //! Finnish text: common.
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
+    (
+        "Storage full. Download each project, then clear this site's data in browser settings.",
+        "Tallennustila on täynnä. Lataa jokainen projekti talteen ja tyhjennä sitten tämän sivuston tiedot selaimen asetuksista.",
+    ),
+    (
+        "No saved project to back up",
+        "Tallennettua projektia ei ole varmuuskopioitavaksi",
+    ),
     ("Menu", "Valikko"),
     ("Select people", "Valitse henkilöitä"),
     ("Chart", "Kartta"),
@@ -449,5 +457,26 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     (
         "{}: person {} is both seated and loose",
         "{}: henkilö {} on sekä paikalla että paikkojen ulkopuolella",
+    ),
+    (
+        "Cannot continue searching: {}",
+        "Haun jatkaminen epäonnistui: {}",
+    ),
+    (
+        "The seating search stopped unexpectedly. Try again.",
+        "Istumajärjestyksen haku keskeytyi odottamatta. Yritä uudelleen.",
+    ),
+    (
+        "The seating improvement stopped unexpectedly. Try again.",
+        "Istumajärjestyksen parantaminen keskeytyi odottamatta. Yritä uudelleen.",
+    ),
+    (
+        "The continued search stopped unexpectedly. Try again.",
+        "Jatkettu haku keskeytyi odottamatta. Yritä uudelleen.",
+    ),
+    ("Unsaved changes", "Tallentamattomia muutoksia"),
+    (
+        "Could not delete {} because its backup could not be saved: {}",
+        "Projektia {} ei voitu poistaa, koska sen varmuuskopiota ei voitu tallentaa: {}",
     ),
 ];

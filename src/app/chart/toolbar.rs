@@ -9,6 +9,7 @@ impl PlassiApp {
                 self.solve_buttons(ui, p);
                 let more = ui.button(tr("More"));
                 egui::Popup::menu(&more)
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                     .style(theme::menu_style)
                     .show(|ui| {
                         ui.horizontal_wrapped(|ui| {
@@ -47,9 +48,12 @@ impl PlassiApp {
                             }
                         });
                         self.comparison_chip(ui, p);
-                        crate::app::help::help_button(ui, p, crate::app::help::HelpPage::Chart);
+                        crate::app::help::toggle_button(ui, p, crate::app::help::HelpPage::Chart);
                     });
             });
+            if crate::app::help::show_panel(ui.ctx(), p, crate::app::help::HelpPage::Chart) {
+                self.tour.start();
+            }
             ui.horizontal(|ui| {
                 self.person_search(ui, p, scene);
                 self.history_buttons(ui, p);
@@ -101,10 +105,19 @@ impl PlassiApp {
         let can_solve =
             self.solving.is_none() && !self.file.external_invalid && people > 0 && seats >= people;
         let has_option = !self.project.candidates.is_empty();
+        let disabled_reason = if self.solving.is_some() {
+            tr("Stop the current search before starting another")
+        } else if self.file.external_invalid {
+            tr("Restore or open a valid project before solving")
+        } else if people == 0 {
+            tr("Add people before solving")
+        } else {
+            tr("Add enough seats for everyone")
+        };
         if ui
             .add_enabled(can_solve, theme::primary_button(tr("Solve"), p))
             .on_hover_text(tr("Find a seating arrangement"))
-            .on_disabled_hover_text(tr("Add people and enough seats first"))
+            .on_disabled_hover_text(disabled_reason)
             .clicked()
         {
             self.start_solve(false);
@@ -215,6 +228,9 @@ impl PlassiApp {
                     .horizontal_align(egui::Align::Center),
             )
             .on_hover_text(tr("Zoom percentage (20–300)"));
+        if zoom.has_focus() || zoom.lost_focus() {
+            self.chart.text_input_frame = Some(ui.ctx().cumulative_frame_nr());
+        }
         if zoom.lost_focus()
             && let Ok(percent) = self.chart.zoom_entry.trim().parse::<f32>()
             && percent.is_finite()
@@ -241,20 +257,22 @@ impl PlassiApp {
     }
 
     fn history_buttons(&mut self, ui: &mut egui::Ui, p: Palette) {
-        let undo_tip = self
-            .file
-            .undo_stack
-            .last()
-            .map_or(tr("Undo (Ctrl+Z)").into(), |s| {
-                fill("Undo: {} (Ctrl+Z)", &[&s.change])
-            });
-        let redo_tip = self
-            .file
-            .redo_stack
-            .last()
-            .map_or(tr("Redo (Ctrl+Shift+Z)").into(), |s| {
-                fill("Redo: {} (Ctrl+Shift+Z)", &[&s.change])
-            });
+        let undo_key = ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(
+            egui::Modifiers::COMMAND,
+            egui::Key::Z,
+        ));
+        let redo_key = ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(
+            egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+            egui::Key::Z,
+        ));
+        let undo_tip = self.file.undo_stack.last().map_or_else(
+            || fill("Undo ({})", &[&undo_key]),
+            |s| fill("Undo: {} ({})", &[&s.change, &undo_key]),
+        );
+        let redo_tip = self.file.redo_stack.last().map_or_else(
+            || fill("Redo ({})", &[&redo_key]),
+            |s| fill("Redo: {} ({})", &[&s.change, &redo_key]),
+        );
         let mut actions = [
             (
                 theme::Icon::Undo,
@@ -287,13 +305,21 @@ impl PlassiApp {
         } else {
             190.0
         };
+        let shortcut = ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(
+            egui::Modifiers::COMMAND,
+            egui::Key::K,
+        ));
         let search = ui.add(
             theme::field(&mut self.chart.search)
-                .hint_text(tr("Find person (Ctrl+K)"))
+                .hint_text(fill("Find person ({})", &[&shortcut]))
                 .desired_width(search_width),
         );
         if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::K)) {
             search.request_focus();
+            self.chart.text_input_frame = Some(ui.ctx().cumulative_frame_nr());
+        }
+        if search.has_focus() || search.lost_focus() || search.changed() {
+            self.chart.text_input_frame = Some(ui.ctx().cumulative_frame_nr());
         }
         if search.changed() {
             self.chart.search_pick = 0;
@@ -313,16 +339,16 @@ impl PlassiApp {
             .project
             .attendees
             .iter()
-            .filter(|a| needle.matches(&a.name) || needle.matches(&self.project.affiliation(a)))
+            .filter(|a| self.chart_search_matches(a.id, &needle))
             .map(|a| a.id)
             .take(8)
             .collect();
-        let (down, up, enter, escape) = ui.input(|i| {
+        let (down, up, enter, escape) = ui.input_mut(|i| {
             (
-                i.key_pressed(egui::Key::ArrowDown),
-                i.key_pressed(egui::Key::ArrowUp),
-                i.key_pressed(egui::Key::Enter),
-                i.key_pressed(egui::Key::Escape),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::Enter),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::Escape),
             )
         });
         let last = matches.len().saturating_sub(1);
@@ -333,39 +359,75 @@ impl PlassiApp {
         };
         if escape {
             self.chart.search.clear();
+            self.chart.search_list = None;
+            search.surrender_focus();
             return;
         }
         let mut chosen = (enter && search.lost_focus())
             .then(|| matches.get(self.chart.search_pick).copied())
             .flatten();
+        let screen = ui.ctx().content_rect().shrink(8.0);
+        let below = (screen.bottom() - search.rect.bottom() - 4.0).max(0.0);
+        let above = (search.rect.top() - screen.top() - 4.0).max(0.0);
+        let open_above = below < 120.0 && above > below;
+        let height = if open_above { above } else { below };
+        let frame = theme::floating(p);
+        let margin = frame.total_margin().sum();
+        let width = 280.0_f32.min((screen.width() - margin.x).max(0.0));
+        let x = search.rect.left().clamp(
+            screen.left(),
+            (screen.right() - width - margin.x).max(screen.left()),
+        );
+        let y = if open_above {
+            search.rect.top() - 4.0
+        } else {
+            search.rect.bottom() + 4.0
+        };
         let list = egui::Area::new(ui.id().with("search-matches"))
-            .fixed_pos(search.rect.left_bottom() + Vec2::new(0.0, 4.0))
+            .fixed_pos(Pos2::new(x, y))
+            .pivot(if open_above {
+                Align2::LEFT_BOTTOM
+            } else {
+                Align2::LEFT_TOP
+            })
+            .constrain_to(screen)
             .order(egui::Order::Foreground)
             .show(ui.ctx(), |ui| {
-                theme::floating(p).show(ui, |ui| {
-                    ui.set_width(280.0);
-                    if matches.is_empty() {
-                        theme::hint(ui, p, tr("Nobody matches"));
-                    }
-                    for (i, &id) in matches.iter().enumerate() {
-                        let seat = scene
-                            .seat_of
-                            .get(&id)
-                            .map(|s| self.project.seat_label(s))
-                            .unwrap_or_else(|| tr("no seat").into());
-                        let person = self.project.person(id).expect("matched person");
-                        let text = format!(
-                            "{} · {} · {seat}",
-                            person.name,
-                            self.project.affiliation(person)
-                        );
-                        if ui
-                            .selectable_label(i == self.chart.search_pick, text)
-                            .clicked()
-                        {
-                            chosen = Some(id);
-                        }
-                    }
+                frame.show(ui, |ui| {
+                    ui.set_width(width);
+                    egui::ScrollArea::vertical()
+                        .id_salt("search-results")
+                        .max_height((height - margin.y).max(0.0))
+                        .min_scrolled_height(0.0)
+                        .auto_shrink([false, true])
+                        .show(ui, |ui| {
+                            if matches.is_empty() {
+                                theme::hint(ui, p, tr("Nobody matches"));
+                            }
+                            for (i, &id) in matches.iter().enumerate() {
+                                let seat = scene
+                                    .seat_of
+                                    .get(&id)
+                                    .map(|s| self.project.seat_label(s))
+                                    .unwrap_or_else(|| tr("no seat").into());
+                                let person = self.project.person(id).expect("matched person");
+                                let text = format!(
+                                    "{} · {} · {seat}",
+                                    person.name,
+                                    self.project.affiliation(person)
+                                );
+                                let row = ui.add(
+                                    egui::Button::selectable(i == self.chart.search_pick, text)
+                                        .wrap(),
+                                );
+                                if i == self.chart.search_pick && (down || up || search.changed()) {
+                                    row.scroll_to_me(None);
+                                }
+                                if row.clicked() {
+                                    chosen = Some(id);
+                                }
+                            }
+                        });
                 });
             });
         self.chart.search_list = Some(list.response.rect);

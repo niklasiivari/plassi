@@ -11,6 +11,7 @@ pub(super) struct CardMetadata {
     pub(super) attendee: usize,
     pub(super) categories: [CategoryMetadata; 4],
     pub(super) search_name: String,
+    pub(super) search_affiliation: String,
 }
 
 pub(super) struct Presentation {
@@ -63,6 +64,7 @@ impl Presentation {
                             attendee: index,
                             categories,
                             search_name: attendee.name.to_lowercase(),
+                            search_affiliation: project.affiliation(attendee).to_lowercase(),
                         },
                     )
                 })

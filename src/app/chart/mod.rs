@@ -96,6 +96,8 @@ pub(in crate::app) struct ChartState {
     pub(in crate::app) search_pick: usize,
     /// Where the search matches were drawn last frame.
     pub(in crate::app) search_list: Option<Rect>,
+    /// Keep text editing keys out of canvas actions, including its submit frame.
+    text_input_frame: Option<u64>,
     pub(in crate::app) hide_inspector: bool,
     /// Option whose differences are marked on the chart.
     pub(in crate::app) compare_with: Option<usize>,
@@ -175,6 +177,9 @@ impl ChartState {
 
 impl PlassiApp {
     pub(in crate::app) fn chart_page(&mut self, ui: &mut egui::Ui, p: Palette) {
+        if ui.ctx().memory(|m| m.focused().is_some()) {
+            self.chart.text_input_frame = Some(ui.ctx().cumulative_frame_nr());
+        }
         if !self.project.candidates.is_empty() {
             self.selected_candidate = self
                 .selected_candidate
@@ -344,6 +349,19 @@ impl PlassiApp {
             .peek(&self.file.revision)?
             .people
             .get(&person)
+    }
+
+    /// Search results and canvas emphasis use the same name/affiliation match.
+    fn chart_search_matches(&self, person: usize, needle: &crate::app::search::Needle) -> bool {
+        match self.card_metadata(person) {
+            Some(a) => {
+                needle.matches_lowercase(&a.search_name)
+                    || needle.matches_lowercase(&a.search_affiliation)
+            }
+            None => self.project.person(person).is_some_and(|a| {
+                needle.matches(&a.name) || needle.matches(&self.project.affiliation(a))
+            }),
+        }
     }
 
     fn wish_group(&self, person: usize) -> Option<std::rc::Rc<Vec<usize>>> {

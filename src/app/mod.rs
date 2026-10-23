@@ -318,12 +318,13 @@ impl PlassiApp {
 
     /// The app on the projects in `library`.
     pub(super) fn with_library(library: platform::Library) -> Self {
-        let (file, project, status) = project_file::ProjectFile::open_default(library);
-        let saved = file.library.setting("language");
+        // Startup project names and status messages use the selected language too.
+        let saved = library.setting("language");
         let lang = saved
             .or_else(platform::system_locale)
             .and_then(|l| crate::i18n::Lang::from_locale(&l));
         crate::i18n::set(lang.unwrap_or(crate::i18n::Lang::En));
+        let (file, project, status) = project_file::ProjectFile::open_default(library);
         let option = project_file::saved_option(&project);
         let mut chart = chart::ChartState::default();
         chart.color_by = file

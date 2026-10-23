@@ -230,7 +230,7 @@ fn imported_entries_show_memberships_link_people_and_support_ignore_reopen_and_f
     assert_eq!(ui.count("Choose organizations…"), 0);
     ui.click("Resolved");
     assert!(ui.has("Ignored"));
-    ui.click("Reopen");
+    ui.click("Unignore entry");
     assert!(!ui.app().project.catalog.is_ignored(Kind::Organization, "?"));
     ui.click("Unresolved");
     ui.click("1 person");
@@ -308,7 +308,7 @@ fn apply_all_skips_ambiguous_matches_until_a_person_chooses_one() {
             assert!(!chooser.intersects(merge.rect()), "width={width}");
         }
     }
-    ui.click("Apply all");
+    ui.click("Apply ready matches");
     assert!(
         ui.app()
             .project

@@ -90,14 +90,14 @@ impl PlassiApp {
 
 #[cfg(any(target_arch = "wasm32", test))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ReminderAction {
+pub(super) enum ReminderAction {
     Download,
     Later,
 }
 
 /// A compact notice with complete labels, even in the sidebar's narrow column.
 #[cfg(any(target_arch = "wasm32", test))]
-fn reminder_card(ui: &mut egui::Ui, p: Palette) -> Option<ReminderAction> {
+pub(super) fn reminder_card(ui: &mut egui::Ui, p: Palette) -> Option<ReminderAction> {
     let mut action = None;
     theme::tinted_card(p, p.warn)
         .shadow(egui::Shadow::NONE)

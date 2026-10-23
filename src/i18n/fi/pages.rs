@@ -2,6 +2,18 @@
 
 pub(super) const STRINGS: &[(&str, &str)] = &[
     (
+        "Original sign-up text is kept.",
+        "Alkuperäinen ilmoittautumisteksti säilyy.",
+    ),
+    (
+        "Policies are preferences; some may be left unmet.",
+        "Istumaperiaatteet ovat toiveita, jotka eivät aina toteudu.",
+    ),
+    (
+        "Drag to move or swap. {}-click or Shift-drag to select.",
+        "Siirrä tai vaihda paikkoja vetämällä. Valitse {}-napsautuksella tai Vaihto pohjassa vetämällä.",
+    ),
+    (
         "Set the price for each ticket type.",
         "Määritä kunkin lipputyypin hinta.",
     ),
@@ -474,4 +486,60 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Distribute horizontal gaps", "Tasaa vaakavälit"),
     ("Distribute vertical gaps", "Tasaa pystyvälit"),
     ("Clear table selection", "Tyhjennä pöytävalinta"),
+    (
+        "Preferences for the whole event.",
+        "Koko tapahtumaa koskevat istumatoiveet.",
+    ),
+    (
+        "Set preferences for the whole event.",
+        "Määritä koko tapahtumaa koskevat istumatoiveet.",
+    ),
+    (
+        "Prefer seating people without wishes with their own organization.",
+        "Suosi toiveettomien sijoittamista oman järjestönsä seuraan.",
+    ),
+    (
+        "Prefer seating people without wishes with other organizations.",
+        "Suosi toiveettomien sijoittamista muiden järjestöjen seuraan.",
+    ),
+    (
+        "Prefer spreading them among people with wishes.",
+        "Suosi heidän sijoittamistaan toiveita esittäneiden lomaan.",
+    ),
+    (
+        "Prefer seating them together, away from wish groups.",
+        "Suosi heidän sijoittamistaan yhteen, erilleen toiveryhmistä.",
+    ),
+    ("Strongly avoid", "Vältä erityisesti"),
+    (
+        "Give high priority to having someone beside or opposite each person.",
+        "Painota erityisesti sitä, että jokaisella on joku vieressä tai vastapäätä.",
+    ),
+    (
+        "Prefer having someone beside or opposite each person.",
+        "Suosi sitä, että jokaisella on joku vieressä tai vastapäätä.",
+    ),
+    (
+        "Give high priority to one nearby wish per person, even at a cost to others.",
+        "Painota erityisesti yhtä lähellä toteutuvaa toivetta henkilöä kohden, vaikka se heikentäisi muiden toiveita.",
+    ),
+    (
+        "Prefer one nearby wish per person when it costs little elsewhere.",
+        "Suosi yhtä lähellä toteutuvaa toivetta henkilöä kohden, kun se heikentää muita toiveita vain vähän.",
+    ),
+    ("Prefer groups", "Suosi ryhmiä"),
+    (
+        "Prefer keeping people without wishes away from table ends.",
+        "Suosi toiveettomien sijoittamista muualle kuin pöytien päätyihin.",
+    ),
+    (
+        "Prefer opposite pairs at the bottom of tables.",
+        "Suosi vastakkaisia paikkapareja pöytien alapäissä.",
+    ),
+    ("Unignore entry", "Poista ohitus"),
+    ("Apply ready matches", "Hyväksy valmiit vastaavuudet"),
+    (
+        "Choose unresolved matches individually. Only ready matches are applied.",
+        "Valitse epäselvät vastaavuudet yksitellen. Vain valmiit vastaavuudet hyväksytään.",
+    ),
 ];

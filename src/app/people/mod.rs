@@ -88,6 +88,8 @@ pub(in crate::app) struct PeopleState {
     pub(in crate::app) editing_rule: Option<u64>,
     /// Food, drinks and allergies are being edited.
     pub(in crate::app) editing_details: bool,
+    /// Details changed while a field is still focused; save when editing ends.
+    pub(in crate::app) details_dirty: bool,
 }
 
 impl PeopleState {
@@ -197,6 +199,7 @@ impl PlassiApp {
                     return;
                 }
                 if ui.button(tr("Back to people")).clicked() {
+                    self.flush_people_details();
                     self.people.import_open = false;
                     self.people.roster = None;
                     self.selected_person = None;

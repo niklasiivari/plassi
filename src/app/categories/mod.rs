@@ -61,9 +61,7 @@ impl PlassiApp {
             p,
             crate::app::help::HelpPage::Categories,
             tr("Categories"),
-            Some(tr(
-                "Match imported entries to categories, then set prices and print marks.",
-            )),
+            None,
         );
         self.kind_tabs(ui, p);
         ui.add_space(theme::space::L);
@@ -112,17 +110,6 @@ impl PlassiApp {
                 .size(theme::text::LEAD)
                 .strong(),
         );
-        theme::hint(
-            ui,
-            p,
-            if kind == Kind::Organization {
-                tr("Create organizations and combine their different spellings.")
-            } else if kind == Kind::Ticket {
-                tr("Set the price for each ticket type.")
-            } else {
-                tr("Set a shared price and print mark for each category.")
-            },
-        );
         ui.add_space(theme::space::M);
         let mut changed = self.create_category_card(ui, p, kind);
         ui.add_space(theme::space::L);
@@ -144,21 +131,12 @@ impl PlassiApp {
                 .size(theme::text::LEAD)
                 .strong(),
         );
-        theme::hint(
-            ui,
-            p,
-            tr("Group different spellings of the same choice. The original sign-up text is kept."),
-        );
+        theme::hint(ui, p, tr("Original sign-up text is kept."));
         ui.add_space(theme::space::M);
         if spellings.is_empty() {
             theme::card(p).show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 ui.label(tr("No imported entries for this type yet."));
-                theme::hint(
-                    ui,
-                    p,
-                    tr("Import people first, or create categories to use when adding people."),
-                );
             });
         } else {
             ui.horizontal_wrapped(|ui| {

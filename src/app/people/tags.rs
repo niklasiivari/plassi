@@ -40,7 +40,7 @@ impl PlassiApp {
                         tag.clone()
                     };
                     if ui
-                        .add(theme::tag_button(&label))
+                        .add(theme::tag_button(&label).wrap())
                         .on_hover_text(tr("Remove tag from selected guests"))
                         .clicked()
                     {

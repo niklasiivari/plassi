@@ -101,7 +101,10 @@ impl PlassiApp {
         };
         if ui
             .button(pick)
-            .on_hover_text(tr("Ctrl-click to select multiple people."))
+            .on_hover_text(fill(
+                "{}-click to select multiple people.",
+                &[&ui.ctx().format_modifiers(egui::Modifiers::COMMAND)],
+            ))
             .clicked()
         {
             actions.pick = Some(id);

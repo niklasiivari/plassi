@@ -34,3 +34,6 @@ Finnish appears only in the Finnish catalogs, in the print template's
   they must not build other branches. The separate CI workflow runs by hand.
   The website deploys through Cloudflare's own builds from `main`. Push only when asked.
 - Plain wording in the UI and prints: no cute or marketing copy.
+- Keep UI copy concise. Omit descriptions and instructions that repeat a label
+  or explain an obvious control. Explain non-obvious behavior, consequences
+  and recovery when needed.

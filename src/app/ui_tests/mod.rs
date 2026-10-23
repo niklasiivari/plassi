@@ -23,3 +23,15 @@ mod review;
 
 mod performance;
 mod planning_tools;
+
+mod chart_fixes;
+
+mod people_fixes;
+
+mod copy_fixes;
+
+mod room_fixes;
+
+mod flow_fixes;
+
+mod shell_fixes;

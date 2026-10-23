@@ -284,7 +284,7 @@ fn people_filters_and_bulk_group() {
     ui.go_to("People & wishes");
     assert!(ui.has("All 48"), "{:?}", ui.dump());
 
-    ui.click("No wishes");
+    ui.click("No wishes or rules");
     let active = ui.app().project.active_people();
     let shown = ui.app().people.shown.clone();
     assert!(!shown.is_empty() && shown.len() < 48);
@@ -302,7 +302,9 @@ fn people_filters_and_bulk_group() {
     let project = &ui.app().project;
     assert_eq!(project.preferences.len(), preferences + 1);
     assert!(
-        ui.app().status.contains("Grouped 2 people"),
+        ui.app()
+            .status
+            .contains("Preference added; solve again to apply"),
         "{}",
         ui.app().status
     );

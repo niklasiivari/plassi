@@ -26,29 +26,18 @@ impl PlassiApp {
         theme::section_title(ui, p, title);
         let mut apply = None;
         for (seat, other, delta) in moves.iter().take(4) {
-            let row = ui.horizontal(|ui| {
-                // Someone without a seat gets just the seat and "Seat here".
-                let who = match other.and_then(|o| self.project.person(o)) {
-                    Some(a) => Some(fill("Swap with {}", &[&a.name])),
-                    None if seated => Some(tr("Move to spare seat").into()),
-                    None => None,
-                };
-                let place = self.project.seat_label(seat);
-                ui.vertical(|ui| {
-                    ui.spacing_mut().item_spacing.y = 0.0;
-                    match &who {
-                        Some(who) => {
-                            ui.label(RichText::new(who).size(theme::text::SMALL));
-                            let place = RichText::new(place).size(theme::text::CAPTION);
-                            ui.label(place.color(p.muted));
-                        }
-                        None => {
-                            ui.label(RichText::new(place).size(theme::text::SMALL));
-                        }
-                    }
-                });
-                let button = if seated { tr("Apply") } else { tr("Seat here") };
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let row = ui.allocate_ui_with_layout(
+                Vec2::new(ui.available_width(), ui.spacing().interact_size.y),
+                egui::Layout::right_to_left(egui::Align::Min),
+                |ui| {
+                    // Someone without a seat gets just the seat and "Seat here".
+                    let who = match other.and_then(|o| self.project.person(o)) {
+                        Some(a) => Some(fill("Swap with {}", &[&a.name])),
+                        None if seated => Some(tr("Move to spare seat").into()),
+                        None => None,
+                    };
+                    let place = self.project.seat_label(seat);
+                    let button = if seated { tr("Apply") } else { tr("Seat here") };
                     if ui.add(theme::small_button(button)).clicked() {
                         apply = Some(seat.clone());
                     }
@@ -58,8 +47,37 @@ impl PlassiApp {
                         d => format!("{d:+}"),
                     };
                     ui.label(RichText::new(text).color(color).strong());
-                });
-            });
+                    let text_width = ui.available_width().max(0.0);
+                    ui.allocate_ui_with_layout(
+                        Vec2::new(text_width, 0.0),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| {
+                            ui.set_width(text_width);
+                            ui.spacing_mut().item_spacing.y = 0.0;
+                            match &who {
+                                Some(who) => {
+                                    ui.add(
+                                        egui::Label::new(
+                                            RichText::new(who).size(theme::text::SMALL),
+                                        )
+                                        .wrap(),
+                                    );
+                                    let place = RichText::new(place).size(theme::text::CAPTION);
+                                    ui.add(egui::Label::new(place.color(p.muted)).wrap());
+                                }
+                                None => {
+                                    ui.add(
+                                        egui::Label::new(
+                                            RichText::new(&place).size(theme::text::SMALL),
+                                        )
+                                        .wrap(),
+                                    );
+                                }
+                            }
+                        },
+                    );
+                },
+            );
             // Pointing at a row marks its seat on the chart.
             if row.response.contains_pointer() {
                 self.chart.group_preview = Some(vec![seat.clone()]);

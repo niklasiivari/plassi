@@ -103,7 +103,11 @@ impl PlassiApp {
         ui.add_space(theme::space::XL);
         theme::section_title(ui, p, tr("Your preferences"));
         if self.project.preferences.is_empty() {
-            theme::hint(ui, p, tr("Ctrl-click to select a group."));
+            let hint = fill(
+                "{}-click to select a group.",
+                &[&ui.ctx().format_modifiers(egui::Modifiers::COMMAND)],
+            );
+            theme::hint(ui, p, &hint);
             return;
         }
         self.chart.preference_preview = None;

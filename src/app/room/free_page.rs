@@ -4,9 +4,7 @@
 use super::*;
 
 /// What the pointer and keys do on the canvas: keys, then the action.
-const CONTROLS: [(&str, &str); 7] = [
-    ("Click", "Edit a table"),
-    ("Drag", "Move a table"),
+const CONTROLS: [(&str, &str); 5] = [
     ("Drag ○", "Turn a table"),
     ("R / Shift+R", "Turn the selected table"),
     ("Right-click", "Add a table there"),
@@ -16,6 +14,9 @@ const CONTROLS: [(&str, &str); 7] = [
 
 impl PlassiApp {
     pub(in crate::app) fn free_room_page(&mut self, ui: &mut egui::Ui, p: Palette) {
+        if ui.ctx().memory(|m| m.focused().is_some()) {
+            self.room.text_input_frame = Some(ui.ctx().cumulative_frame_nr());
+        }
         let mut edit = RoomEdit::default();
         egui::Panel::top("room-toolbar")
             .frame(theme::panel_frame(p).inner_margin(egui::Margin::symmetric(
@@ -28,7 +29,12 @@ impl PlassiApp {
         }
         // Narrow screens keep the settings under the canvas.
         let panel = if ui.available_width() < theme::SPLIT_MIN {
-            egui::Panel::bottom("room-inspector").default_size(320.0)
+            // Clamp a previously resized panel too: a desktop-sized inspector
+            // must not consume the whole workspace after a phone resize.
+            let maximum = (ui.available_height() * 0.4).clamp(0.0, 320.0);
+            egui::Panel::bottom("room-inspector")
+                .default_size(maximum)
+                .size_range(maximum.min(64.0)..=maximum)
         } else {
             egui::Panel::right("room-inspector")
                 .default_size(theme::PANEL_WIDTH + 2.0 * theme::space::M)

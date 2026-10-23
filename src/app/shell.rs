@@ -149,8 +149,47 @@ pub(super) fn page_scroll(ui: &mut egui::Ui, width: f32, add: impl FnOnce(&mut e
 /// The save status above the sidebar's controls, in points. It takes the
 /// place of the save dot, which only the narrow sidebar shows.
 const STATUS_HEIGHT: f32 = 60.0;
-/// How much higher the footer starts in the expanded sidebar, for the status.
-const STATUS_EXTRA: f32 = 16.0;
+
+/// Measure the status content and reserve its height above the pinned controls.
+/// The previous measurement positions the immediate-mode UI; clipping keeps a
+/// newly appearing reminder away from the controls until the next frame.
+pub(super) fn sidebar_status(
+    ui: &mut egui::Ui,
+    bounds: egui::Rect,
+    bottom: f32,
+    openness: f32,
+    add: impl FnOnce(&mut egui::Ui),
+) -> f32 {
+    let id = ui.id().with("sidebar-status-height");
+    let max_height = (bottom - bounds.top() - 64.0).max(0.0);
+    let height = ui
+        .ctx()
+        .data(|d| d.get_temp::<f32>(id))
+        .unwrap_or(STATUS_HEIGHT)
+        .min(max_height);
+    let rect = egui::Rect::from_min_max(
+        egui::pos2(bounds.left() + theme::space::L, bottom - height),
+        egui::pos2(bounds.right() - theme::space::S, bottom),
+    );
+    let mut status = ui.new_child(
+        egui::UiBuilder::new()
+            .id_salt("sidebar-project")
+            .max_rect(rect),
+    );
+    status.set_opacity(openness);
+    status.set_clip_rect(status.clip_rect().intersect(rect));
+    let content = egui::ScrollArea::vertical()
+        .id_salt("sidebar-status-content")
+        .max_height(height)
+        .auto_shrink([false, false])
+        .show(&mut status, add);
+    let measured = content.content_size.y.min(max_height);
+    if (measured - height).abs() > 0.5 {
+        ui.ctx().data_mut(|d| d.insert_temp(id, measured));
+        ui.ctx().request_repaint();
+    }
+    rect.top()
+}
 
 impl PlassiApp {
     /// Compact navigation retains project and file actions without taking canvas width.
@@ -206,8 +245,6 @@ impl PlassiApp {
         openness: f32,
     ) -> bool {
         let bounds = ui.max_rect();
-        // The expanded sidebar has the save status above the controls.
-        let footer_top = (bounds.bottom() - 224.0 - STATUS_EXTRA * openness).max(bounds.top());
         let mut header = ui.new_child(
             egui::UiBuilder::new()
                 .id_salt("sidebar-project-selector")
@@ -217,21 +254,8 @@ impl PlassiApp {
                 )),
         );
         self.sidebar_project_switcher(&mut header, p);
-        let navigation_rect = egui::Rect::from_min_max(
-            bounds.min + egui::vec2(0.0, 64.0),
-            egui::pos2(bounds.right(), footer_top - theme::space::S),
-        );
-        let mut navigation = ui.new_child(
-            egui::UiBuilder::new()
-                .id_salt("sidebar-navigation")
-                .max_rect(navigation_rect),
-        );
-        egui::ScrollArea::vertical()
-            .auto_shrink([false, false])
-            .show(&mut navigation, |ui| self.navigation(ui, p, openness > 0.0));
-
         let controls_rect = egui::Rect::from_min_max(
-            egui::pos2(bounds.left(), footer_top),
+            bounds.min,
             egui::pos2(bounds.left() + 68.0, bounds.bottom()),
         );
         let mut controls = ui.new_child(
@@ -245,6 +269,7 @@ impl PlassiApp {
         super::about::button(&mut controls, p);
         language_toggle(self, &mut controls);
         theme_toggle(&mut controls, p);
+        let status_bottom = controls.min_rect().top() - theme::space::S;
         // Cross-fade the rail's dot into the status row; do not show two
         // separate indicators for the same saved state in the expanded sidebar.
         controls.scope(|ui| {
@@ -252,19 +277,28 @@ impl PlassiApp {
             self.sync_dot(ui, p).on_hover_text(self.sync_text());
         });
 
-        if openness > 0.0 {
-            // Above the controls, lined up with the navigation's text.
-            let mut project =
-                ui.new_child(egui::UiBuilder::new().id_salt("sidebar-project").max_rect(
-                    egui::Rect::from_min_max(
-                        egui::pos2(bounds.left() + theme::space::L, footer_top),
-                        egui::pos2(bounds.right() - theme::space::S, footer_top + STATUS_HEIGHT),
-                    ),
-                ));
-            project.set_opacity(openness);
-            project.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
-            self.file_controls(&mut project, p);
-        }
+        let footer_top = if openness > 0.0 {
+            sidebar_status(ui, bounds, status_bottom, openness, |ui| {
+                self.file_controls(ui, p);
+            })
+        } else {
+            controls.min_rect().top()
+        };
+        let navigation_rect = egui::Rect::from_min_max(
+            bounds.min + egui::vec2(0.0, 64.0),
+            egui::pos2(
+                bounds.right(),
+                (footer_top - theme::space::S).max(bounds.top() + 64.0),
+            ),
+        );
+        let mut navigation = ui.new_child(
+            egui::UiBuilder::new()
+                .id_salt("sidebar-navigation")
+                .max_rect(navigation_rect),
+        );
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(&mut navigation, |ui| self.navigation(ui, p, openness > 0.0));
         toggle
     }
 
@@ -346,6 +380,9 @@ impl PlassiApp {
                 )
             });
             if item.on_hover_text(label).clicked() {
+                if self.page != page {
+                    self.flush_pending_details();
+                }
                 self.page = page;
             }
         }
@@ -395,6 +432,8 @@ impl PlassiApp {
     fn sync_text(&self) -> &'static str {
         if self.file.external_invalid {
             tr("Invalid file · last saved version shown")
+        } else if self.printing.details_dirty || self.people.details_dirty {
+            tr("Unsaved changes")
         } else if cfg!(target_arch = "wasm32") {
             tr("Saved in this browser")
         } else {
@@ -404,7 +443,10 @@ impl PlassiApp {
 
     fn sync_dot(&self, ui: &mut egui::Ui, p: Palette) -> egui::Response {
         let (rect, response) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
-        let color = if self.file.external_invalid {
+        let color = if self.file.external_invalid
+            || self.printing.details_dirty
+            || self.people.details_dirty
+        {
             p.warn
         } else {
             p.good

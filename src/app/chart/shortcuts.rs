@@ -8,7 +8,9 @@ impl PlassiApp {
     /// their seats, G groups the picked people, C changes what the cards are
     /// coloured by.
     pub(super) fn chart_shortcuts(&mut self, ui: &egui::Ui) {
-        if ui.ctx().memory(|m| m.focused().is_some()) {
+        if self.chart.text_input_frame == Some(ui.ctx().cumulative_frame_nr())
+            || ui.ctx().memory(|m| m.focused().is_some())
+        {
             return;
         }
         let key = |k| ui.input(|i| i.key_pressed(k) && i.modifiers.is_none());

@@ -28,7 +28,7 @@ pub(super) fn outcome_row(
         theme::hint(ui, p, detail);
         if penalty > 0 {
             ui.label(
-                RichText::new(format!("−{penalty}"))
+                RichText::new(format!("+{penalty}"))
                     .size(theme::text::SMALL)
                     .color(color),
             );
@@ -186,7 +186,12 @@ fn legend(ui: &mut egui::Ui, p: Palette) {
     theme::section_title(ui, p, tr("Keys"));
     theme::text_rows(ui, |ui| {
         for (keys, action) in crate::app::help::HelpPage::Chart.shortcuts() {
-            theme::key_hint(ui, p, keys, tr(action));
+            theme::key_hint(
+                ui,
+                p,
+                &crate::app::help::shortcut_keys(ui.ctx(), keys),
+                tr(action),
+            );
         }
     });
 }

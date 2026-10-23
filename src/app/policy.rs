@@ -16,7 +16,7 @@ impl PlassiApp {
             p,
             crate::app::help::HelpPage::Policy,
             tr("Seating policy"),
-            Some(tr("Rules for the whole event.")),
+            None,
         );
         let before = self.project.policy.clone();
         let policy = &mut self.project.policy;
@@ -29,12 +29,12 @@ impl PlassiApp {
                 (
                     OrganizationMixing::SameOrganization,
                     tr("Same organization"),
-                    tr("People without wishes sit with their own organization."),
+                    tr("Prefer seating people without wishes with their own organization."),
                 ),
                 (
                     OrganizationMixing::Mixed,
                     tr("Mix organizations"),
-                    tr("People without wishes sit with other organizations."),
+                    tr("Prefer seating people without wishes with other organizations."),
                 ),
                 (
                     OrganizationMixing::Indifferent,
@@ -52,12 +52,12 @@ impl PlassiApp {
                 (
                     WithoutWishes::AmongGroups,
                     tr("Among wish groups"),
-                    tr("They are spread between the people with wishes."),
+                    tr("Prefer spreading them among people with wishes."),
                 ),
                 (
                     WithoutWishes::ApartFromGroups,
                     tr("Apart from wish groups"),
-                    tr("They sit together, away from the wish groups."),
+                    tr("Prefer seating them together, away from wish groups."),
                 ),
                 (
                     WithoutWishes::Indifferent,
@@ -74,13 +74,13 @@ impl PlassiApp {
             &[
                 (
                     SittingAlone::Never,
-                    tr("Never"),
-                    tr("Everyone has someone beside or opposite."),
+                    tr("Strongly avoid"),
+                    tr("Give high priority to having someone beside or opposite each person."),
                 ),
                 (
                     SittingAlone::Avoid,
                     tr("Avoid"),
-                    tr("Only wishes can leave someone without a neighbour."),
+                    tr("Prefer having someone beside or opposite each person."),
                 ),
                 (
                     SittingAlone::Indifferent,
@@ -98,12 +98,14 @@ impl PlassiApp {
                 (
                     OneWish::Important,
                     tr("Important"),
-                    tr("Everyone gets one of their wishes close, even at a cost to others."),
+                    tr(
+                        "Give high priority to one nearby wish per person, even at a cost to others.",
+                    ),
                 ),
                 (
                     OneWish::Preferred,
                     tr("Preferred"),
-                    tr("Everyone gets one of their wishes close where it costs little."),
+                    tr("Prefer one nearby wish per person when it costs little elsewhere."),
                 ),
                 (
                     OneWish::Indifferent,
@@ -120,8 +122,8 @@ impl PlassiApp {
             &[
                 (
                     TableEnds::GroupsOnly,
-                    tr("Groups only"),
-                    tr("People without wishes stay off the ends."),
+                    tr("Prefer groups"),
+                    tr("Prefer keeping people without wishes away from table ends."),
                 ),
                 (
                     TableEnds::Indifferent,
@@ -139,7 +141,7 @@ impl PlassiApp {
                 (
                     EmptySeatPlacement::TableBottoms,
                     tr("At table bottoms"),
-                    tr("In opposite pairs at the bottom of tables."),
+                    tr("Prefer opposite pairs at the bottom of tables."),
                 ),
                 (
                     EmptySeatPlacement::Anywhere,

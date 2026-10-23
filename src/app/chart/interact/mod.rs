@@ -180,14 +180,8 @@ impl PlassiApp {
         hovered: bool,
         needle: &crate::app::search::Needle,
     ) -> CardLook {
-        let search_miss = !needle.is_empty()
-            && !person.is_some_and(|id| match self.card_metadata(id) {
-                Some(a) => needle.matches_lowercase(&a.search_name),
-                None => self
-                    .project
-                    .person(id)
-                    .is_some_and(|a| needle.matches(&a.name)),
-            });
+        let search_miss =
+            !needle.is_empty() && !person.is_some_and(|id| self.chart_search_matches(id, needle));
         let dragged = person.is_some_and(|id| {
             self.chart
                 .drag

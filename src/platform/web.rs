@@ -51,15 +51,18 @@ impl Store {
     }
 }
 
-/// Why the browser refused to store something, in words the user can act on.
-fn refusal(error: &wasm_bindgen::JsValue) -> &'static str {
-    let name = js_sys::Reflect::get(error, &"name".into())
+fn quota_exceeded(error: &wasm_bindgen::JsValue) -> bool {
+    js_sys::Reflect::get(error, &"name".into())
         .ok()
         .and_then(|n| n.as_string())
-        .unwrap_or_default();
-    if name.contains("Quota") {
+        .is_some_and(|name| name == "QuotaExceededError")
+}
+
+/// Why the browser refused to store something, in words the user can act on.
+fn refusal(error: &wasm_bindgen::JsValue) -> &'static str {
+    if quota_exceeded(error) {
         crate::i18n::tr(
-            "Browser storage full. Download a backup, then delete old projects or backups.",
+            "Storage full. Download each project, then clear this site's data in browser settings.",
         )
     } else {
         crate::i18n::tr("The browser blocked saving")
@@ -203,7 +206,7 @@ impl SearchRunner {
         }
     }
 
-    pub fn poll(&mut self) -> Option<Result<Outcome, String>> {
+    pub fn poll(&mut self) -> Option<Result<Outcome, super::SearchError>> {
         if let Some(worker) = &self.worker {
             if let Some(progress) = worker.progress() {
                 self.worker_progress = serde_json::from_str(&progress).unwrap_or(None);
@@ -224,11 +227,14 @@ impl SearchRunner {
             let data = field("data").unwrap_or_default();
             if kind.as_deref() == Some("done") {
                 self.worker = None;
-                return Some(serde_json::from_str(&data).map_err(|e| e.to_string()));
+                return Some(
+                    serde_json::from_str(&data)
+                        .map_err(|error| super::SearchError::Interrupted(error.to_string())),
+                );
             }
             if self.request.is_none() {
                 self.worker = None;
-                return Some(Err(data));
+                return Some(Err(super::SearchError::Interrupted(data)));
             }
             // Worker loading failed before search initialization. The owned
             // request remains available for the supported cooperative fallback.
@@ -237,7 +243,9 @@ impl SearchRunner {
         if let Some(request) = self.request.take() {
             match request.build_with_progress(self.progress.clone()) {
                 Ok(search) => self.search = Some(search),
-                Err(error) => return Some(Err(format!("{error:#}"))),
+                Err(error) => {
+                    return Some(Err(super::SearchError::Invalid(format!("{error:#}"))));
+                }
             }
         }
         let search = self.search.as_mut()?;
@@ -523,19 +531,45 @@ impl Library {
     }
 
     /// Keeps `bytes` as an earlier version of `name`, and drops old ones. If
-    /// storage is full, the oldest backups of any project make room; if that
-    /// is not enough, no backup is taken.
+    /// storage is full, the oldest backups of any project make room. If that
+    /// is not enough, restore those copies before reporting the failure.
     pub fn backup(&self, name: &str, bytes: &[u8]) -> Result<()> {
         let storage = local_storage().ok_or_else(|| anyhow!(tr("Browser storage unavailable")))?;
         let text = std::str::from_utf8(bytes)?;
         let now = super::now_stamp().max(self.backups(name).first().map_or(0, |s| s + 1));
         let mut oldest = all_backups();
         oldest.sort_by_key(|(_, stamp)| std::cmp::Reverse(*stamp));
-        while storage.set_item(&backup_key(name, now), text).is_err() {
-            let (old_name, old) = oldest
-                .pop()
-                .ok_or_else(|| anyhow!(tr("No space for a backup")))?;
-            let _ = storage.remove_item(&backup_key(&old_name, old));
+        let mut removed = Vec::<(String, String)>::new();
+        let restore = |removed: &[(String, String)]| {
+            for (key, body) in removed {
+                let _ = storage.set_item(key, body);
+            }
+        };
+        while let Err(error) = storage.set_item(&backup_key(name, now), text) {
+            // Removing old copies cannot fix denied writes, and the same
+            // restriction could prevent restoring them afterwards.
+            if !quota_exceeded(&error) {
+                restore(&removed);
+                return Err(anyhow!(refusal(&error)));
+            }
+            let Some((old_name, old)) = oldest.pop() else {
+                restore(&removed);
+                return Err(anyhow!(tr("No space for a backup")));
+            };
+            let key = backup_key(&old_name, old);
+            let body = match storage.get_item(&key) {
+                Ok(Some(body)) => body,
+                Ok(None) => continue,
+                Err(_) => {
+                    restore(&removed);
+                    return Err(anyhow!(tr("No space for a backup")));
+                }
+            };
+            if storage.remove_item(&key).is_err() {
+                restore(&removed);
+                return Err(anyhow!(tr("No space for a backup")));
+            }
+            removed.push((key, body));
         }
         for old in super::backup_plan::to_prune(&self.backups(name), now, KEEP) {
             let _ = storage.remove_item(&backup_key(name, old));
