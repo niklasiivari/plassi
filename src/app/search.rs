@@ -15,4 +15,8 @@ impl Needle {
     pub(in crate::app) fn matches(&self, text: &str) -> bool {
         self.0.is_empty() || text.to_lowercase().contains(&self.0)
     }
+
+    pub(in crate::app) fn matches_lowercase(&self, text: &str) -> bool {
+        self.0.is_empty() || text.contains(&self.0)
+    }
 }

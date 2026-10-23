@@ -21,4 +21,5 @@ mod menus;
 
 mod review;
 
+mod performance;
 mod planning_tools;

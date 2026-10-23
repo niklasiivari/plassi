@@ -118,9 +118,16 @@ impl ForceLayout {
 
     fn repel(&mut self, alpha: f32) {
         let n = self.positions.len();
+        let guard = REPULSION_RANGE.next_up() * REPULSION_RANGE.next_up();
         for i in 0..n {
             for j in (i + 1)..n {
                 let delta = self.positions[i] - self.positions[j];
+                // Leave a rounding margin: sqrt can round a value just above
+                // range² down to the range. The original cutoff still decides
+                // every nearby pair and the force arithmetic stays unchanged.
+                if delta.length_sq() > guard {
+                    continue;
+                }
                 let distance = delta.length().max(1.0);
                 if distance > REPULSION_RANGE {
                     continue;
@@ -146,6 +153,52 @@ impl ForceLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn reference_repel(layout: &mut ForceLayout, alpha: f32) {
+        for i in 0..layout.positions.len() {
+            for j in i + 1..layout.positions.len() {
+                let delta = layout.positions[i] - layout.positions[j];
+                let distance = delta.length().max(1.0);
+                if distance > REPULSION_RANGE {
+                    continue;
+                }
+                let push = delta / distance * (REPULSION / distance) * alpha;
+                layout.velocities[i] += push;
+                layout.velocities[j] -= push;
+            }
+        }
+    }
+
+    #[test]
+    fn squared_prefilter_preserves_cutoff_rounding_and_trajectories() {
+        let cutoff = (REPULSION_RANGE * REPULSION_RANGE).to_bits();
+        let guard = REPULSION_RANGE.next_up() * REPULSION_RANGE.next_up();
+        for bits in cutoff - 1000..=cutoff + 1000 {
+            let squared = f32::from_bits(bits);
+            let accepted = squared.sqrt().max(1.0) <= REPULSION_RANGE;
+            assert_eq!(accepted, squared <= guard && accepted);
+        }
+        for count in [2, 31, 128] {
+            let mut expected = ForceLayout::new(count);
+            let mut actual = ForceLayout::new(count);
+            actual.links = (0..count - 1).map(|i| (i, i + 1, 1.0)).collect();
+            expected.links = actual.links.clone();
+            for _ in 0..120 {
+                let alpha = expected.alpha;
+                reference_repel(&mut expected, alpha);
+                expected.pull_links(alpha);
+                for i in 0..count {
+                    expected.velocities[i] -= expected.positions[i] * CENTRE_PULL * alpha;
+                    expected.velocities[i] *= VELOCITY_KEEP;
+                    expected.positions[i] += expected.velocities[i];
+                }
+                expected.alpha -= expected.alpha * ALPHA_DECAY;
+                actual.step();
+                assert_eq!(actual.positions, expected.positions);
+                assert_eq!(actual.velocities, expected.velocities);
+            }
+        }
+    }
 
     #[test]
     fn linked_nodes_end_up_closer_than_unlinked_ones() {

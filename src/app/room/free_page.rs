@@ -23,6 +23,9 @@ impl PlassiApp {
                 theme::space::M as i8,
             )))
             .show(ui, |ui| edit.merge(self.layout_controls(ui)));
+        if edit.geometry || edit.labels {
+            self.room.problem.clear();
+        }
         // Narrow screens keep the settings under the canvas.
         let panel = if ui.available_width() < theme::SPLIT_MIN {
             egui::Panel::bottom("room-inspector").default_size(320.0)
@@ -46,6 +49,12 @@ impl PlassiApp {
             .frame(egui::Frame::new().fill(p.canvas))
             .show(ui, |ui| {
                 let rect = ui.max_rect();
+                // Toolbar/inspector edits have not been committed yet, so the
+                // project revision still describes the previous room.
+                if edit.geometry || edit.labels {
+                    self.room.canvas.geometry = None;
+                    self.room.problem.clear();
+                }
                 edit.merge(self.layout_canvas(ui, p));
                 theme::panel_edge_shadows(ui, p, rect);
             });

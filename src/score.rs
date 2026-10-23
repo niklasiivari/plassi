@@ -109,16 +109,23 @@ pub fn evaluate_with(
     assignment: &BTreeMap<usize, String>,
 ) -> Evaluation {
     let breakdown = scorer.breakdown(assignment);
+    let index = BreakdownIndex::new(&breakdown);
     let mut results: Vec<RuleResult> = project
         .rules
         .iter()
         .filter(|r| r.enabled)
-        .filter_map(|rule| rule_result(project, rule, &breakdown, assignment))
+        .filter_map(|rule| rule_result(project, rule, &breakdown, &index, assignment))
         .collect();
     results.sort_by_key(|r| (!r.hard_violation, -r.penalty));
     let preferences: Vec<PreferenceResult> = project
         .active_preferences()
-        .map(|p| preference_result(p, &breakdown))
+        .map(|p| {
+            preference_result(
+                p,
+                &breakdown,
+                index.preferences.get(&p.id).map_or(&[], Vec::as_slice),
+            )
+        })
         .collect();
     Evaluation {
         wish_penalty: results.iter().map(|r| r.penalty).sum(),
@@ -135,16 +142,57 @@ pub fn evaluate_with(
     }
 }
 
+/// Positions are stable for this breakdown; build these once instead of
+/// scanning every scored term for every rule and preference.
+struct BreakdownIndex {
+    rules: HashMap<u64, usize>,
+    placements: HashMap<u64, usize>,
+    ends: HashMap<u64, usize>,
+    preferences: HashMap<u64, Vec<usize>>,
+}
+
+impl BreakdownIndex {
+    fn new(breakdown: &Breakdown) -> Self {
+        let mut index = Self {
+            rules: HashMap::new(),
+            placements: HashMap::new(),
+            ends: HashMap::new(),
+            preferences: HashMap::new(),
+        };
+        for (position, term) in breakdown.terms.iter().enumerate() {
+            match term.source {
+                Source::Rule(id) => {
+                    index.rules.entry(id).or_insert(position);
+                }
+                Source::Preference(id) => {
+                    index.preferences.entry(id).or_default().push(position);
+                }
+            }
+        }
+        for (position, placement) in breakdown.placements.iter().enumerate() {
+            index
+                .placements
+                .entry(placement.rule_id)
+                .or_insert(position);
+        }
+        for (position, end) in breakdown.ends.iter().enumerate() {
+            index.ends.entry(end.rule_id).or_insert(position);
+        }
+        index
+    }
+}
+
 fn rule_result(
     project: &Project,
     rule: &Rule,
     breakdown: &Breakdown,
+    index: &BreakdownIndex,
     assignment: &BTreeMap<usize, String>,
 ) -> Option<RuleResult> {
     let mut waiting = false;
     let (penalty, hard_violation, met, detail) = match &rule.kind {
         RuleKind::Placement { area, must_be, .. } => {
-            let r = breakdown.placements.iter().find(|r| r.rule_id == rule.id)?;
+            let r = &breakdown.placements[*index.placements.get(&rule.id)?];
             let detail = match (r.seated, r.penalty == 0 && !r.hard_violation) {
                 (false, _) => tr("not seated").into(),
                 (true, true) => tr("placement met").into(),
@@ -156,10 +204,7 @@ fn rule_result(
         RuleKind::Proximity {
             requester, target, ..
         } => {
-            let t = breakdown
-                .terms
-                .iter()
-                .find(|t| t.source == Source::Rule(rule.id))?;
+            let t = &breakdown.terms[*index.rules.get(&rule.id)?];
             waiting = t.seated_targets < t.required
                 && project
                     .target_ids(*requester, target)
@@ -176,7 +221,7 @@ fn rule_result(
             )
         }
         RuleKind::AvoidTableEnd { .. } => {
-            let r = breakdown.ends.iter().find(|r| r.rule_id == rule.id)?;
+            let r = &breakdown.ends[*index.ends.get(&rule.id)?];
             let detail = match r.level {
                 None => tr("not seated"),
                 Some(2) => tr("at a table end"),
@@ -221,18 +266,18 @@ fn proximity_detail(
 }
 
 /// Sums a preference's terms and says how it fares.
-fn preference_result(preference: &Preference, breakdown: &Breakdown) -> PreferenceResult {
-    let pairs: Vec<&TermResult> = breakdown
-        .terms
-        .iter()
-        .filter(|t| t.source == Source::Preference(preference.id))
-        .collect();
+fn preference_result(
+    preference: &Preference,
+    breakdown: &Breakdown,
+    terms: &[usize],
+) -> PreferenceResult {
+    let pairs = terms.iter().map(|&term| &breakdown.terms[term]);
     let missed = pairs
-        .iter()
+        .clone()
         .filter(|t| t.penalty > 0 || t.hard_violation)
         .count();
-    let penalty = pairs.iter().map(|t| t.penalty).sum();
-    let detail = match (&preference.kind, pairs.first()) {
+    let penalty = pairs.clone().map(|t| t.penalty).sum();
+    let detail = match (&preference.kind, pairs.clone().next()) {
         (PreferenceKind::Together { .. }, Some(t)) if t.pieces > 1 => {
             fill("split into {} parts", &[&t.pieces])
         }
@@ -247,19 +292,30 @@ fn preference_result(preference: &Preference, breakdown: &Breakdown) -> Preferen
     PreferenceResult {
         id: preference.id,
         penalty,
-        hard_violation: pairs.iter().any(|t| t.hard_violation),
+        hard_violation: pairs.clone().any(|t| t.hard_violation),
         detail,
     }
 }
 
 /// Unknown seats and doubly assigned seats.
-fn assignment_errors(project: &Project, assignment: &BTreeMap<usize, String>) -> Vec<String> {
-    let seats: HashSet<String> = project.layout.seats().into_iter().map(|s| s.id).collect();
+pub(crate) fn assignment_errors(
+    project: &Project,
+    assignment: &BTreeMap<usize, String>,
+) -> Vec<String> {
+    assignment_errors_for_seats(project, assignment, &project.layout.seats())
+}
+
+pub(crate) fn assignment_errors_for_seats(
+    project: &Project,
+    assignment: &BTreeMap<usize, String>,
+    seats: &[crate::model::Seat],
+) -> Vec<String> {
+    let seats: HashSet<&str> = seats.iter().map(|seat| seat.id.as_str()).collect();
     let mut used = HashMap::new();
     let mut errors = Vec::new();
     for p in &project.attendees {
         match assignment.get(&p.id) {
-            Some(id) if !seats.contains(id) => {
+            Some(id) if !seats.contains(id.as_str()) => {
                 errors.push(format!("{} has unknown seat {id}", p.name))
             }
             Some(id) if used.insert(id, p.id).is_some() => {

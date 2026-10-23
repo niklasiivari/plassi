@@ -119,10 +119,7 @@ impl PlassiApp {
             selected,
             labels: state.labels,
             clip: rect,
-            sides: state
-                .zones
-                .as_ref()
-                .map(|z| z.seat_of.iter().map(|s| s.map(|(_, side)| side)).collect()),
+            sides: state.zones.as_ref().map(|z| z.seat_of.as_slice()),
         };
         paint_nodes(&painter, &view, p, &self.project, graph, layout, focus);
         if camera.is_touch_navigation() {
@@ -284,14 +281,14 @@ fn drag_nodes(
 }
 
 /// What to emphasise when drawing nodes.
-struct NodeFocus {
+struct NodeFocus<'a> {
     spotlight: Spotlight,
     selected: Option<usize>,
     labels: bool,
     clip: Rect,
     /// Seat side per node when arranging by table; names go on the outer side.
     /// Per node, the direction away from its table, when arranged by table.
-    sides: Option<Vec<Option<f32>>>,
+    sides: Option<&'a [Option<(Vec2, f32)>]>,
 }
 
 /// Dots coloured by organization; hovering fades everyone not linked to the hovered person.
@@ -302,22 +299,20 @@ fn paint_nodes(
     project: &Project,
     graph: &Graph,
     layout: &ForceLayout,
-    focus: NodeFocus,
+    focus: NodeFocus<'_>,
 ) {
     let linked = |i: usize| {
         focus.spotlight.node.is_none_or(|h| {
             h == i
                 || graph
-                    .edges
-                    .iter()
-                    .any(|e| (e.from == h && e.to == i) || (e.to == h && e.from == i))
+                    .neighbours
+                    .get(h)
+                    .is_some_and(|neighbours| neighbours.contains(&i))
         })
     };
     let dark = p.is_dark();
-    for (i, &person) in graph.people.iter().enumerate() {
-        let Some(attendee) = project.person(person) else {
-            continue;
-        };
+    for (i, &attendee_index) in graph.attendee_indexes.iter().enumerate() {
+        let attendee = &project.attendees[attendee_index];
         let centre = view.point(layout.positions[i].to_pos2());
         if !focus.clip.expand(60.0).contains(centre) {
             continue;
@@ -328,11 +323,7 @@ fn paint_nodes(
         painter.circle_filled(
             centre,
             radius,
-            theme::avatar_color(
-                &project.category_key(crate::catalog::Kind::Organization, attendee),
-                dark,
-            )
-            .gamma_multiply(alpha),
+            theme::avatar_color(&graph.color_keys[i], dark).gamma_multiply(alpha),
         );
         let ring = if selected {
             Stroke::new(2.5, p.accent)
@@ -349,7 +340,7 @@ fn paint_nodes(
             } else {
                 p.text.gamma_multiply(0.85 * alpha)
             };
-            let out = focus.sides.as_ref().and_then(|s| s[i]);
+            let out = focus.sides.and_then(|s| s[i].map(|(_, side)| side));
             let (at, align) = name_place(centre, radius, out);
             label(painter, p, at, align, &attendee.name, size, color);
         }

@@ -264,6 +264,8 @@ fn free_tables_turn_become_round_and_warn_when_their_cards_overlap() {
     };
     let id = ui.app().project.layout.rows[0].tables[1].id.clone();
     ui.app_mut().project.layout.table_positions.insert(id, next);
+    // Fixture edits use the same commit boundary that advances view caches.
+    ui.app_mut().commit("Moved table");
     ui.settle();
     assert!(ui.has_text("Name cards overlap"));
 

@@ -123,12 +123,13 @@ impl PlassiApp {
                 _ => (*person, spot.clone()),
             })
             .collect();
+        let scorer = self.scorer();
         let (project, candidate) = (&self.project, self.selected_candidate);
         let preview = self
             .chart
             .drop_preview
             .get((self.file.revision, candidate, key), || {
-                preview(project, candidate, targets)
+                preview(&scorer, project, candidate, targets)
             });
         if let Some(preview) = preview {
             let pinned = preview.pinned_to.map(|id| self.project.person_name(id));

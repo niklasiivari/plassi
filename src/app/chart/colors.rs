@@ -20,6 +20,7 @@ pub(super) struct Coloring {
     pub(super) entries: Vec<ColorEntry>,
     /// People with nothing written for this kind.
     pub(super) blank: usize,
+    ranks: HashMap<String, usize>,
 }
 
 impl Coloring {
@@ -27,6 +28,11 @@ impl Coloring {
         let (entries, blank) = count_categories(project, kind, &project.attendees);
         Self {
             kind,
+            ranks: entries
+                .iter()
+                .enumerate()
+                .map(|(i, entry)| (entry.key.clone(), i))
+                .collect(),
             entries,
             blank,
         }
@@ -38,7 +44,7 @@ impl Coloring {
     pub(super) fn tint(&self, keys: &[String], hovered: Option<&str>, p: Palette) -> Color32 {
         let shown = hovered.filter(|h| keys.iter().any(|k| k == h)).or_else(|| {
             keys.iter()
-                .min_by_key(|k| self.entries.iter().position(|e| e.key == **k))
+                .min_by_key(|k| self.ranks.get(k.as_str()).copied())
                 .map(String::as_str)
         });
         shown.and_then(|key| self.color(key, p)).unwrap_or(p.border)
@@ -49,7 +55,7 @@ impl Coloring {
         if key.is_empty() {
             return None;
         }
-        let index = self.entries.iter().position(|e| e.key == key)?;
+        let index = *self.ranks.get(key)?;
         Some(theme::category_color(index, p.is_dark()).unwrap_or(p.muted))
     }
 
@@ -116,10 +122,15 @@ impl PlassiApp {
         let (Some(hovered), Some(coloring)) = (&self.chart.color_hover, self.coloring()) else {
             return false;
         };
-        let Some(attendee) = self.project.person(person) else {
+        let fallback;
+        let keys = if let Some(metadata) = self.card_metadata(person) {
+            &metadata.categories[coloring.kind as usize].keys
+        } else if let Some(attendee) = self.project.person(person) {
+            fallback = self.project.category_keys(coloring.kind, attendee);
+            &fallback
+        } else {
             return false;
         };
-        let keys = self.project.category_keys(coloring.kind, attendee);
         if hovered.is_empty() {
             !keys.is_empty()
         } else {
@@ -257,6 +268,39 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].count, 2);
         assert_eq!(blank, 1);
+    }
+
+    #[test]
+    fn cached_card_text_and_memberships_match_the_catalog() {
+        let mut project = people_in(&["ABC/XYZ", "abc ", "", " - ", " ÄÄ "]);
+        for kind in Kind::ALL {
+            let abc = project.catalog.create(kind, "ABC");
+            let xyz = project.catalog.create(kind, "XYZ");
+            project.catalog.assign(kind, "ABC/XYZ", abc);
+            project.catalog.assign(kind, "ABC/XYZ", xyz);
+            project.catalog.assign(kind, " ÄÄ ", abc);
+        }
+        for person in &mut project.attendees {
+            person.participant_group = person.organization.clone();
+            person.food = person.organization.clone();
+            person.drink = person.organization.clone();
+        }
+        let presentation = Presentation::new(&project);
+        for (index, attendee) in project.attendees.iter().enumerate() {
+            let row = &presentation.people[&attendee.id];
+            assert_eq!(row.attendee, index);
+            assert_eq!(row.search_name, attendee.name.to_lowercase());
+            for kind in Kind::ALL {
+                assert_eq!(
+                    row.categories[kind as usize].name,
+                    project.category_name(kind, attendee)
+                );
+                assert_eq!(
+                    row.categories[kind as usize].keys,
+                    project.category_keys(kind, attendee)
+                );
+            }
+        }
     }
 
     #[test]

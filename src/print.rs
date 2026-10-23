@@ -441,6 +441,7 @@ pub fn file_name(project: &Project, project_name: &str, kind: PrintKind) -> Stri
 }
 
 /// Bundle PDFs into a single download without recompressing their streams.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn pdf_archive(files: &[(String, &[u8])]) -> Result<Vec<u8>> {
     use std::io::{Cursor, Write};
     let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));

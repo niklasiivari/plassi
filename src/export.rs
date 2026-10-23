@@ -1,7 +1,7 @@
 //! Excel handover for the selected seating: every seat and every guest, plus
 //! catering counts. Guest values are always written as text, never formulas.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use anyhow::{Result, anyhow, ensure};
 use rust_xlsxwriter::{Format, Workbook, Worksheet};
@@ -30,18 +30,18 @@ pub fn workbook(project: &Project, candidate: usize) -> Result<Vec<u8>> {
         .candidates
         .get(candidate)
         .ok_or_else(|| anyhow!("no seating option to export"))?;
-    let evaluation = crate::score::evaluate(project, &option.assignment);
+    let people: HashSet<_> = project.attendees.iter().map(|person| person.id).collect();
     ensure!(
-        option
-            .assignment
-            .keys()
-            .all(|id| project.person(*id).is_some()),
+        option.assignment.keys().all(|id| people.contains(id)),
         "seating contains an unknown guest"
     );
+    let seats = project.layout.seats();
+    let assignment_errors =
+        crate::score::assignment_errors_for_seats(project, &option.assignment, &seats);
     ensure!(
-        evaluation.assignment_errors.is_empty(),
+        assignment_errors.is_empty(),
         "{}",
-        evaluation.assignment_errors.join("; ")
+        assignment_errors.join("; ")
     );
     let labels = Labels(project.event.print_language.code() == "fi");
     let t = |en, fi| labels.text(en, fi);
@@ -88,7 +88,7 @@ pub fn workbook(project: &Project, candidate: usize) -> Result<Vec<u8>> {
             t("Guests", "Vieraat"),
             project.attendees.len(),
             t("Not seated", "Ilman paikkaa"),
-            evaluation.unseated.len(),
+            project.unseated_in(&option.assignment).len(),
             t("Empty seats", "Tyhjät paikat"),
             project
                 .layout
@@ -104,7 +104,6 @@ pub fn workbook(project: &Project, candidate: usize) -> Result<Vec<u8>> {
         .iter()
         .filter_map(|a| option.assignment.get(&a.id).map(|s| (s.as_str(), a)))
         .collect();
-    let seats = project.layout.seats();
     let mut row = 5;
     let mut groups: Vec<(String, Vec<&Attendee>)> = Vec::new();
     for room_row in &project.layout.rows {

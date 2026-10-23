@@ -1,5 +1,5 @@
-//! Solves and improvements in the background (threads on the desktop, short
-//! slices between frames in the browser), delivered back as new options.
+//! Solves and improvements on background threads or browser workers,
+//! delivered back as new options.
 
 use super::*;
 use crate::i18n::{fill, tr};
@@ -11,6 +11,8 @@ pub(super) struct SolveJob {
     /// Project revision it started from; a changed project discards the result.
     revision: u64,
     pub(super) started: Instant,
+    /// Initialization finished; the budget starts with search work.
+    pub(super) ready: bool,
     pub(super) budget: Duration,
     kind: JobKind,
 }
@@ -42,13 +44,10 @@ impl PlassiApp {
         } else {
             0
         };
-        match seating::solve_search(&self.project, prior, min_changed, self.solve_time) {
-            Ok(search) => {
-                self.start_job(search, self.solve_time, JobKind::New);
-                self.status = tr("Solving…").into();
-            }
-            Err(error) => self.status = fill("Cannot solve: {}", &[&format!("{error:#}")]),
-        }
+        let mut request = platform::SearchRequest::new(&self.project, self.solve_time);
+        request.differ_from = prior.map(|c| (c.assignment.clone(), min_changed));
+        self.start_job(request, self.solve_time, JobKind::New);
+        self.status = tr("Solving…").into();
     }
 
     /// How many people Improve and "Seat the rest" keep where they are in the
@@ -78,18 +77,11 @@ impl PlassiApp {
             from: current.name.clone(),
             hand_placed: current.hand_placed.clone(),
         };
-        match seating::improve_search(
-            &self.project,
-            &current.assignment,
-            &fixed,
-            self.improve_time,
-        ) {
-            Ok(search) => {
-                self.start_job(search, self.improve_time, kind);
-                self.status = tr("Improving…").into();
-            }
-            Err(error) => self.status = fill("Cannot improve: {}", &[&format!("{error:#}")]),
-        }
+        let mut request = platform::SearchRequest::new(&self.project, self.improve_time);
+        request.start = Some(current.assignment.clone());
+        request.fixed = fixed;
+        self.start_job(request, self.improve_time, kind);
+        self.status = tr("Improving…").into();
     }
 
     /// Searches from the current option for another full solve time, keeping
@@ -106,18 +98,10 @@ impl PlassiApp {
             from: current.name.clone(),
             before: (evaluation.hard_violations, evaluation.penalty()),
         };
-        match seating::improve_search(
-            &self.project,
-            &current.assignment,
-            &Default::default(),
-            self.solve_time,
-        ) {
-            Ok(search) => {
-                self.start_job(search, self.solve_time, kind);
-                self.status = tr("Searching…").into();
-            }
-            Err(error) => self.status = fill("Cannot search: {}", &[&format!("{error:#}")]),
-        }
+        let mut request = platform::SearchRequest::new(&self.project, self.solve_time);
+        request.start = Some(current.assignment.clone());
+        self.start_job(request, self.solve_time, kind);
+        self.status = tr("Searching…").into();
     }
 
     /// Ends the running search early, keeping the best seating found so far.
@@ -127,26 +111,61 @@ impl PlassiApp {
         }
     }
 
-    fn start_job(&mut self, search: seating::Search, budget: Duration, kind: JobKind) {
+    /// Edits make a job obsolete immediately, rather than after its budget.
+    pub(super) fn cancel_stale_search(&mut self) {
+        if self
+            .solving
+            .as_ref()
+            .is_some_and(|job| job.revision != self.file.revision)
+            && let Some(job) = self.solving.take()
+        {
+            job.runner.stop();
+        }
+    }
+
+    fn start_job(&mut self, request: platform::SearchRequest, budget: Duration, kind: JobKind) {
         self.solving = Some(SolveJob {
-            runner: platform::SearchRunner::start(search),
+            runner: platform::SearchRunner::start(request),
             revision: self.file.revision,
             started: Instant::now(),
+            ready: false,
             budget,
             kind,
         });
     }
 
     pub(super) fn poll_solver(&mut self) {
-        let Some(outcome) = self.solving.as_mut().and_then(|job| job.runner.poll()) else {
-            return;
-        };
-        let job = self.solving.take().expect("job just polled");
-        if job.revision != self.file.revision {
+        if self
+            .solving
+            .as_ref()
+            .is_some_and(|job| job.revision != self.file.revision)
+        {
+            if let Some(job) = self.solving.take() {
+                job.runner.stop();
+            }
             self.status = tr("Project changed; search result discarded").into();
             return;
         }
-        let elapsed = job.started.elapsed().min(job.budget);
+        let outcome = self.solving.as_mut().and_then(|job| {
+            let outcome = job.runner.poll();
+            if !job.ready && job.runner.progress().is_some() {
+                job.ready = true;
+                job.started = Instant::now();
+            }
+            outcome
+        });
+        let Some(outcome) = outcome else {
+            return;
+        };
+        let job = self.solving.take().expect("job just polled");
+        let outcome = match outcome {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                self.status = fill("Cannot solve: {}", &[&error]);
+                return;
+            }
+        };
+        let elapsed = outcome.elapsed;
         let mut candidate = seating::candidate(&self.project, outcome, elapsed);
         let evaluation = score::evaluate(&self.project, &candidate.assignment);
         match job.kind {

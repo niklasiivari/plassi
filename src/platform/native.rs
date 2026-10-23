@@ -8,23 +8,70 @@ use anyhow::{Context, Result};
 
 use super::{Pdfs, Saved};
 use crate::i18n::fill;
-use crate::seating::{Outcome, Progress, Search};
+use crate::seating::{Outcome, Progress};
+use notify::Watcher;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// The project file.
 #[derive(Clone)]
 pub struct Store {
     path: PathBuf,
+    changes: Arc<FileChanges>,
 }
 
 impl Store {
     pub fn new(location: &str) -> Self {
+        Self::at(PathBuf::from(location))
+    }
+
+    fn at(path: PathBuf) -> Self {
+        let folder = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let folder = std::path::absolute(folder).unwrap_or_else(|_| folder.to_path_buf());
+        let dirty = Arc::new(AtomicBool::new(true));
+        let changed = dirty.clone();
+        let failed = Arc::new(AtomicBool::new(false));
+        let failure = failed.clone();
+        let watched_folder = folder.clone();
+        let mut watcher = notify::recommended_watcher(move |event| {
+            if record_file_event(event, &watched_folder, &changed, &failure) {
+                repaint();
+            }
+        })
+        .ok();
+        if let Some(watch) = &mut watcher
+            && watch
+                .watch(&folder, notify::RecursiveMode::NonRecursive)
+                .is_err()
+        {
+            watcher = None;
+        }
         Self {
-            path: PathBuf::from(location),
+            path,
+            changes: Arc::new(FileChanges {
+                dirty,
+                failed,
+                watcher: Mutex::new(watcher),
+            }),
         }
     }
 
     pub fn location(&self) -> String {
         self.path.display().to_string()
+    }
+
+    /// Native notifications include atomic replacements; unavailable watchers
+    /// retain the existing content polling behavior.
+    pub fn external_change_pending(&self) -> bool {
+        !self.notifications_available() || self.changes.dirty.swap(false, Ordering::Relaxed)
+    }
+
+    pub fn notifications_available(&self) -> bool {
+        !self.changes.failed.load(Ordering::Relaxed)
+            && self.changes.watcher.lock().is_ok_and(|w| w.is_some())
     }
 
     pub fn read(&self) -> Option<Vec<u8>> {
@@ -51,6 +98,68 @@ impl Store {
     }
 }
 
+struct FileChanges {
+    dirty: Arc<AtomicBool>,
+    failed: Arc<AtomicBool>,
+    // Retaining the watcher keeps platform notifications alive across Store clones.
+    watcher: Mutex<Option<notify::RecommendedWatcher>>,
+}
+
+/// Read notifications must not make reading a project schedule another read.
+/// An error or removal of the watched directory switches to content polling.
+fn record_file_event(
+    event: notify::Result<notify::Event>,
+    folder: &Path,
+    dirty: &AtomicBool,
+    failed: &AtomicBool,
+) -> bool {
+    match event {
+        Ok(event) => {
+            if matches!(event.kind, notify::EventKind::Access(_)) {
+                return false;
+            }
+            if matches!(
+                event.kind,
+                notify::EventKind::Remove(_)
+                    | notify::EventKind::Modify(notify::event::ModifyKind::Name(_))
+            ) && event.paths.iter().any(|path| path == folder)
+            {
+                failed.store(true, Ordering::Relaxed);
+            }
+        }
+        Err(_) => failed.store(true, Ordering::Relaxed),
+    }
+    dirty.store(true, Ordering::Relaxed);
+    true
+}
+
+pub fn external_notifications_available() -> bool {
+    true
+}
+
+static REPAINT: OnceLock<Mutex<Option<eframe::egui::Context>>> = OnceLock::new();
+
+pub fn set_repaint(ctx: &eframe::egui::Context) {
+    *REPAINT
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .expect("repaint context") = Some(ctx.clone());
+}
+
+pub fn request_repaint() {
+    repaint();
+}
+
+fn repaint() {
+    if let Some(ctx) = REPAINT
+        .get()
+        .and_then(|slot| slot.lock().ok())
+        .and_then(|ctx| ctx.clone())
+    {
+        ctx.request_repaint();
+    }
+}
+
 /// Work on a background thread.
 struct Task<T>(Receiver<T>);
 
@@ -59,6 +168,7 @@ impl<T: Send + 'static> Task<T> {
         let (sender, receiver) = mpsc::channel();
         std::thread::spawn(move || {
             let _ = sender.send(work());
+            repaint();
         });
         Self(receiver)
     }
@@ -71,32 +181,43 @@ impl<T: Send + 'static> Task<T> {
 
 /// A seating search on its own threads, one per run.
 pub struct SearchRunner {
-    task: Task<Outcome>,
+    task: Task<Result<Outcome, String>>,
     progress: Progress,
 }
 
 impl SearchRunner {
-    pub fn start(mut search: Search) -> Self {
-        let progress = search.progress();
+    pub fn start(request: super::SearchRequest) -> Self {
+        let progress = Progress::default();
+        let shared = progress.clone();
         let task = Task::spawn(move || {
-            search.run_to_end();
-            search.finish()
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut search = request
+                    .build_with_progress(shared)
+                    .map_err(|error| format!("{error:#}"))?;
+                search.run_to_end();
+                Ok(search.finish())
+            }))
+            .unwrap_or_else(|_| Err("solver worker panicked".into()))
         });
         Self { task, progress }
     }
 
-    pub fn poll(&mut self) -> Option<Outcome> {
+    pub fn poll(&mut self) -> Option<Result<Outcome, String>> {
         self.task.poll()
     }
 
-    /// The best (score, broken hard rules) found so far.
     pub fn progress(&self) -> Option<(i64, i64)> {
         self.progress.best()
     }
 
-    /// Ends the search early; `poll` then delivers the best found.
     pub fn stop(&self) {
         self.progress.stop();
+    }
+}
+
+impl Drop for SearchRunner {
+    fn drop(&mut self) {
+        self.stop();
     }
 }
 
@@ -108,6 +229,22 @@ pub fn save_file(store: &Store, name: &str, bytes: &[u8]) -> Result<Saved> {
         description: path.display().to_string(),
         location: Some(path),
     })
+}
+
+pub fn save_pdf(store: &Store, name: &str, bytes: &super::PdfBytes) -> Result<Saved> {
+    save_file(store, name, bytes)
+}
+
+pub fn save_pdf_archive(
+    store: &Store,
+    name: &str,
+    files: &[(String, &super::PdfBytes)],
+) -> Result<Saved> {
+    let files: Vec<_> = files
+        .iter()
+        .map(|(name, bytes)| (name.clone(), bytes.as_slice()))
+        .collect();
+    save_file(store, name, &crate::print::pdf_archive(&files)?)
 }
 
 /// Opens a file or folder with the system's default app.
@@ -226,9 +363,7 @@ impl Library {
     }
 
     pub fn store(&self, name: &str) -> Store {
-        Store {
-            path: self.path(name),
-        }
+        Store::at(self.path(name))
     }
 
     /// Renames the project's folder and file; its prints and backups move along.
@@ -357,6 +492,7 @@ impl FilePick {
                 .pick_file();
             if let Some(path) = picked {
                 let _ = send.send(fs::read(&path).map_err(|error| error.to_string()));
+                repaint();
             }
         });
         Some(Self(receive))
@@ -415,6 +551,35 @@ pub fn utc_offset_minutes(stamp: u64) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn notifications_ignore_reads_and_fall_back_after_errors_or_directory_removal() {
+        use notify::EventKind;
+        use notify::event::{AccessKind, DataChange, ModifyKind, RemoveKind};
+
+        let folder = Path::new("/project");
+        let dirty = AtomicBool::new(false);
+        let failed = AtomicBool::new(false);
+        let read = notify::Event::new(EventKind::Access(AccessKind::Read));
+        assert!(!record_file_event(Ok(read), folder, &dirty, &failed));
+        assert!(!dirty.load(Ordering::Relaxed));
+
+        let change = notify::Event::new(EventKind::Modify(ModifyKind::Data(DataChange::Any)));
+        assert!(record_file_event(Ok(change), folder, &dirty, &failed));
+        assert!(dirty.swap(false, Ordering::Relaxed));
+        assert!(!failed.load(Ordering::Relaxed));
+
+        let error = notify::Error::generic("watch failed");
+        assert!(record_file_event(Err(error), folder, &dirty, &failed));
+        assert!(failed.swap(false, Ordering::Relaxed));
+        assert!(dirty.swap(false, Ordering::Relaxed));
+
+        let remove = notify::Event::new(EventKind::Remove(RemoveKind::Folder))
+            .add_path(folder.to_path_buf());
+        assert!(record_file_event(Ok(remove), folder, &dirty, &failed));
+        assert!(failed.load(Ordering::Relaxed));
+        assert!(dirty.load(Ordering::Relaxed));
+    }
 
     #[test]
     fn backups_survive_delete_and_follow_renames() {

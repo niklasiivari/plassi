@@ -5,6 +5,9 @@ use crate::app::camera::{Camera, Viewport};
 use crate::app::turned::TableTop;
 use crate::model::TablePosition;
 use egui::{Align2, FontId, Pos2, Rect, Sense, Stroke, Vec2};
+use std::collections::BTreeMap;
+
+use super::geometry::{RoomGeometry, TABLE_END};
 
 pub(super) struct LayoutCanvas {
     camera: Camera,
@@ -27,6 +30,8 @@ pub(super) struct LayoutCanvas {
     pub(super) crowded: std::collections::BTreeSet<String>,
     context_at: Option<TablePosition>,
     pub(super) center: Option<TablePosition>,
+    /// Geometry and exact collision results survive pointer and camera frames.
+    pub(super) geometry: Option<(u64, RoomGeometry)>,
 }
 
 impl Default for LayoutCanvas {
@@ -50,6 +55,7 @@ impl Default for LayoutCanvas {
             crowded: Default::default(),
             context_at: None,
             center: None,
+            geometry: None,
         }
     }
 }
@@ -61,9 +67,6 @@ impl LayoutCanvas {
 }
 
 pub(super) const GRID: f32 = crate::model::SEAT_PITCH;
-const CARD_MARGIN: f32 = 190.0;
-/// How far a long table's top reaches past its end seats.
-const TABLE_END: f32 = 28.0;
 
 pub(super) fn snapped(value: f32, snap: bool) -> f32 {
     if snap {
@@ -166,18 +169,26 @@ impl PlassiApp {
             state.group_drag.clear();
         }
         let view = state.camera.viewport(rect);
+        let mut geometry = state
+            .geometry
+            .take()
+            .filter(|(revision, _)| *revision == self.file.revision)
+            .map(|(_, geometry)| geometry)
+            .unwrap_or_else(|| RoomGeometry::new(&self.project.layout));
         // The room as it is drawn: with a dragged or turned table where the
         // pointer has it.
-        let mut layout = self.project.layout.clone();
         let dragged = self
-            .dragged_table(ui, &view)
-            .or_else(|| self.turned_table(ui, &view));
-        if let Some((id, position)) = &dragged {
-            layout.table_positions.insert(id.clone(), *position);
+            .dragged_table(ui, &view, &geometry)
+            .or_else(|| self.turned_table(ui, &view, &geometry));
+        let mut preview = BTreeMap::new();
+        if let Some((id, position)) = &dragged
+            && self.project.layout.free_layout
+        {
+            preview.insert(id.clone(), *position);
             if self.room.canvas.drag.is_some() {
                 let original = self.room.canvas.group_drag.get(id).unwrap_or(position);
                 for (other, at) in &self.room.canvas.group_drag {
-                    layout.table_positions.insert(
+                    preview.insert(
                         other.clone(),
                         TablePosition {
                             x: at.x + position.x - original.x,
@@ -188,23 +199,24 @@ impl PlassiApp {
                 }
             }
         }
-        let frames = layout.table_frames();
-        let tables: Vec<_> = layout
-            .rows
+        geometry.preview(&preview);
+        let tables: Vec<_> = geometry
+            .tables
             .iter()
-            .flat_map(|r| &r.tables)
-            .map(|t| (t, TableTop::new(t, frames[&t.id], TABLE_END)))
+            .map(|table| (&table.spec, table.top))
             .collect();
-        let prints = footprint::footprints(&layout, &tables);
-        let crowded = footprint::crowded(&prints);
         let state = &mut self.room.canvas;
-        let room = layout.room.map(outline::world_rect);
-        let world = tables
-            .iter()
-            .map(|(_, top)| top.bounds().expand2(Vec2::new(CARD_MARGIN, 42.0)))
-            .chain(room)
-            .chain(layout.labels.iter().map(crate::app::room_labels::bounds))
-            .fold(Rect::NOTHING, Rect::union);
+        let room = self.project.layout.room.map(outline::world_rect);
+        let world = room
+            .into_iter()
+            .chain(
+                self.project
+                    .layout
+                    .labels
+                    .iter()
+                    .map(crate::app::room_labels::bounds),
+            )
+            .fold(geometry.bounds, Rect::union);
         if state.fit_pending && world.is_finite() {
             state.camera.fit(rect.shrink(20.0), world, 1.0);
             state.fit_pending = false;
@@ -212,7 +224,9 @@ impl PlassiApp {
         state.camera.animate(ui.ctx());
         let view = state.camera.viewport(rect);
         state.center = Some(at(view.world(rect.center())));
-        state.selected_tables.retain(|id| frames.contains_key(id));
+        state
+            .selected_tables
+            .retain(|id| geometry.by_id.contains_key(id));
         let over_table = background.interact_pointer_pos().is_some_and(|point| {
             tables
                 .iter()
@@ -227,13 +241,17 @@ impl PlassiApp {
         add_menu(&background, &view, &mut state.context_at, &mut add_at);
         let painter = ui.painter_at(rect);
         paint_grid(&painter, &view, rect, room, p);
-        for (id, print) in &prints {
-            let color = if crowded.contains(id) { p.bad } else { p.muted };
-            print.paint(&painter, &view, color);
+        for &index in geometry.by_id.values() {
+            let table = &geometry.tables[index];
+            let color = if geometry.crowded.contains(&table.spec.id) {
+                p.bad
+            } else {
+                p.muted
+            };
+            table.footprint.paint(&painter, &view, color);
         }
         let navigation =
             state.camera.is_touch_navigation() || ui.input(|i| i.multi_touch().is_some());
-        let seats = layout.seats();
         for (table, top) in &tables {
             let response = ui.interact(
                 view.rect(top.bounds()).expand(8.0).intersect(rect),
@@ -279,9 +297,18 @@ impl PlassiApp {
                 state.group_drag = state
                     .selected_tables
                     .iter()
-                    .map(|id| (id.clone(), frames[id]))
+                    .map(|id| {
+                        (
+                            id.clone(),
+                            geometry.table(id).expect("selected table").frame,
+                        )
+                    })
                     .collect();
-                state.drag = Some((table.id.clone(), frames[&table.id], view.world(start)));
+                state.drag = Some((
+                    table.id.clone(),
+                    geometry.table(&table.id).expect("shown table").frame,
+                    view.world(start),
+                ));
                 if let Some(focused) = ui.memory(|m| m.focused()) {
                     ui.memory_mut(|m| m.surrender_focus(focused));
                 }
@@ -292,15 +319,17 @@ impl PlassiApp {
                 .is_some_and(|(id, _, _)| id == &table.id)
                 || state.selected_tables.contains(&table.id)
                 || state.selected.as_deref() == Some(&table.id);
-            let dots = seats
+            let dots = geometry
+                .table(&table.id)
+                .expect("shown table")
+                .dots
                 .iter()
-                .filter(|s| s.table_id == table.id)
-                .map(|s| Pos2::new(s.x, s.y) + 12.0 * Vec2::angled(s.out));
+                .copied();
             paint_table(&painter, &view, p, (table, top), dots, active);
             response.on_hover_cursor(egui::CursorIcon::Grab);
         }
         self.room_selection_box(ui, &painter, &view, &background, &tables, p);
-        self.paint_alignment_guides(&painter, &view, &layout, dragged.as_ref(), p);
+        self.paint_alignment_guides(&painter, &view, &geometry, dragged.as_ref(), p);
         if self.room.canvas.drag.is_none() && self.room.canvas.selected_tables.len() <= 1 {
             for (table, top) in &tables {
                 self.turn_handle(ui, &painter, &view, p, (table, top));
@@ -311,6 +340,9 @@ impl PlassiApp {
         let outline_changed = self.outline_handles(ui, &painter, &view, p);
         let state = &mut self.room.canvas;
         if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            if !preview.is_empty() {
+                ui.ctx().request_repaint();
+            }
             state.drag = None;
             state.turning = None;
             state.selected = None;
@@ -335,10 +367,10 @@ impl PlassiApp {
             state.drag = None;
             state.turning = None;
         }
-        if state.crowded != crowded {
+        if state.crowded != geometry.crowded {
             // The side panel, drawn before the canvas, shows this next frame.
             ui.ctx().request_repaint();
-            state.crowded = crowded;
+            state.crowded.clone_from(&geometry.crowded);
         }
         let mut edit = RoomEdit {
             labels: outline_changed || label_changed,
@@ -351,10 +383,10 @@ impl PlassiApp {
         if let Some((id, position)) = moved {
             if !self.room.canvas.group_drag.is_empty() {
                 for other in self.room.canvas.group_drag.keys() {
-                    self.project
-                        .layout
-                        .table_positions
-                        .insert(other.clone(), frames[other]);
+                    self.project.layout.table_positions.insert(
+                        other.clone(),
+                        geometry.table(other).expect("dragged table").frame,
+                    );
                 }
             } else {
                 self.project.layout.table_positions.insert(id, position);
@@ -368,11 +400,17 @@ impl PlassiApp {
         if self.room.canvas.selected_tables.len() <= 1 {
             edit.labels |= self.rotate_by_key(ui);
         }
+        self.room.canvas.geometry = Some((self.file.revision, geometry));
         edit
     }
 
     /// The table being dragged and where the pointer has it now.
-    fn dragged_table(&self, ui: &egui::Ui, view: &Viewport) -> Option<(String, TablePosition)> {
+    fn dragged_table(
+        &self,
+        ui: &egui::Ui,
+        view: &Viewport,
+        geometry: &RoomGeometry,
+    ) -> Option<(String, TablePosition)> {
         let (id, original, start) = self.room.canvas.drag.as_ref()?;
         let delta = view.world(ui.input(|i| i.pointer.interact_pos())?) - *start;
         let snap = self.room.canvas.snap;
@@ -381,24 +419,16 @@ impl PlassiApp {
             y: original.y + delta.y,
             ..*original
         };
-        let table = self.project.layout.table(id)?;
+        let table = &geometry.table(id)?.spec;
         let mut result = snap_table(table, position, snap);
         if snap {
             let top = TableTop::new(table, position, TABLE_END).bounds();
-            let others = self
-                .project
-                .layout
-                .table_frames()
-                .into_iter()
-                .filter(|(id, _)| !self.room.canvas.selected_tables.contains(id))
-                .filter_map(|(id, at)| {
-                    self.project
-                        .layout
-                        .table(&id)
-                        .map(|t| TableTop::new(t, at, TABLE_END).bounds())
-                })
-                .collect::<Vec<_>>();
-            let (delta, guides) = super::arrange::magnetic(top, &others, 8.0 / view.zoom);
+            let others = geometry
+                .by_id
+                .iter()
+                .filter(|(id, _)| !self.room.canvas.selected_tables.contains(id.as_str()))
+                .map(|(_, &i)| geometry.tables[i].base_bounds);
+            let (delta, guides) = super::arrange::magnetic(top, others, 8.0 / view.zoom);
             if guides.0.is_some() {
                 result.x = position.x + delta.x;
             }

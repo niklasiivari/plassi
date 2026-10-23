@@ -420,6 +420,13 @@ impl PlassiApp {
         if self.status.is_empty() || (!sticky && age > 6.0) {
             return;
         }
+        if !sticky {
+            if age < 5.0 {
+                ctx.request_repaint_after(Duration::from_secs_f32(5.0 - age));
+            } else {
+                ctx.request_repaint();
+            }
+        }
         let alpha = if sticky {
             1.0
         } else {
@@ -446,15 +453,20 @@ impl PlassiApp {
                     let mut stop = false;
                     if let Some(job) = &self.solving {
                         let (started, budget) = (job.started, job.budget);
-                        let done = started.elapsed().as_secs_f32() / budget.as_secs_f32().max(1.0);
-                        ui.label(fill(
-                            "Searching… {} / {} s",
-                            &[
-                                &started.elapsed().as_secs().min(budget.as_secs()),
-                                &budget.as_secs(),
-                            ],
-                        ));
-                        ui.add(egui::ProgressBar::new(done.min(1.0)).desired_height(6.0));
+                        if job.ready {
+                            let done =
+                                started.elapsed().as_secs_f32() / budget.as_secs_f32().max(1.0);
+                            ui.label(fill(
+                                "Searching… {} / {} s",
+                                &[
+                                    &started.elapsed().as_secs().min(budget.as_secs()),
+                                    &budget.as_secs(),
+                                ],
+                            ));
+                            ui.add(egui::ProgressBar::new(done.min(1.0)).desired_height(6.0));
+                        } else {
+                            ui.label(&self.status);
+                        }
                         ui.horizontal_wrapped(|ui| {
                             if let Some((score, hard)) = job.runner.progress() {
                                 let best = if hard > 0 {

@@ -32,6 +32,9 @@ struct Graph {
     index: HashMap<usize, usize>,
     edges: Vec<Edge>,
     degree: Vec<usize>,
+    attendee_indexes: Vec<usize>,
+    color_keys: Vec<String>,
+    neighbours: Vec<std::collections::HashSet<usize>>,
     /// Wish groups (connected components) with two or more people.
     groups: usize,
     largest_group: usize,
@@ -204,18 +207,19 @@ impl PlassiApp {
     /// Rebuilds the graph when the project, option or settings change.
     fn refresh_graph(&mut self) {
         let candidate = (!self.project.candidates.is_empty()).then_some(self.selected_candidate);
-        let state = &mut self.graph;
         let key = (
             self.file.revision,
             candidate.unwrap_or(usize::MAX),
-            state.show_everyone,
-            state.by_table,
+            self.graph.show_everyone,
+            self.graph.by_table,
         );
-        if state.built_for == Some(key) {
+        if self.graph.built_for == Some(key) {
             return;
         }
+        let evaluation = self.evaluation();
+        let state = &mut self.graph;
         state.remember_positions();
-        let graph = Graph::build(&self.project, candidate, state.show_everyone);
+        let graph = Graph::build(&self.project, evaluation.as_deref(), state.show_everyone);
         state.zones = if state.by_table {
             tables::table_zones(&self.project, candidate, &graph)
         } else {

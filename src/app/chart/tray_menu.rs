@@ -94,7 +94,7 @@ impl PlassiApp {
         let mut option = option.clone();
         let mut wanted = Vec::new();
         // Compiled once: the project stays the same while seats fill up.
-        let scorer = crate::seating::Scorer::new(&self.project);
+        let scorer = self.scorer();
         for &person in people {
             let free = crate::arrange::free_seats(&self.project, &scorer, &option, person);
             let Some((seat, _)) = free.into_iter().next() else {

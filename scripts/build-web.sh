@@ -11,6 +11,11 @@
 set -eu
 cd "$(dirname "$0")/.."
 target=wasm32-unknown-unknown
+app_profile=${PLASSI_WEB_PROFILE:-web-speed}
+case "$app_profile" in
+  web|web-speed) ;;
+  *) echo "error: PLASSI_WEB_PROFILE must be web or web-speed" >&2; exit 1 ;;
+esac
 
 # Check the complete toolchain before building or removing the previous site.
 if ! command -v wasm-bindgen >/dev/null; then
@@ -28,23 +33,26 @@ if ! rustup target list --installed | grep -qx "$target"; then
   exit 1
 fi
 
-cargo build --profile web --target $target -p plassi -p plassi-typeset
+cargo build --profile "$app_profile" --target $target -p plassi
+cargo build --profile web --target $target -p plassi-typeset
 rm -rf dist
 wasm-bindgen --target web --no-typescript --out-dir dist --out-name plassi \
-  target/$target/web/plassi.wasm
+  target/$target/"$app_profile"/plassi.wasm
 wasm-bindgen --target web --no-typescript --out-dir dist/typeset --out-name plassi_typeset \
   target/$target/web/plassi_typeset.wasm
 if command -v wasm-opt >/dev/null; then
   # Both files at once. Only features every current browser has.
   pids=""
   for wasm in dist/plassi_bg.wasm dist/typeset/plassi_typeset_bg.wasm; do
-    wasm-opt -Oz --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext \
+    optimization=-Oz
+    if [ "$app_profile" = web-speed ] && [ "$wasm" = dist/plassi_bg.wasm ]; then optimization=-O3; fi
+    wasm-opt "$optimization" --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext \
       --enable-mutable-globals --enable-reference-types --enable-multivalue --disable-compact-imports "$wasm" -o "$wasm" &
     pids="$pids $!"
   done
   for pid in $pids; do wait "$pid"; done
 fi
-cp web/index.html web/favicon.svg dist/
+cp web/index.html web/favicon.svg web/workers.js web/solver-worker.js web/typeset-worker.js dist/
 ls -l dist/*.wasm dist/typeset/*.wasm
 # Cloudflare Pages refuses files over 25 MiB.
 for wasm in dist/plassi_bg.wasm dist/typeset/plassi_typeset_bg.wasm; do

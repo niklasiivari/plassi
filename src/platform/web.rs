@@ -1,4 +1,4 @@
-//! The browser: the project in local storage, work in slices between frames,
+//! The browser: the project in local storage, work in isolated workers,
 //! files as downloads.
 
 use std::path::Path;
@@ -7,7 +7,7 @@ use anyhow::{Result, anyhow};
 use wasm_bindgen::JsCast;
 use web_time::{Duration, Instant};
 
-use super::{Pdfs, Saved};
+use super::{PdfBytes, Pdfs, Saved, SearchRequest};
 use crate::i18n::{fill, tr};
 
 /// A result filled in later by browser callbacks.
@@ -69,6 +69,73 @@ fn refusal(error: &wasm_bindgen::JsValue) -> &'static str {
 thread_local! {
     /// Whether the browser promised to keep local storage; `None` until it answers.
     static PERSISTED: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+    static REPAINT: std::cell::RefCell<Option<eframe::egui::Context>> = const { std::cell::RefCell::new(None) };
+    static EXTERNAL_DIRTY: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+    static EXTERNAL_LISTENING: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+pub fn set_repaint(ctx: &eframe::egui::Context) {
+    REPAINT.with(|target| *target.borrow_mut() = Some(ctx.clone()));
+}
+
+#[wasm_bindgen::prelude::wasm_bindgen(js_name = plassiWake)]
+pub fn wake() {
+    REPAINT.with(|target| {
+        if let Some(ctx) = target.borrow().as_ref() {
+            ctx.request_repaint();
+        }
+    });
+}
+
+pub fn request_repaint() {
+    wake();
+}
+
+fn install_external_notifications() -> bool {
+    EXTERNAL_LISTENING.with(|state| {
+        if let Some(listening) = state.get() {
+            return listening;
+        }
+        let install = || -> Option<()> {
+            let window = web_sys::window()?;
+            let document = window.document()?;
+            let targets: [(&web_sys::EventTarget, &str); 3] = [
+                (window.as_ref(), "storage"),
+                (window.as_ref(), "focus"),
+                (document.as_ref(), "visibilitychange"),
+            ];
+            for (target, event) in targets {
+                let callback =
+                    wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::Event)>::new(|_| {
+                        EXTERNAL_DIRTY.with(|dirty| dirty.set(true));
+                        wake();
+                    });
+                target
+                    .add_event_listener_with_callback(event, callback.as_ref().unchecked_ref())
+                    .ok()?;
+                // These three listeners live as long as the application.
+                callback.forget();
+            }
+            Some(())
+        };
+        let listening = install().is_some();
+        state.set(Some(listening));
+        listening
+    })
+}
+
+pub fn external_notifications_available() -> bool {
+    install_external_notifications()
+}
+
+impl Store {
+    pub fn notifications_available(&self) -> bool {
+        external_notifications_available()
+    }
+
+    pub fn external_change_pending(&self) -> bool {
+        !install_external_notifications() || EXTERNAL_DIRTY.with(|dirty| dirty.replace(false))
+    }
 }
 
 /// Asks the browser not to clear this site's storage when space runs low.
@@ -88,6 +155,7 @@ pub fn request_persistence() {
             _ => ask(storage.persist()).await,
         };
         PERSISTED.with(|p| p.set(Some(persisted.unwrap_or(false))));
+        wake();
     });
 }
 
@@ -96,49 +164,125 @@ pub fn storage_persisted() -> Option<bool> {
     PERSISTED.with(std::cell::Cell::get)
 }
 
-/// A seating search advanced a little every frame, so the page stays responsive.
-pub struct SearchRunner {
-    search: Option<Search>,
-    progress: Progress,
+#[wasm_bindgen::prelude::wasm_bindgen]
+extern "C" {
+    type BrowserSearch;
+    #[wasm_bindgen(js_name = plassiSearchStart, catch)]
+    fn start_browser_search(data: &str) -> Result<BrowserSearch, wasm_bindgen::JsValue>;
+    #[wasm_bindgen(method)]
+    fn poll(this: &BrowserSearch) -> wasm_bindgen::JsValue;
+    #[wasm_bindgen(method)]
+    fn progress(this: &BrowserSearch) -> Option<String>;
+    #[wasm_bindgen(method)]
+    fn stop(this: &BrowserSearch);
+    #[wasm_bindgen(method)]
+    fn cancel(this: &BrowserSearch);
 }
 
-/// Search time per frame.
-const SLICE: Duration = Duration::from_millis(30);
+/// An isolated worker, with cooperative UI-thread execution only as a fallback
+/// when a browser or deployment cannot start module workers.
+pub struct SearchRunner {
+    worker: Option<BrowserSearch>,
+    request: Option<SearchRequest>,
+    search: Option<Search>,
+    progress: Progress,
+    worker_progress: Option<(i64, i64)>,
+}
 
 impl SearchRunner {
-    pub fn start(search: Search) -> Self {
+    pub fn start(request: SearchRequest) -> Self {
+        let worker = serde_json::to_string(&request)
+            .ok()
+            .and_then(|data| start_browser_search(&data).ok());
         Self {
-            progress: search.progress(),
-            search: Some(search),
+            worker,
+            request: Some(request),
+            search: None,
+            progress: Progress::default(),
+            worker_progress: None,
         }
     }
 
-    pub fn poll(&mut self) -> Option<Outcome> {
+    pub fn poll(&mut self) -> Option<Result<Outcome, String>> {
+        if let Some(worker) = &self.worker {
+            if let Some(progress) = worker.progress() {
+                self.worker_progress = serde_json::from_str(&progress).unwrap_or(None);
+                // Once initialized, a crash is reported rather than restarting
+                // and silently losing the best seating already found.
+                self.request = None;
+            }
+            let message = worker.poll();
+            if message.is_null() || message.is_undefined() {
+                return None;
+            }
+            let field = |name: &str| {
+                js_sys::Reflect::get(&message, &name.into())
+                    .ok()?
+                    .as_string()
+            };
+            let kind = field("type");
+            let data = field("data").unwrap_or_default();
+            if kind.as_deref() == Some("done") {
+                self.worker = None;
+                return Some(serde_json::from_str(&data).map_err(|e| e.to_string()));
+            }
+            if self.request.is_none() {
+                self.worker = None;
+                return Some(Err(data));
+            }
+            // Worker loading failed before search initialization. The owned
+            // request remains available for the supported cooperative fallback.
+            self.worker = None;
+        }
+        if let Some(request) = self.request.take() {
+            match request.build_with_progress(self.progress.clone()) {
+                Ok(search) => self.search = Some(search),
+                Err(error) => return Some(Err(format!("{error:#}"))),
+            }
+        }
         let search = self.search.as_mut()?;
-        search.advance(Instant::now() + SLICE);
+        // Retain the previous browser execution budget when workers are not
+        // available; reducing this slice would reduce search quality for the
+        // same wall-clock solve time on those browsers.
+        search.advance(Instant::now() + Duration::from_millis(30));
         if search.done() {
-            self.search.take().map(Search::finish)
+            self.search.take().map(|search| Ok(search.finish()))
         } else {
             None
         }
     }
 
-    /// The best (score, broken hard rules) found so far.
     pub fn progress(&self) -> Option<(i64, i64)> {
-        self.progress.best()
+        self.worker_progress.or_else(|| self.progress.best())
     }
 
-    /// Ends the search early; the next `poll` delivers the best found.
+    /// Stop returns the best seating; dropping an invalidated job instead
+    /// terminates its worker without retaining an obsolete result.
     pub fn stop(&self) {
         self.progress.stop();
+        if let Some(worker) = &self.worker {
+            worker.stop();
+        }
+    }
+}
+
+impl Drop for SearchRunner {
+    fn drop(&mut self) {
+        if let Some(worker) = &self.worker {
+            worker.cancel();
+        }
     }
 }
 
 /// Offers `bytes` as a download named `name`.
 pub fn save_file(_store: &Store, name: &str, bytes: &[u8]) -> Result<Saved> {
-    let fail = |_| anyhow!(tr("The browser blocked downloading"));
     let array = js_sys::Uint8Array::from(bytes);
-    let parts = js_sys::Array::of1(&array);
+    save_js_file(name, &array)
+}
+
+fn save_js_file(name: &str, array: &js_sys::Uint8Array) -> Result<Saved> {
+    let fail = |_| anyhow!(tr("The browser blocked downloading"));
+    let parts = js_sys::Array::of1(array);
     let options = web_sys::BlobPropertyBag::new();
     options.set_type(if name.ends_with(".pdf") {
         "application/pdf"
@@ -168,6 +312,36 @@ pub fn save_file(_store: &Store, name: &str, bytes: &[u8]) -> Result<Saved> {
         description: name.to_string(),
         location: None,
     })
+}
+
+/// Browser PDFs already live in JavaScript memory after their transferable
+/// worker message. Passing them to Blob avoids a round trip through app Wasm.
+pub fn save_pdf(_store: &Store, name: &str, bytes: &PdfBytes) -> Result<Saved> {
+    save_js_file(name, bytes)
+}
+
+pub fn save_pdf_archive(
+    _store: &Store,
+    name: &str,
+    files: &[(String, &PdfBytes)],
+) -> Result<Saved> {
+    let entries = js_sys::Array::new();
+    for (name, bytes) in files {
+        let entry = js_sys::Object::new();
+        js_sys::Reflect::set(&entry, &"name".into(), &name.as_str().into())
+            .map_err(|_| anyhow!(tr("Could not create PDF")))?;
+        js_sys::Reflect::set(&entry, &"bytes".into(), bytes)
+            .map_err(|_| anyhow!(tr("Could not create PDF")))?;
+        entries.push(&entry);
+    }
+    let archive = plassi_pdf_archive(&entries).map_err(|error| {
+        anyhow!(
+            error
+                .as_string()
+                .unwrap_or_else(|| tr("Could not create PDF").into())
+        )
+    })?;
+    save_js_file(name, &archive)
 }
 
 pub fn open_location(_path: &Path) -> Result<()> {
@@ -202,6 +376,7 @@ impl FilePick {
                     read.map(|buffer| js_sys::Uint8Array::new(&buffer).to_vec())
                         .map_err(|_| tr("Could not read the file").to_string()),
                 );
+                wake();
             });
         });
         input.set_onchange(Some(on_change.unchecked_ref()));
@@ -221,18 +396,28 @@ extern "C" {
     /// returns a PDF (Uint8Array) for the template data.
     #[wasm_bindgen(js_name = plassiTypeset, catch)]
     fn plassi_typeset(data: &str) -> Result<js_sys::Promise, wasm_bindgen::JsValue>;
+    #[wasm_bindgen(js_name = plassiPdfArchive, catch)]
+    fn plassi_pdf_archive(
+        files: &js_sys::Array,
+    ) -> Result<js_sys::Uint8Array, wasm_bindgen::JsValue>;
 }
 
-async fn typeset(data: &str) -> Result<Vec<u8>, String> {
+async fn typeset(data: &str) -> Result<PdfBytes, String> {
     let promise = plassi_typeset(data).map_err(|_| tr("PDF export unavailable").to_string())?;
     let pdf = wasm_bindgen_futures::JsFuture::from(promise)
         .await
         .map_err(|error| {
             error
                 .as_string()
+                .or_else(|| {
+                    js_sys::Reflect::get(&error, &"message".into())
+                        .ok()?
+                        .as_string()
+                })
                 .unwrap_or_else(|| tr("Could not create PDF").into())
         })?;
-    Ok(js_sys::Uint8Array::new(&pdf).to_vec())
+    pdf.dyn_into::<js_sys::Uint8Array>()
+        .map_err(|_| tr("Could not create PDF").to_string())
 }
 
 /// PDFs typeset by the separately loaded typesetting module.
@@ -253,6 +438,7 @@ impl<K: 'static> PdfJob<K> {
                 pdfs.push((kind, pdf));
             }
             *result.borrow_mut() = Some(pdfs);
+            wake();
         });
         Self(slot)
     }

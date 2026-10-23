@@ -42,11 +42,17 @@ impl OptionSummary {
 impl PlassiApp {
     /// Score and hard-violation count of every option, recomputed when the project changes.
     fn option_scores(&mut self) -> Vec<OptionSummary> {
+        let scorer = self.scorer();
         let project = &self.project;
         self.chart
             .score_cache
             .get(self.file.revision, || {
-                let scorer = crate::seating::Scorer::new(project);
+                let wishes: HashSet<_> = project
+                    .rules
+                    .iter()
+                    .filter(|r| matches!(r.kind, RuleKind::Proximity { .. }))
+                    .map(|r| r.id)
+                    .collect();
                 project
                     .candidates
                     .iter()
@@ -55,7 +61,7 @@ impl PlassiApp {
                         let wishes: Vec<_> = e
                             .results
                             .iter()
-                            .filter(|r| project.is_wish(r.rule_id))
+                            .filter(|r| wishes.contains(&r.rule_id))
                             .collect();
                         OptionSummary {
                             score: e.penalty(),

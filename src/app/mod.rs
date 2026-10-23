@@ -20,6 +20,7 @@ mod memo;
 mod project_file;
 mod projects;
 mod room_labels;
+mod scoring_cache;
 mod search;
 mod shell;
 mod solving;
@@ -98,34 +99,31 @@ pub(super) struct PlassiApp {
     backups: backups::BackupsState,
     #[cfg(target_arch = "wasm32")]
     copy_reminder: copy_reminder::CopyReminder,
-    /// Evaluation of the selected option, keyed by (revision, option).
-    evaluation: memo::Memo<(u64, usize), Option<std::rc::Rc<crate::score::Evaluation>>>,
+    scoring: scoring_cache::ScoringCache,
 }
 
 impl PlassiApp {
-    /// Evaluation of the selected option, recomputed only when the project changes.
-    fn evaluation(&mut self) -> Option<std::rc::Rc<crate::score::Evaluation>> {
-        let (project, option) = (&self.project, self.selected_candidate);
-        self.evaluation
-            .get((self.file.revision, option), || {
-                let candidate = project.candidates.get(option)?;
-                Some(std::rc::Rc::new(crate::score::evaluate(
-                    project,
-                    &candidate.assignment,
-                )))
-            })
-            .clone()
+    fn scorer(&mut self) -> std::rc::Rc<seating::Scorer> {
+        self.scoring.scorer(&self.project, self.file.revision)
+    }
+
+    /// Each option retains its evaluation until scoring inputs or its assignment change.
+    fn evaluation(&mut self) -> Option<std::rc::Rc<score::Evaluation>> {
+        self.scoring
+            .evaluation(&self.project, self.file.revision, self.selected_candidate)
     }
 }
 
 impl eframe::App for PlassiApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        platform::set_repaint(ui.ctx());
         let previous_status = self.status.clone();
         // Edits in this frame are undone back to the option shown now.
         self.file.shown_option = (self.selected_candidate < self.project.candidates.len())
             .then_some(self.selected_candidate);
         self.sync_external();
         self.poll_solver();
+        self.poll_print();
         self.remember_option();
         self.poll_upload();
         let p = theme::palette(ui.ctx());
@@ -213,12 +211,14 @@ impl eframe::App for PlassiApp {
         about::show(ui.ctx(), p);
         self.backups_window(ui.ctx(), p);
         self.toast(ui.ctx(), p);
-        ui.ctx()
-            .request_repaint_after(Duration::from_millis(if self.solving.is_some() {
-                100
-            } else {
-                400
-            }));
+        self.compress_history(ui.ctx());
+        if self.solving.is_some() || self.printing.job.is_some() {
+            ui.ctx().request_repaint_after(Duration::from_millis(100));
+        } else if !platform::external_notifications_available()
+            || !self.file.store.notifications_available()
+        {
+            ui.ctx().request_repaint_after(Duration::from_millis(350));
+        }
     }
 }
 
@@ -349,7 +349,7 @@ impl PlassiApp {
             people: Default::default(),
             room: Default::default(),
             printing: Default::default(),
-            evaluation: Default::default(),
+            scoring: Default::default(),
             projects: Default::default(),
             tour: Default::default(),
             backups: Default::default(),

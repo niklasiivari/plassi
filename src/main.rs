@@ -35,6 +35,8 @@ mod seating;
 mod suggest;
 #[cfg(test)]
 mod tests;
+#[cfg(target_arch = "wasm32")]
+mod worker;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> anyhow::Result<()> {
@@ -52,5 +54,9 @@ fn main() {}
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen(start)]
 pub fn start() {
-    app::start_web();
+    // The solver worker instantiates the same cached module in its own memory.
+    // Its dedicated WorkerSearch entrypoint must not initialize a canvas or UI.
+    if web_sys::window().is_some() {
+        app::start_web();
+    }
 }

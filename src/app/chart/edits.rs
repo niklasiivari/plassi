@@ -31,10 +31,16 @@ impl DropPreview {
 
 /// Wishes fully met in an evaluation.
 fn wishes_met(project: &Project, evaluation: &Evaluation) -> i64 {
+    let wishes: HashSet<_> = project
+        .rules
+        .iter()
+        .filter(|rule| matches!(rule.kind, RuleKind::Proximity { .. }))
+        .map(|rule| rule.id)
+        .collect();
     evaluation
         .results
         .iter()
-        .filter(|r| project.is_wish(r.rule_id) && r.outcome() == Outcome::Met)
+        .filter(|r| wishes.contains(&r.rule_id) && r.outcome() == Outcome::Met)
         .count() as i64
 }
 
@@ -54,6 +60,7 @@ fn plan_in(
 /// The score change of putting each person on their spot. Empty seats
 /// mid-table are allowed while editing; they are marked on the chart.
 pub(super) fn preview(
+    scorer: &crate::seating::Scorer,
     project: &Project,
     candidate: usize,
     wanted: &[(usize, Spot)],
@@ -65,9 +72,8 @@ pub(super) fn preview(
     };
     let assignment = &project.candidates[candidate].assignment;
     let next = edit.result(&project.candidates[candidate]).assignment;
-    let scorer = crate::seating::Scorer::new(project);
-    let before = score::evaluate_with(&scorer, project, assignment);
-    let after = score::evaluate_with(&scorer, project, &next);
+    let before = score::evaluate_with(scorer, project, assignment);
+    let after = score::evaluate_with(scorer, project, &next);
     Some(DropPreview {
         delta: after.penalty() - before.penalty(),
         hard_delta: after.hard_violations as i64 - before.hard_violations as i64,
@@ -98,7 +104,12 @@ const SUGGESTION_CANDIDATES: usize = 12;
 /// Improving moves for a seated person, or the best free seats for someone
 /// without a seat, best first. Unlike moves by hand, suggestions never leave
 /// an empty seat mid-table.
-pub(super) fn best_moves(project: &Project, candidate: usize, person: usize) -> Vec<Suggestion> {
+pub(super) fn best_moves(
+    scorer: &crate::seating::Scorer,
+    project: &Project,
+    candidate: usize,
+    person: usize,
+) -> Vec<Suggestion> {
     let Some(option) = project.candidates.get(candidate) else {
         return Vec::new();
     };
@@ -106,8 +117,7 @@ pub(super) fn best_moves(project: &Project, candidate: usize, person: usize) -> 
         return Vec::new();
     }
     if !option.assignment.contains_key(&person) {
-        let scorer = crate::seating::Scorer::new(project);
-        return arrange::free_seats(project, &scorer, option, person)
+        return arrange::free_seats(project, scorer, option, person)
             .into_iter()
             .map(|(seat, delta)| (seat, None, delta))
             .collect();
@@ -119,8 +129,7 @@ pub(super) fn best_moves(project: &Project, candidate: usize, person: usize) -> 
         .iter()
         .map(|(p, s)| (s.as_str(), *p))
         .collect();
-    let scorer = crate::seating::Scorer::new(project);
-    let (before, hard_before) = total_score(&scorer, project, &option.assignment);
+    let (before, hard_before) = total_score(scorer, project, &option.assignment);
     // The solver's incremental score ranks every seat cheaply; only the
     // most promising few are scored in full.
     let mut moves: Vec<_> = crate::seating::move_deltas(project, &option.assignment, person)
@@ -133,7 +142,7 @@ pub(super) fn best_moves(project: &Project, candidate: usize, person: usize) -> 
         })
         .take(SUGGESTION_CANDIDATES)
         .filter_map(|(seat, next)| {
-            let (after, hard_after) = total_score(&scorer, project, &next);
+            let (after, hard_after) = total_score(scorer, project, &next);
             let other = occupant.get(seat.as_str()).copied();
             (after < before && hard_after <= hard_before).then_some((seat, other, after - before))
         })
@@ -172,7 +181,7 @@ impl PlassiApp {
             }
             _ => return,
         };
-        let scorer = crate::seating::Scorer::new(&self.project);
+        let scorer = self.scorer();
         let assignment = &self.project.candidates[self.selected_candidate].assignment;
         let (before, _) = total_score(&scorer, &self.project, assignment);
         edit.apply(&mut self.project, self.selected_candidate);
@@ -227,6 +236,7 @@ impl PlassiApp {
     /// Slides people up each table side so empty seats end up at the bottom.
     /// Pinned people stay put.
     pub(super) fn close_gaps(&mut self) {
+        let scorer = self.scorer();
         let Some(candidate) = self.project.candidates.get(self.selected_candidate) else {
             return;
         };
@@ -256,7 +266,6 @@ impl PlassiApp {
                 assignment.insert(person, seat.id.clone());
             }
         }
-        let scorer = crate::seating::Scorer::new(&self.project);
         let (before, _) = total_score(&scorer, &self.project, &candidate.assignment);
         let (after, _) = total_score(&scorer, &self.project, &assignment);
         let candidate = &mut self.project.candidates[self.selected_candidate];

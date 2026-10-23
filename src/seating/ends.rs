@@ -149,6 +149,26 @@ impl Ends {
             .collect()
     }
 
+    /// The report's rule penalties without allocating its individual results.
+    /// Read each person's seat, as the report does, even for an invalid chart
+    /// where two people have been assigned the same seat.
+    pub(super) fn results_total(&self, seat_of: &[usize], occupant: &[usize]) -> i64 {
+        self.terms
+            .iter()
+            .map(|term| {
+                let seat = seat_of[term.person];
+                if seat == NONE {
+                    return 0;
+                }
+                match end_level(seat, &self.beside, &|s| occupant[s] != NONE) {
+                    2 => term.end,
+                    1 => term.near,
+                    _ => 0,
+                }
+            })
+            .sum()
+    }
+
     /// The rules' part; the policy's part is in the policy report.
     pub(super) fn rules_total(&self, occupant: &[usize]) -> i64 {
         if self.terms.is_empty() {

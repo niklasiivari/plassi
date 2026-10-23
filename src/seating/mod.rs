@@ -16,8 +16,10 @@ mod search;
 pub(crate) mod spare_seats;
 mod tabu;
 
+#[cfg(test)]
 use std::collections::{BTreeMap, HashSet};
 
+#[cfg(any(not(target_arch = "wasm32"), test))]
 use anyhow::Result;
 use web_time::Duration;
 
@@ -39,6 +41,7 @@ pub const SOLVE_TIME: Duration = Duration::from_secs(30);
 pub const IMPROVE_TIME: Duration = Duration::from_secs(10);
 
 /// Independent search runs per solve: one per CPU core, one in the browser.
+#[cfg(any(not(target_arch = "wasm32"), test))]
 fn runs() -> usize {
     if cfg!(target_arch = "wasm32") {
         1
@@ -49,6 +52,7 @@ fn runs() -> usize {
 
 /// The search for a new option. With `prior`, at least `min_changed` people
 /// with wishes must sit somewhere else than in that option.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn solve_search(
     project: &Project,
     prior: Option<&Candidate>,
@@ -69,6 +73,7 @@ pub fn solve_search(
 }
 
 /// The search that improves an existing seating, keeping `fixed` people (and pins) in place.
+#[cfg(test)]
 pub fn improve_search(
     project: &Project,
     assignment: &BTreeMap<usize, String>,

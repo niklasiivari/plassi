@@ -17,6 +17,7 @@ anyhow = "1"
 calamine = "0.36.1"
 csv = "1.4"
 eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "glow", "x11", "wayland"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 rand = "0.9"
 rfd = "0.17.2"
 rust_xlsxwriter = { version = "0.100.0", features = ["wasm"] }
@@ -30,6 +31,7 @@ zip = { version = "8.6.0", default-features = false }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 plassi-typeset = { path = "typeset" }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+notify = "8"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 egui_kittest = { version = "0.36.2", features = ["eframe"] }
@@ -40,12 +42,12 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 log = "0.4"
-web-sys = { version = "0.3", features = ["Window", "Document", "Location", "Navigator", "Storage", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlCanvasElement", "Element", "console", "HtmlInputElement", "FileList", "File", "StorageManager", "HtmlElement", "DomTokenList"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "Location", "Navigator", "Storage", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlCanvasElement", "Element", "console", "HtmlInputElement", "FileList", "File", "StorageManager", "HtmlElement", "DomTokenList", "Event", "EventTarget"] }
 
 [profile.dev]
 opt-level = 1
 
-# The browser build: small rather than fast (see scripts/build-web.sh).
+# Compact browser profile, also used for the large typesetter module.
 [profile.web]
 inherits = "release"
 opt-level = "s"
@@ -56,3 +58,21 @@ strip = true
 # Dependencies in the browser build are optimised for size too.
 [profile.web.package."*"]
 opt-level = "z"
+
+# Default throughput profile for the app/solver. The much larger typesetter
+# keeps the compact profile; select PLASSI_WEB_PROFILE=web for a smaller app.
+[profile.web-speed]
+inherits = "web"
+opt-level = 3
+
+[profile.web-speed.package.rand]
+opt-level = 3
+
+[profile.web-speed.package.rand_core]
+opt-level = 3
+
+[profile.web-speed.package.rand_chacha]
+opt-level = 3
+
+[profile.web-speed.package.ppv-lite86]
+opt-level = 3

@@ -11,14 +11,16 @@ struct RowInfo {
     subtitle: String,
     color_key: String,
     unreviewed: usize,
-    affiliation: String,
     pinned: bool,
+    name_lowercase: String,
+    affiliation_lowercase: String,
 }
 
 /// Project-derived list data shared by every frame until the next edit.
 pub(super) struct ListInfo {
     pub(super) active: HashSet<usize>,
     rows: HashMap<usize, RowInfo>,
+    to_review: usize,
 }
 
 impl ListInfo {
@@ -36,11 +38,13 @@ impl ListInfo {
         let pinned = project.pins();
         Self {
             active: project.active_people(),
+            to_review: unreviewed.len(),
             rows: project
                 .attendees
                 .iter()
                 .map(|person| {
                     let pinned = pinned.contains_key(&person.id);
+                    let affiliation = project.affiliation(person);
                     (
                         person.id,
                         RowInfo {
@@ -52,7 +56,8 @@ impl ListInfo {
                             ),
                             color_key: project
                                 .category_key(crate::catalog::Kind::Organization, person),
-                            affiliation: project.affiliation(person),
+                            affiliation_lowercase: affiliation.to_lowercase(),
+                            name_lowercase: person.name.to_lowercase(),
                             unreviewed: unreviewed.get(&person.id).copied().unwrap_or(0),
                             pinned,
                         },
@@ -147,50 +152,31 @@ impl PlassiApp {
         });
         ui.add_space(theme::space::XS);
         let info = self.people_list_info();
-        let to_review = info.rows.values().filter(|row| row.unreviewed > 0).count();
+        let to_review = info.to_review;
         if !self.people.picked.is_empty() && ui.button(tr("Clear selection")).clicked() {
             self.people.picked.clear();
             self.people.selecting = false;
         }
         self.filter_chips(ui, p, to_review);
+        self.people_list_indices(&info);
         self.bulk_bar(ui);
         ui.add_space(theme::space::XS);
         ui.separator();
         // Bulk actions above can change review counts, memberships or pins.
         let info = self.people_list_info();
-        let unmet = self.unmet_people();
-        let seated: Option<HashSet<usize>> = self
-            .project
-            .candidates
-            .get(self.selected_candidate)
-            .map(|c| c.assignment.keys().copied().collect());
-        let needle = crate::app::search::Needle::new(&self.people.search);
+        let indices = self.people_list_indices(&info);
         let mut select = None;
         let mut pick = None;
-        let mut shown = Vec::new();
-        let mut rows = |ui: &mut egui::Ui| {
-            for person in &self.project.attendees {
-                let row_info = &info.rows[&person.id];
-                let unreviewed = row_info.unreviewed;
-                let keep = match self.people.filter {
-                    PeopleFilter::All => true,
-                    PeopleFilter::ToReview => unreviewed > 0,
-                    PeopleFilter::WithWishes => info.active.contains(&person.id),
-                    PeopleFilter::Unconstrained => !info.active.contains(&person.id),
-                    PeopleFilter::Unmet => unmet.contains(&person.id),
-                    PeopleFilter::NotSeated => {
-                        seated.as_ref().is_some_and(|s| !s.contains(&person.id))
-                    }
-                    PeopleFilter::Pinned => row_info.pinned,
-                };
-                let matches = needle.matches(&person.name) || needle.matches(&row_info.affiliation);
-                if !keep || !matches {
-                    continue;
-                }
-                shown.push(person.id);
+        let mut rows = |ui: &mut egui::Ui, range: std::ops::Range<usize>| {
+            for &index in &indices[range] {
+                let person = &self.project.attendees[index];
                 let selected = self.selected_person == Some(person.id)
                     || self.people.picked.contains(&person.id);
-                let row = person_row(ui, p, person, row_info, selected);
+                let row = ui
+                    .push_id(person.id, |ui| {
+                        person_row(ui, p, person, &info.rows[&person.id], selected)
+                    })
+                    .inner;
                 if row.clicked()
                     && (self.people.selecting
                         || ui.input(|i| i.modifiers.command || i.modifiers.shift))
@@ -205,9 +191,35 @@ impl PlassiApp {
         if scroll_rows {
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
-                .show(ui, rows);
+                .show_viewport(ui, |ui, viewport| {
+                    let spacing = ui.spacing().item_spacing.y;
+                    let pitch = 48.0 + spacing;
+                    ui.set_height((pitch * indices.len() as f32 - spacing).max(0.0));
+                    let mut first = (viewport.min.y / pitch).floor() as usize;
+                    let mut last = (viewport.max.y / pitch).ceil() as usize + 1;
+                    if last > indices.len() {
+                        let count = last.saturating_sub(first);
+                        last = indices.len();
+                        first = last.saturating_sub(count);
+                    }
+                    // Retain a page on either side so nearby rows remain
+                    // reachable by focus/accessibility scroll actions when
+                    // controls above the list change height.
+                    let buffer = (viewport.height() / pitch).ceil() as usize;
+                    first = first.saturating_sub(buffer);
+                    last = last.saturating_add(buffer).min(indices.len());
+                    let top = ui.max_rect().top();
+                    let rect = egui::Rect::from_x_y_ranges(
+                        ui.max_rect().x_range(),
+                        top + first as f32 * pitch..=top + last as f32 * pitch,
+                    );
+                    ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
+                        ui.skip_ahead_auto_ids(first);
+                        rows(ui, first..last);
+                    });
+                });
         } else {
-            rows(ui);
+            rows(ui, 0..indices.len());
         }
         if let Some(id) = select {
             self.people.end_review();
@@ -220,7 +232,62 @@ impl PlassiApp {
         {
             self.people.picked.insert(id);
         }
-        self.people.shown = shown;
+    }
+
+    /// Filter once per edit/search and retain every match for bulk selection.
+    fn people_list_indices(&mut self, info: &ListInfo) -> std::rc::Rc<Vec<usize>> {
+        let key = (
+            self.file.revision,
+            self.selected_candidate,
+            self.people.filter,
+            self.people.search.clone(),
+        );
+        if let Some(indices) = self.people.list_matches.peek(&key) {
+            return std::rc::Rc::clone(indices);
+        }
+        let unmet = if self.people.filter == PeopleFilter::Unmet {
+            self.unmet_people()
+        } else {
+            HashSet::new()
+        };
+        let assignment = self
+            .project
+            .candidates
+            .get(self.selected_candidate)
+            .map(|c| &c.assignment);
+        let needle = crate::app::search::Needle::new(&self.people.search);
+        let indices: Vec<_> = self
+            .project
+            .attendees
+            .iter()
+            .enumerate()
+            .filter_map(|(index, person)| {
+                let row = &info.rows[&person.id];
+                let keep = match self.people.filter {
+                    PeopleFilter::All => true,
+                    PeopleFilter::ToReview => row.unreviewed > 0,
+                    PeopleFilter::WithWishes => info.active.contains(&person.id),
+                    PeopleFilter::Unconstrained => !info.active.contains(&person.id),
+                    PeopleFilter::Unmet => unmet.contains(&person.id),
+                    PeopleFilter::NotSeated => {
+                        assignment.is_some_and(|a| !a.contains_key(&person.id))
+                    }
+                    PeopleFilter::Pinned => row.pinned,
+                };
+                let matches = needle.matches_lowercase(&row.name_lowercase)
+                    || needle.matches_lowercase(&row.affiliation_lowercase);
+                (keep && matches).then_some(index)
+            })
+            .collect();
+        self.people.shown = indices
+            .iter()
+            .map(|&i| self.project.attendees[i].id)
+            .collect();
+        let indices = std::rc::Rc::new(indices);
+        self.people
+            .list_matches
+            .set(key, std::rc::Rc::clone(&indices));
+        indices
     }
 
     /// People with a wish or rule not fully met in the selected option.
@@ -311,6 +378,9 @@ fn person_row(
             &person.name,
         )
     });
+    if !ui.is_rect_visible(rect) {
+        return response.on_hover_cursor(egui::CursorIcon::PointingHand);
+    }
     let painter = ui.painter();
     let fill = match () {
         _ if selected => p.accent_soft,
