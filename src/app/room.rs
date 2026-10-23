@@ -11,6 +11,7 @@ use super::theme::{self, Palette};
 mod arrange;
 mod footprint;
 mod free_page;
+mod geometry;
 mod labels;
 mod layout_canvas;
 mod outline;
@@ -25,6 +26,7 @@ pub(super) struct RoomState {
     pub(super) quick_seats: usize,
     pub(super) quick_columns: usize,
     canvas: layout_canvas::LayoutCanvas,
+    problem: super::memo::Memo<(u64, crate::i18n::Lang), Option<String>>,
 }
 
 impl Default for RoomState {
@@ -34,6 +36,7 @@ impl Default for RoomState {
             quick_seats: 15,
             quick_columns: 4,
             canvas: Default::default(),
+            problem: Default::default(),
         }
     }
 }
@@ -69,17 +72,27 @@ impl PlassiApp {
         edit.merge(self.layout_controls(ui));
         edit.merge(self.row_cards(ui, p));
         ui.add_space(theme::space::L);
+        if edit.geometry || edit.labels {
+            self.room.problem.clear();
+        }
         self.room_problem(ui, p);
         self.save_room(edit);
     }
 
     /// What is wrong with the room, if anything.
-    fn room_problem(&self, ui: &mut egui::Ui, p: Palette) {
-        if let Err(error) = self.project.validate() {
-            ui.colored_label(
-                p.warn,
-                fill("Invalid project: {}", &[&format!("{error:#}")]),
-            );
+    fn room_problem(&mut self, ui: &mut egui::Ui, p: Palette) {
+        let project = &self.project;
+        let message = self
+            .room
+            .problem
+            .get((self.file.revision, crate::i18n::current()), || {
+                project
+                    .validate()
+                    .err()
+                    .map(|error| fill("Invalid project: {}", &[&format!("{error:#}")]))
+            });
+        if let Some(message) = message {
+            ui.colored_label(p.warn, message.as_str());
         }
     }
 

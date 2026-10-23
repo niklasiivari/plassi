@@ -61,6 +61,8 @@ pub(in crate::app) struct PeopleState {
     pub(in crate::app) import_text: String,
     /// Column meanings chosen for the pasted sheet.
     pub(in crate::app) import_mapping: import::ImportMapping,
+    /// Parsed sheet and validated preview, retained until an input changes.
+    import_cache: import::ImportCache,
     /// A bulk import can be opened even while a person is selected.
     pub(in crate::app) import_open: bool,
     pub(in crate::app) import_mode: crate::import::ImportMode,
@@ -78,6 +80,8 @@ pub(in crate::app) struct PeopleState {
     note_suggestions: crate::app::memo::Memo<(u64, usize), Vec<crate::suggest::Suggestion>>,
     /// Attendee list values, without repeating membership scans on every frame.
     list_cache: crate::app::memo::Memo<u64, std::rc::Rc<list::ListInfo>>,
+    list_matches:
+        crate::app::memo::Memo<(u64, usize, PeopleFilter, String), std::rc::Rc<Vec<usize>>>,
     /// An add, replace or remove being prepared.
     pub(in crate::app) roster: Option<roster::RosterEdit>,
     /// The one rule whose full editor is open.
@@ -90,6 +94,7 @@ impl PeopleState {
     pub(in crate::app) fn clear_import(&mut self) {
         self.import_text.clear();
         self.import_mapping = Default::default();
+        self.import_cache = Default::default();
         self.import_open = false;
         self.import_mode = Default::default();
         self.import_sheets.clear();

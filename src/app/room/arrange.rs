@@ -20,30 +20,29 @@ enum Align {
 /// Closest matching edge or centre line in each screen axis.
 pub(super) fn magnetic(
     moving: Rect,
-    others: &[Rect],
+    others: impl Iterator<Item = Rect> + Clone,
     tolerance: f32,
 ) -> (Vec2, (Option<f32>, Option<f32>)) {
-    let axis = |values: [f32; 3], other: Vec<f32>| {
+    let axis = |values: [f32; 3], horizontal: bool| {
         values
             .into_iter()
-            .flat_map(|value| other.iter().map(move |target| (*target - value, *target)))
+            .flat_map(|value| {
+                others.clone().flat_map(move |rect| {
+                    let targets = if horizontal {
+                        [rect.left(), rect.center().x, rect.right()]
+                    } else {
+                        [rect.top(), rect.center().y, rect.bottom()]
+                    };
+                    targets
+                        .into_iter()
+                        .map(move |target| (target - value, target))
+                })
+            })
             .filter(|(delta, _)| delta.abs() <= tolerance)
             .min_by(|a, b| a.0.abs().total_cmp(&b.0.abs()))
     };
-    let x = axis(
-        [moving.left(), moving.center().x, moving.right()],
-        others
-            .iter()
-            .flat_map(|r| [r.left(), r.center().x, r.right()])
-            .collect(),
-    );
-    let y = axis(
-        [moving.top(), moving.center().y, moving.bottom()],
-        others
-            .iter()
-            .flat_map(|r| [r.top(), r.center().y, r.bottom()])
-            .collect(),
-    );
+    let x = axis([moving.left(), moving.center().x, moving.right()], true);
+    let y = axis([moving.top(), moving.center().y, moving.bottom()], false);
     (
         Vec2::new(x.map_or(0.0, |v| v.0), y.map_or(0.0, |v| v.0)),
         (x.map(|v| v.1), y.map(|v| v.1)),
@@ -217,7 +216,7 @@ impl PlassiApp {
         &self,
         painter: &egui::Painter,
         view: &Viewport,
-        layout: &Layout,
+        geometry: &super::geometry::RoomGeometry,
         moving: Option<&(String, TablePosition)>,
         p: Palette,
     ) {
@@ -227,20 +226,16 @@ impl PlassiApp {
         let Some((id, at)) = moving else {
             return;
         };
-        let Some(table) = layout.table(id) else {
+        let Some(table) = geometry.table(id) else {
             return;
         };
-        let others = layout
-            .table_frames()
-            .into_iter()
-            .filter(|(id, _)| !self.room.canvas.selected_tables.contains(id))
-            .filter_map(|(id, at)| {
-                layout
-                    .table(&id)
-                    .map(|t| TableTop::new(t, at, 28.0).bounds())
-            })
-            .collect::<Vec<_>>();
-        let (_, (x, y)) = magnetic(TableTop::new(table, *at, 28.0).bounds(), &others, 0.2);
+        let others = geometry
+            .by_id
+            .iter()
+            .filter(|(id, _)| !self.room.canvas.selected_tables.contains(id.as_str()))
+            .map(|(_, &i)| geometry.tables[i].top.bounds());
+        let moving = TableTop::new(&table.spec, *at, super::geometry::TABLE_END).bounds();
+        let (_, (x, y)) = magnetic(moving, others, 0.2);
         if let Some(x) = x {
             let x = view.point(Pos2::new(x, 0.0)).x;
             painter.line_segment(
@@ -326,12 +321,75 @@ mod tests {
     fn magnetic_guides_pick_nearby_edges_and_ignore_distant_tables() {
         let moving = Rect::from_min_size(Pos2::new(3.0, 4.0), Vec2::new(40.0, 80.0));
         let other = Rect::from_min_size(Pos2::new(0.0, 0.0), Vec2::new(40.0, 80.0));
-        let (offset, guides) = magnetic(moving, &[other], 5.0);
+        let (offset, guides) = magnetic(moving, [other].into_iter(), 5.0);
         assert_eq!(offset, Vec2::new(-3.0, -4.0));
         assert!(guides.0.is_some() && guides.1.is_some());
         assert_eq!(
-            magnetic(moving, &[other.translate(Vec2::splat(1000.0))], 5.0).1,
+            magnetic(
+                moving,
+                [other.translate(Vec2::splat(1000.0))].into_iter(),
+                5.0
+            )
+            .1,
             (None, None)
+        );
+    }
+
+    #[test]
+    fn magnetic_iterator_preserves_offsets_guides_and_equal_distance_ties() {
+        // Keep the previous algorithm as an independent ordering reference.
+        let reference = |moving: Rect, others: &[Rect], tolerance: f32| {
+            let axis = |values: [f32; 3], targets: Vec<f32>| {
+                values
+                    .into_iter()
+                    .flat_map(|value| targets.iter().map(move |target| (*target - value, *target)))
+                    .filter(|(delta, _)| delta.abs() <= tolerance)
+                    .min_by(|a, b| a.0.abs().total_cmp(&b.0.abs()))
+            };
+            let x = axis(
+                [moving.left(), moving.center().x, moving.right()],
+                others
+                    .iter()
+                    .flat_map(|r| [r.left(), r.center().x, r.right()])
+                    .collect(),
+            );
+            let y = axis(
+                [moving.top(), moving.center().y, moving.bottom()],
+                others
+                    .iter()
+                    .flat_map(|r| [r.top(), r.center().y, r.bottom()])
+                    .collect(),
+            );
+            (
+                Vec2::new(x.map_or(0.0, |v| v.0), y.map_or(0.0, |v| v.0)),
+                (x.map(|v| v.1), y.map(|v| v.1)),
+            )
+        };
+        let mut layout = layout();
+        layout.rows[0].tables[2].shape = TableShape::Round;
+        let geometry = super::super::geometry::RoomGeometry::new(&layout);
+        let others: Vec<_> = geometry
+            .by_id
+            .values()
+            .map(|&i| geometry.tables[i].base_bounds)
+            .collect();
+        for dx in -8..=8 {
+            for tolerance in [0.0, 0.2, 5.0, 40.0] {
+                let moving = others[0].translate(Vec2::new(dx as f32 * 3.5, dx as f32 * -0.1));
+                assert_eq!(
+                    magnetic(moving, others.iter().copied(), tolerance),
+                    reference(moving, &others, tolerance)
+                );
+            }
+        }
+        let moving = Rect::from_center_size(Pos2::ZERO, Vec2::splat(10.0));
+        let tied = [
+            moving.translate(Vec2::new(-1.0, -1.0)),
+            moving.translate(Vec2::splat(1.0)),
+        ];
+        assert_eq!(
+            magnetic(moving, tied.into_iter(), 2.0),
+            reference(moving, &tied, 2.0)
         );
     }
 }

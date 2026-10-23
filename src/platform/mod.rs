@@ -7,6 +7,8 @@
 
 mod backup_plan;
 pub use backup_plan::{Keep, now_stamp};
+mod search_request;
+pub use search_request::SearchRequest;
 
 /// A picked spreadsheet, read without changing the open project.
 pub struct SheetFile {
@@ -33,4 +35,9 @@ pub struct Saved {
 }
 
 /// Typeset prints: each kind with its PDF, or why it failed.
-pub type Pdfs<K> = Vec<(K, Result<Vec<u8>, String>)>;
+pub type Pdfs<K> = Vec<(K, Result<PdfBytes, String>)>;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub type PdfBytes = Vec<u8>;
+#[cfg(target_arch = "wasm32")]
+pub type PdfBytes = js_sys::Uint8Array;

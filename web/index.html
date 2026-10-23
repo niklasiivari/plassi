@@ -80,16 +80,12 @@
   <script nomodule>document.body.classList.add("failed");</script>
   <script type="module">
     import init from "./plassi.js";
+    import { startSearch, typeset, pdfArchive } from "./workers.js";
 
     // Printing lives in its own module, loaded the first time someone prints.
-    let typesetter;
-    window.plassiTypeset = async (data) => {
-      typesetter ??= import("./typeset/plassi_typeset.js").then(async (module) => {
-        await module.default();
-        return module;
-      });
-      return (await typesetter).typeset(data);
-    };
+    window.plassiSearchStart = startSearch;
+    window.plassiTypeset = typeset;
+    window.plassiPdfArchive = pdfArchive;
 
     init().catch((error) => {
       console.error(error);

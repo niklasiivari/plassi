@@ -43,9 +43,9 @@ pub(super) enum PinMark {
 pub(super) struct CardPerson<'a> {
     pub(super) name: &'a str,
     /// The second line: the organization, or the category the chart is coloured by.
-    pub(super) detail: String,
+    pub(super) detail: &'a str,
     /// Keeps avatar colours equal for all spellings of one organization.
-    pub(super) color_key: String,
+    pub(super) color_key: &'a str,
     /// The colour of the category the chart is coloured by, if it is.
     pub(super) tint: Option<Color32>,
 }
@@ -226,7 +226,7 @@ fn paint_avatar(
         radius,
         person
             .tint
-            .unwrap_or_else(|| theme::avatar_color(&person.color_key, dark))
+            .unwrap_or_else(|| theme::avatar_color(person.color_key, dark))
             .gamma_multiply(alpha),
     );
     if !compact {
@@ -277,7 +277,7 @@ fn paint_card_text(
         clipped.text(
             Pos2::new(text_rect.min.x, rect.center().y + 2.0 * zoom),
             Align2::LEFT_TOP,
-            &person.detail,
+            person.detail,
             FontId::proportional(10.5 * zoom),
             p.muted.gamma_multiply(alpha),
         );
@@ -391,8 +391,8 @@ mod tests {
                         rect,
                         &CardPerson {
                             name,
-                            detail: "Organization".into(),
-                            color_key: "Organization".into(),
+                            detail: "Organization",
+                            color_key: "Organization",
                             tint: None,
                         },
                         CardLook {

@@ -77,12 +77,20 @@ impl PlassiApp {
             })
             .collect();
         let mut actions = CardActions::default();
+        let needle = crate::app::search::Needle::new(&self.chart.search);
         for seat in &paint.scene.seats {
             let drop = landing.contains(seat.id.as_str());
-            self.card(ui, paint, Place::Seat(seat), drop, &mut actions);
+            self.card(ui, paint, Place::Seat(seat), drop, &mut actions, &needle);
         }
         for (&person, &at) in &paint.scene.loose {
-            self.card(ui, paint, Place::Loose(person, at), false, &mut actions);
+            self.card(
+                ui,
+                paint,
+                Place::Loose(person, at),
+                false,
+                &mut actions,
+                &needle,
+            );
         }
         actions
     }
@@ -95,6 +103,7 @@ impl PlassiApp {
         place: Place,
         drop: bool,
         actions: &mut CardActions,
+        needle: &crate::app::search::Needle,
     ) {
         let Paint {
             painter,
@@ -133,12 +142,16 @@ impl PlassiApp {
         if response.hovered() {
             actions.hovered_person = person;
         }
-        if let Some(attendee) = person.and_then(|id| self.project.person(id)) {
+        if let Some(attendee) = person.and_then(|id| {
+            self.card_metadata(id)
+                .map(|data| &self.project.attendees[data.attendee])
+                .or_else(|| self.project.person(id))
+        }) {
             response.widget_info(|| {
                 egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &attendee.name)
             });
         }
-        let look = self.card_look(scene, place, person, response.hovered() || drop);
+        let look = self.card_look(scene, place, person, response.hovered() || drop, needle);
         paint_turned(painter, card.angle, card.centre, |painter| {
             self.paint_card(painter, p, card.upright(), person, look)
         });
@@ -165,12 +178,16 @@ impl PlassiApp {
         place: Place,
         person: Option<usize>,
         hovered: bool,
+        needle: &crate::app::search::Needle,
     ) -> CardLook {
-        let needle = crate::app::search::Needle::new(&self.chart.search);
         let search_miss = !needle.is_empty()
-            && !person
-                .and_then(|id| self.project.person(id))
-                .is_some_and(|a| needle.matches(&a.name));
+            && !person.is_some_and(|id| match self.card_metadata(id) {
+                Some(a) => needle.matches_lowercase(&a.search_name),
+                None => self
+                    .project
+                    .person(id)
+                    .is_some_and(|a| needle.matches(&a.name)),
+            });
         let dragged = person.is_some_and(|id| {
             self.chart
                 .drag

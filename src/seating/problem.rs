@@ -86,6 +86,59 @@ pub(super) struct Term {
     pub(super) source: Source,
 }
 
+impl Term {
+    /// The same nearest-target score as sorting every distance, using the
+    /// fixed set of distance classes. Counts include every target, seated or not.
+    pub(super) fn outcome_from_counts(
+        &self,
+        mut counts: [usize; crate::model::CLASSES],
+    ) -> (DistanceClass, i64) {
+        let required = self.required;
+        counts[DistanceClass::Far as usize] += required.saturating_sub(self.targets.len());
+        let nearest = counts
+            .iter()
+            .position(|&count| count != 0)
+            .unwrap_or(DistanceClass::Far as usize);
+        if required == 1 {
+            return (DistanceClass::ALL[nearest], self.costs[nearest]);
+        }
+        if self.shape == Shape::Halving {
+            let ranks = required.min(DECAY_RANKS);
+            let mut rank = 0;
+            let mut weighted = 0;
+            let mut total_weight = 0;
+            for (class, count) in counts.into_iter().enumerate() {
+                for _ in 0..count.min(ranks - rank) {
+                    let weight = 1 << (DECAY_RANKS - 1 - rank);
+                    weighted += self.costs[class] * weight;
+                    total_weight += weight;
+                    rank += 1;
+                }
+                if rank == ranks {
+                    break;
+                }
+            }
+            (DistanceClass::ALL[nearest], weighted / total_weight)
+        } else {
+            let mut remaining = required;
+            let mut sum = 0;
+            let mut last = nearest;
+            for (class, count) in counts.into_iter().enumerate() {
+                let take = count.min(remaining);
+                sum += self.costs[class] * take as i64;
+                remaining -= take;
+                if take != 0 {
+                    last = class;
+                }
+                if remaining == 0 {
+                    break;
+                }
+            }
+            (DistanceClass::ALL[last], sum / required as i64)
+        }
+    }
+}
+
 /// Each requester's wishes, for the "nobody loses every wish" cost.
 pub(super) struct Fairness {
     /// Per requester with wishes: their wish terms.
@@ -282,6 +335,25 @@ impl Problem {
                 block.gap_cost + block.extra_rows as i64 * stretch,
             );
         }
+        let k = term.required;
+        if k == 1 {
+            let class = term
+                .targets
+                .iter()
+                .map(|&x| self.distance(seat_of, term.requester, x))
+                .min()
+                .unwrap_or(DistanceClass::Far);
+            return (class, term.costs[class as usize]);
+        }
+        // Sorting very short lists is cheaper; organization and larger
+        // multi-target wishes benefit from counting the six distance classes.
+        if term.targets.len() > 8 {
+            let mut counts = [0; crate::model::CLASSES];
+            for &target in &term.targets {
+                counts[self.distance(seat_of, term.requester, target) as usize] += 1;
+            }
+            return term.outcome_from_counts(counts);
+        }
         let classes = &mut scratch.classes;
         classes.clear();
         classes.extend(
@@ -289,11 +361,6 @@ impl Problem {
                 .iter()
                 .map(|&x| self.distance(seat_of, term.requester, x)),
         );
-        let k = term.required;
-        if k == 1 {
-            let class = classes.iter().copied().min().unwrap_or(DistanceClass::Far);
-            return (class, term.costs[class as usize]);
-        }
         classes.sort_unstable();
         classes.resize(classes.len().max(k), DistanceClass::Far);
         if term.shape == Shape::Halving {
@@ -388,7 +455,14 @@ impl Problem {
     }
 
     pub(super) fn term_cost(&self, t: usize, seat_of: &[usize], scratch: &mut Scratch) -> i64 {
-        let (class, penalty) = self.term_outcome(t, seat_of, scratch);
+        self.cost_from_outcome(t, self.term_outcome(t, seat_of, scratch))
+    }
+
+    pub(super) fn cost_from_outcome(
+        &self,
+        t: usize,
+        (class, penalty): (DistanceClass, i64),
+    ) -> i64 {
         penalty
             + if self.terms[t].forbidden[class as usize] {
                 self.hard_cost
@@ -466,6 +540,25 @@ impl Problem {
         report
     }
 
+    /// Policy score without constructing the attendee lists used by the report.
+    pub(super) fn policy_cost(&self, occupant: &[usize]) -> i64 {
+        let mut total = 0;
+        for s in 0..self.n_seats {
+            let a = occupant[s];
+            if a == NONE {
+                continue;
+            }
+            for &n in &self.neighbours[s] {
+                let b = occupant[n];
+                if b != NONE && n > s {
+                    total += self.pair_cost(a, b);
+                }
+            }
+            total += self.isolated_cost(s, occupant) + self.ends.lone_cost_at(s, occupant);
+        }
+        total
+    }
+
     /// Converts an assignment by attendee ID to per-person seat indices.
     pub(super) fn state_of(
         &self,
@@ -541,7 +634,7 @@ impl Problem {
             total += self.left_out_cost(g, seat_of, &mut scratch);
         }
         total
-            + self.policy_report(occupant).total()
+            + self.policy_cost(occupant)
             + self.ends.rules_total(occupant)
             + self.diversity_cost(self.changed(seat_of))
     }
@@ -712,11 +805,22 @@ fn table_rows(seats: &[Seat]) -> Vec<Vec<[usize; 2]>> {
 
 /// Wishes and the planner's preferences as terms.
 fn compile_terms(project: &Project, index: &HashMap<usize, usize>) -> Vec<Term> {
+    let mut wish_counts = HashMap::new();
+    for rule in project.rules.iter().filter(|rule| rule.enabled) {
+        if let RuleKind::Proximity {
+            requester,
+            wish: crate::model::WishKind::Seating,
+            ..
+        } = rule.kind
+        {
+            *wish_counts.entry(requester).or_insert(0usize) += 1;
+        }
+    }
     let wishes = project
         .rules
         .iter()
         .filter(|r| r.enabled)
-        .filter_map(|rule| wish_term(project, rule, index));
+        .filter_map(|rule| wish_term(project, rule, index, &wish_counts));
     let groups = project
         .active_preferences()
         .filter_map(|preference| group_term(preference, index));
@@ -763,7 +867,12 @@ fn group_term(
 }
 
 /// The weighted term of a proximity rule, or `None` if it is not one.
-fn wish_term(project: &Project, rule: &Rule, index: &HashMap<usize, usize>) -> Option<Term> {
+fn wish_term(
+    project: &Project,
+    rule: &Rule,
+    index: &HashMap<usize, usize>,
+    wish_counts: &HashMap<usize, usize>,
+) -> Option<Term> {
     let RuleKind::Proximity {
         requester,
         target,
@@ -790,7 +899,8 @@ fn wish_term(project: &Project, rule: &Rule, index: &HashMap<usize, usize>) -> O
         targets,
         // Never more than there are: a removed person can't make it unmeetable.
         required: required.max(1),
-        costs: project.wish_costs(rule)?,
+        costs: project
+            .wish_costs_with_count(rule, wish_counts.get(requester).copied().unwrap_or(0))?,
         forbidden: DistanceClass::ALL.map(|c| max_class.is_some_and(|max| c > max)),
         shape,
         source: Source::Rule(rule.id),
@@ -888,4 +998,132 @@ fn prior_seats(
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::seq::SliceRandom;
+    use rand::{Rng, SeedableRng};
+
+    use super::*;
+
+    fn term(targets: usize, required: usize, shape: Shape, costs: [i64; 6]) -> Term {
+        Term {
+            requester: 0,
+            targets: (1..=targets).collect(),
+            required,
+            costs,
+            forbidden: [false; 6],
+            shape,
+            source: Source::Rule(1),
+        }
+    }
+
+    /// Original sorted-distance definition, independent of the counted path.
+    fn sorted_outcome(term: &Term, mut classes: Vec<DistanceClass>) -> (DistanceClass, i64) {
+        let required = term.required;
+        if required == 1 {
+            let class = classes.into_iter().min().unwrap_or(DistanceClass::Far);
+            return (class, term.costs[class as usize]);
+        }
+        classes.sort_unstable();
+        classes.resize(classes.len().max(required), DistanceClass::Far);
+        if term.shape == Shape::Halving {
+            let mut weighted = 0;
+            let mut total_weight = 0;
+            for (rank, &class) in classes[..required].iter().take(DECAY_RANKS).enumerate() {
+                let weight = 1 << (DECAY_RANKS - 1 - rank);
+                weighted += term.costs[class as usize] * weight;
+                total_weight += weight;
+            }
+            (classes[0], weighted / total_weight)
+        } else {
+            let sum: i64 = classes[..required]
+                .iter()
+                .map(|&class| term.costs[class as usize])
+                .sum();
+            (classes[required - 1], sum / required as i64)
+        }
+    }
+
+    #[test]
+    fn counted_distances_preserve_sorted_scores() {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(31);
+        for _ in 0..2_000 {
+            let targets = rng.random_range(0..=160);
+            let classes: Vec<_> = (0..targets)
+                .map(|_| DistanceClass::ALL[rng.random_range(0..crate::model::CLASSES)])
+                .collect();
+            let mut counts = [0; crate::model::CLASSES];
+            for &class in &classes {
+                counts[class as usize] += 1;
+            }
+            // Nonmonotonic costs also ensure targets remain ordered by
+            // distance, rather than by their penalty.
+            let costs = std::array::from_fn(|_| rng.random_range(-100_000..=100_000));
+            for required in [1, targets.max(1), targets + 3] {
+                for shape in [Shape::Nearest, Shape::Halving] {
+                    let term = term(targets, required, shape, costs);
+                    assert_eq!(
+                        term.outcome_from_counts(counts),
+                        sorted_outcome(&term, classes.clone()),
+                        "targets={targets}, required={required}, shape={shape:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn target_scoring_matches_reference_across_histogram_threshold() {
+        use crate::model::{Attendee, Layout};
+
+        let mut project = Project::new();
+        project.layout = Layout::simple(2, 8);
+        project.attendees = (0..32)
+            .map(|id| Attendee {
+                id,
+                name: format!("Person {id}"),
+                organization: String::new(),
+                participant_group: String::new(),
+                tags: Vec::new(),
+                food: String::new(),
+                drink: String::new(),
+                allergies: String::new(),
+                price_override_cents: None,
+                extra: BTreeMap::new(),
+            })
+            .collect();
+        let mut problem = Problem::new(&project, &HashSet::new(), None, None);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(73);
+        let mut scratch = Scratch::default();
+        for snapshot in 0..32 {
+            let mut seats: Vec<_> = (0..32).collect();
+            seats.shuffle(&mut rng);
+            for seat in &mut seats {
+                if rng.random_bool(0.2) {
+                    *seat = NONE;
+                }
+            }
+            for targets in [0, 1, 2, 8, 9, 16, 31] {
+                for required in [1, 2, targets.max(1), targets + 3] {
+                    for shape in [Shape::Nearest, Shape::Halving] {
+                        let costs = std::array::from_fn(|_| rng.random_range(0..=100_000));
+                        problem.terms = vec![term(targets, required, shape, costs)];
+                        let term = &problem.terms[0];
+                        let classes = term
+                            .targets
+                            .iter()
+                            .map(|&target| problem.distance(&seats, term.requester, target))
+                            .collect();
+                        assert_eq!(
+                            problem.term_outcome(0, &seats, &mut scratch),
+                            sorted_outcome(term, classes),
+                            "snapshot={snapshot}, targets={targets}, required={required}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 }

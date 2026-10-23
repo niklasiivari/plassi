@@ -2,6 +2,7 @@
 //! beside every seat. Tables whose space overlaps cover each other's cards
 //! there, so the room designer marks them.
 
+#[cfg(test)]
 use std::collections::{BTreeMap, BTreeSet};
 
 use egui::{CornerRadius, Rect, Stroke, StrokeKind};
@@ -9,6 +10,7 @@ use egui::{CornerRadius, Rect, Stroke, StrokeKind};
 use super::*;
 use crate::app::camera::Viewport;
 use crate::app::turned::{TableTop, Turned, paint_turned, seat_card};
+#[cfg(test)]
 use crate::model::Layout;
 
 pub(super) struct Footprint {
@@ -18,19 +20,44 @@ pub(super) struct Footprint {
 }
 
 impl Footprint {
-    fn overlaps(&self, other: &Footprint) -> bool {
+    pub(super) fn bounds(&self) -> Rect {
+        self.bounds
+    }
+
+    pub(super) fn new(top: TableTop, seats: &[crate::model::Seat]) -> Self {
+        let cards: Vec<_> = seats.iter().map(seat_card).collect();
+        let bounds = cards
+            .iter()
+            .map(Turned::bounds)
+            .fold(top.bounds(), Rect::union);
+        Self { top, cards, bounds }
+    }
+
+    pub(super) fn update(&mut self, top: TableTop, seats: &[crate::model::Seat]) {
+        self.top = top;
+        self.cards.clear();
+        self.cards.extend(seats.iter().map(seat_card));
+        self.bounds = self
+            .cards
+            .iter()
+            .map(Turned::bounds)
+            .fold(top.bounds(), Rect::union);
+    }
+
+    pub(super) fn overlaps(&self, other: &Footprint) -> bool {
         if !self.bounds.intersects(other.bounds) {
             return false;
         }
-        let shapes = |f: &Footprint| {
-            let mut all = f.cards.clone();
-            all.push(f.top.top);
-            all
-        };
-        let theirs = shapes(other);
-        shapes(self)
+        self.cards
             .iter()
-            .any(|a| theirs.iter().any(|b| a.overlaps(b)))
+            .chain(std::iter::once(&self.top.top))
+            .any(|a| {
+                other
+                    .cards
+                    .iter()
+                    .chain(std::iter::once(&other.top.top))
+                    .any(|b| a.overlaps(b))
+            })
     }
 
     /// Faint outlines of the cards the chart draws around the table.
@@ -53,6 +80,7 @@ impl Footprint {
 }
 
 /// Each table's space on the chart, by table ID.
+#[cfg(test)]
 pub(super) fn footprints(
     layout: &Layout,
     tops: &[(&TableSpec, TableTop)],
@@ -82,6 +110,7 @@ pub(super) fn footprints(
 }
 
 /// Tables whose space on the chart overlaps another table's.
+#[cfg(test)]
 pub(super) fn crowded(prints: &BTreeMap<String, Footprint>) -> BTreeSet<String> {
     let all: Vec<_> = prints.iter().collect();
     let mut crowded = BTreeSet::new();

@@ -29,6 +29,11 @@ pub(super) struct Scene {
     pub(super) gaps: HashSet<String>,
     /// Wish penalty plus policy cost; lower is better.
     pub(super) score: i64,
+    /// Headline wish counts and sorted issue result indexes for this option.
+    pub(super) wishes: (usize, usize),
+    pub(super) issues: Vec<(Option<usize>, usize)>,
+    statuses: HashMap<usize, Outcome>,
+    waiting: HashSet<usize>,
 }
 
 impl Scene {
@@ -58,17 +63,57 @@ impl Scene {
             .collect();
         let occupant = assignment.iter().map(|(p, s)| (s.clone(), *p)).collect();
         let mut own: HashMap<usize, Vec<(u64, RuleResult)>> = HashMap::new();
+        let mut wishes = (0, 0);
+        let mut issues = Vec::new();
         if let Some(evaluation) = &evaluation {
             let owners: HashMap<u64, usize> =
                 project.rules.iter().map(|r| (r.id, r.owner())).collect();
-            for result in &evaluation.results {
+            let wish_ids: HashSet<_> = project
+                .rules
+                .iter()
+                .filter(|r| matches!(r.kind, RuleKind::Proximity { .. }))
+                .map(|r| r.id)
+                .collect();
+            for (index, result) in evaluation.results.iter().enumerate() {
+                if wish_ids.contains(&result.rule_id) {
+                    wishes.1 += 1;
+                    wishes.0 += usize::from(result.outcome() == Outcome::Met);
+                }
+                let owner = owners.get(&result.rule_id).copied();
+                if result.outcome() != Outcome::Met
+                    && !(result.waiting && !result.hard_violation)
+                    && owner.is_none_or(|id| assignment.contains_key(&id))
+                {
+                    issues.push((owner, index));
+                }
                 if let Some(&owner) = owners.get(&result.rule_id) {
                     own.entry(owner)
                         .or_default()
                         .push((result.rule_id, result.clone()));
                 }
             }
+            issues.sort_by_key(|(_, i)| {
+                let result = &evaluation.results[*i];
+                (!result.hard_violation, -result.penalty)
+            });
         }
+        let statuses = own
+            .iter()
+            .filter(|(person, _)| assignment.contains_key(*person))
+            .filter_map(|(&person, results)| {
+                results
+                    .iter()
+                    .filter(|(_, r)| !(r.waiting && !r.hard_violation))
+                    .map(|(_, r)| r.outcome())
+                    .max()
+                    .map(|outcome| (person, outcome))
+            })
+            .collect();
+        let waiting = own
+            .iter()
+            .filter(|(_, results)| results.iter().any(|(_, r)| r.waiting && !r.hard_violation))
+            .map(|(&person, _)| person)
+            .collect();
         let moved = compare
             .filter(|c| Some(*c) != candidate)
             .and_then(|c| project.candidates.get(c))
@@ -111,6 +156,10 @@ impl Scene {
             moved,
             score,
             gaps,
+            wishes,
+            issues,
+            statuses,
+            waiting,
         }
     }
 
@@ -164,16 +213,7 @@ impl Scene {
     /// The worst outcome of this person's rules; `None` without any or
     /// without a seat. Wishes waiting for someone to be seated don't count yet.
     pub(super) fn status(&self, person: usize) -> Option<Outcome> {
-        // Without a seat, nothing about them can be judged yet.
-        if !self.seat_of.contains_key(&person) {
-            return None;
-        }
-        self.own
-            .get(&person)?
-            .iter()
-            .filter(|(_, r)| !self.pending(r))
-            .map(|(_, r)| r.outcome())
-            .max()
+        self.statuses.get(&person).copied()
     }
 
     /// A wish for someone not seated yet can't be judged; a broken hard
@@ -190,20 +230,17 @@ impl Scene {
 
     /// Whether any of this person's wishes is waiting for someone to be seated.
     pub(super) fn waits(&self, person: usize) -> bool {
-        self.own
-            .get(&person)
-            .is_some_and(|rs| rs.iter().any(|(_, r)| self.pending(r)))
+        self.waiting.contains(&person)
     }
 }
 
 /// Score and hard-violation count for an assignment (wishes plus policy).
 pub(in crate::app) fn total_score(
     scorer: &crate::seating::Scorer,
-    project: &Project,
+    _project: &Project,
     assignment: &BTreeMap<usize, String>,
 ) -> (i64, usize) {
-    let evaluation = score::evaluate_with(scorer, project, assignment);
-    (evaluation.penalty(), evaluation.hard_violations)
+    scorer.totals(assignment)
 }
 
 /// The top of each table with seats, reaching past its end seats' cards.

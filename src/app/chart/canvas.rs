@@ -291,11 +291,18 @@ impl PlassiApp {
         p: Palette,
         scene: &Scene,
     ) {
-        let group: HashSet<usize> = self
+        let groups = self.chart.groups.peek(&self.file.revision);
+        let group = self
             .selected_person
-            .and_then(|id| crate::groups::group_of(&self.project, id))
-            .map(|g| g.into_iter().collect())
-            .unwrap_or_default();
+            .and_then(|id| groups?.membership.get(&id).copied());
+        let fallback: HashSet<_> = if groups.is_none() {
+            self.selected_person
+                .and_then(|id| self.wish_group(id))
+                .map(|g| g.iter().copied().collect())
+                .unwrap_or_default()
+        } else {
+            HashSet::new()
+        };
         let preview: HashSet<usize> = self
             .chart
             .preference_preview
@@ -315,7 +322,11 @@ impl PlassiApp {
             .map(|&person| (scene.card_of(person), None, Some(person)));
         for (card, seat, occupant) in seats.chain(loose) {
             let Some(card) = card else { continue };
-            let in_group = occupant.is_some_and(|p| group.contains(&p));
+            let in_group = occupant.is_some_and(|p| {
+                group.is_some_and(|g| {
+                    groups.is_some_and(|groups| groups.membership.get(&p) == Some(&g))
+                }) || fallback.contains(&p)
+            });
             let previewed = seat.is_some_and(|id| {
                 self.chart
                     .group_preview
@@ -372,7 +383,9 @@ impl PlassiApp {
                 _ => fill("Score {}", &[&signed(delta)]),
             };
             badge(painter, at, &text, color, p);
-            ui.ctx().request_repaint();
+            ui.ctx().request_repaint_after(
+                web_time::Duration::from_secs(4).saturating_sub(when.elapsed()),
+            );
         }
     }
 
@@ -385,22 +398,59 @@ impl PlassiApp {
         person: Option<usize>,
         look: CardLook,
     ) {
-        match person.and_then(|id| self.project.person(id)) {
-            Some(attendee) => {
+        match person.and_then(|id| self.card_metadata(id)) {
+            Some(metadata) => {
+                let attendee = &self.project.attendees[metadata.attendee];
                 let coloring = self.coloring();
                 let kind = coloring.map_or(Kind::Organization, |c| c.kind);
                 let person = CardPerson {
                     name: &attendee.name,
-                    detail: self.project.category_name(kind, attendee),
-                    color_key: self.project.category_key(Kind::Organization, attendee),
+                    detail: &metadata.categories[kind as usize].name,
+                    color_key: metadata.categories[Kind::Organization as usize]
+                        .keys
+                        .first()
+                        .map_or("", String::as_str),
                     tint: coloring.map(|c| {
-                        let keys = self.project.category_keys(kind, attendee);
-                        c.tint(&keys, self.chart.color_hover.as_deref(), p)
+                        c.tint(
+                            &metadata.categories[kind as usize].keys,
+                            self.chart.color_hover.as_deref(),
+                            p,
+                        )
                     }),
                 };
                 paint_person_card(painter, p, rect, &person, look)
             }
-            None => paint_empty_seat(painter, p, rect, look),
+            None => {
+                // A control can edit the project after this frame's scene was
+                // built. Show fresh text until the cache refreshes next frame.
+                if let Some(attendee) = person.and_then(|id| self.project.person(id)) {
+                    let coloring = self.coloring();
+                    let kind = coloring.map_or(Kind::Organization, |c| c.kind);
+                    let detail = self.project.category_name(kind, attendee);
+                    let color_key = self.project.category_key(Kind::Organization, attendee);
+                    let tint = coloring.map(|c| {
+                        c.tint(
+                            &self.project.category_keys(kind, attendee),
+                            self.chart.color_hover.as_deref(),
+                            p,
+                        )
+                    });
+                    paint_person_card(
+                        painter,
+                        p,
+                        rect,
+                        &CardPerson {
+                            name: &attendee.name,
+                            detail: &detail,
+                            color_key: &color_key,
+                            tint,
+                        },
+                        look,
+                    );
+                } else {
+                    paint_empty_seat(painter, p, rect, look);
+                }
+            }
         }
     }
 }

@@ -15,6 +15,113 @@ pub(in crate::app) struct ImportMapping {
     reviewed: Vec<bool>,
 }
 
+/// Parsing and a prepared import survive repaints. The prepared project is
+/// moved into the app on Apply, rather than cloned again.
+#[derive(Default)]
+pub(in crate::app) struct ImportCache {
+    parsed: Option<ParsedImport>,
+    prepared: Option<(PreparedKey, PreparedImport)>,
+    #[cfg(test)]
+    parses: usize,
+    #[cfg(test)]
+    preparations: usize,
+}
+
+struct ParsedImport {
+    text: String,
+    language: crate::i18n::Lang,
+    result: Result<ParsedSheet, String>,
+}
+
+struct ParsedSheet {
+    sheet: Sheet,
+    columns: Vec<Column>,
+    matches: Vec<Match>,
+}
+
+#[derive(PartialEq)]
+struct PreparedKey {
+    revision: u64,
+    columns: Vec<Column>,
+    mode: ImportMode,
+}
+
+type PreparedImport = Result<(crate::model::Project, crate::import::MergeSummary), String>;
+
+impl ImportCache {
+    fn parse(&mut self, text: &str) {
+        let language = crate::i18n::current();
+        if self
+            .parsed
+            .as_ref()
+            .is_some_and(|parsed| parsed.text == text && parsed.language == language)
+        {
+            return;
+        }
+        self.parsed = Some(ParsedImport {
+            text: text.to_string(),
+            language,
+            result: crate::import::parse_sheet(text)
+                .map(|sheet| ParsedSheet {
+                    columns: sheet.columns.clone(),
+                    matches: sheet.matches.clone(),
+                    sheet,
+                })
+                .map_err(|error| format!("{error:#}")),
+        });
+        self.prepared = None;
+        #[cfg(test)]
+        {
+            self.parses += 1;
+        }
+    }
+
+    fn sheet(&mut self) -> Result<&mut Sheet, &str> {
+        let parsed = self.parsed.as_mut().expect("parsed before showing");
+        match &mut parsed.result {
+            Ok(parsed) => {
+                // Remembered mappings can change with the project. Start from
+                // the parser's metadata, while retaining the sheet's rows.
+                parsed.sheet.columns.clone_from(&parsed.columns);
+                parsed.sheet.matches.clone_from(&parsed.matches);
+                Ok(&mut parsed.sheet)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    fn prepare(&mut self, project: &crate::model::Project, revision: u64, mode: ImportMode) {
+        let sheet = &self
+            .parsed
+            .as_ref()
+            .expect("parsed before preparing")
+            .result
+            .as_ref()
+            .expect("only valid sheets are prepared")
+            .sheet;
+        if !sheet.has_name() {
+            self.prepared = None;
+            return;
+        }
+        let key = PreparedKey {
+            revision,
+            columns: sheet.columns.clone(),
+            mode,
+        };
+        if self.prepared.as_ref().is_some_and(|(old, _)| *old == key) {
+            return;
+        }
+        self.prepared = Some((
+            key,
+            crate::import::prepare(project, sheet, mode).map_err(|error| format!("{error:#}")),
+        ));
+        #[cfg(test)]
+        {
+            self.preparations += 1;
+        }
+    }
+}
+
 impl PlassiApp {
     pub(super) fn import_panel(&mut self, ui: &mut egui::Ui, p: Palette) {
         if self.people.import_open
@@ -162,15 +269,18 @@ impl PlassiApp {
 
     /// Each column of the pasted sheet with what it becomes, then Apply.
     fn sheet_preview(&mut self, ui: &mut egui::Ui, p: Palette) {
-        let mut sheet = match crate::import::parse_sheet(&self.people.import_text) {
+        let people = &mut self.people;
+        let cache = &mut people.import_cache;
+        cache.parse(&people.import_text);
+        let sheet = match cache.sheet() {
             Ok(sheet) => sheet,
             Err(error) => {
-                ui.label(RichText::new(format!("{error:#}")).color(p.warn));
+                ui.label(RichText::new(error).color(p.warn));
                 return;
             }
         };
         sheet.remember(&self.project.import_columns);
-        self.apply_mapping(&mut sheet);
+        Self::apply_mapping(&mut people.import_mapping, sheet);
         ui.add_space(theme::space::M);
         theme::section_title(
             ui,
@@ -178,9 +288,9 @@ impl PlassiApp {
             &fill("{} rows · check column mapping", &[&sheet.rows.len()]),
         );
         ui.add_space(theme::space::S);
-        let changed = column_rows(ui, p, &mut sheet, &mut self.people.import_mapping.reviewed);
+        let changed = column_rows(ui, p, sheet, &mut people.import_mapping.reviewed);
         if changed {
-            self.people.import_mapping.columns = sheet.columns.clone();
+            people.import_mapping.columns = sheet.columns.clone();
         }
         ui.add_space(theme::space::M);
         if !sheet.has_name() {
@@ -192,21 +302,20 @@ impl PlassiApp {
         if !self.project.attendees.is_empty() {
             ui.horizontal_wrapped(|ui| {
                 ui.radio_value(
-                    &mut self.people.import_mode,
+                    &mut people.import_mode,
                     ImportMode::Add,
                     tr("Add as new people"),
                 );
                 ui.radio_value(
-                    &mut self.people.import_mode,
+                    &mut people.import_mode,
                     ImportMode::UpdateMatching,
                     tr("Update matching names"),
                 );
             });
         }
-        let prepared = sheet
-            .has_name()
-            .then(|| crate::import::prepare(&self.project, &sheet, self.people.import_mode));
-        if let Some(result) = &prepared {
+        cache.prepare(&self.project, self.file.revision, people.import_mode);
+        let prepared = cache.prepared.as_ref().map(|(_, result)| result);
+        if let Some(result) = prepared {
             match result {
                 Ok((next, summary)) => {
                     ui.label(fill(
@@ -224,27 +333,29 @@ impl PlassiApp {
                 }
             }
         }
+        let mut apply = false;
+        let mut clear = false;
         ui.horizontal(|ui| {
-            let ready = prepared.as_ref().is_some_and(|result| result.is_ok())
-                && !self.file.external_invalid;
-            let apply = ui.add_enabled(ready, theme::primary_button(tr("Import"), p));
-            if apply.clicked()
-                && let Some(Ok((next, summary))) = prepared
-            {
-                self.project = next;
-                self.finish_import(summary);
-            }
-            if ui.add(theme::ghost_button(tr("Clear"), p)).clicked() {
-                self.people.clear_import();
-                self.people.import_open = true;
-            }
+            let ready =
+                prepared.is_some_and(|result| result.is_ok()) && !self.file.external_invalid;
+            apply = ui
+                .add_enabled(ready, theme::primary_button(tr("Import"), p))
+                .clicked();
+            clear = ui.add(theme::ghost_button(tr("Clear"), p)).clicked();
         });
+        if apply && let Some((_, Ok((next, summary)))) = cache.prepared.take() {
+            self.project = next;
+            self.finish_import(summary);
+        }
+        if clear {
+            self.people.clear_import();
+            self.people.import_open = true;
+        }
     }
 
     /// Uses the person's column choices while the header row is unchanged.
-    fn apply_mapping(&mut self, sheet: &mut Sheet) {
+    fn apply_mapping(mapping: &mut ImportMapping, sheet: &mut Sheet) {
         let header_line = sheet.headers.join("\t");
-        let mapping = &mut self.people.import_mapping;
         if mapping.header_line != header_line || mapping.columns.len() != sheet.columns.len() {
             *mapping = ImportMapping {
                 header_line,
@@ -482,4 +593,160 @@ fn template_table(ui: &mut egui::Ui, p: Palette) {
                 });
         });
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::Project;
+
+    fn refresh(
+        cache: &mut ImportCache,
+        mapping: &mut ImportMapping,
+        text: &str,
+        project: &Project,
+        revision: u64,
+        mode: ImportMode,
+    ) {
+        cache.parse(text);
+        let sheet = cache.sheet().unwrap();
+        sheet.remember(&project.import_columns);
+        PlassiApp::apply_mapping(mapping, sheet);
+        cache.prepare(project, revision, mode);
+    }
+
+    fn prepared(cache: &ImportCache) -> &(Project, crate::import::MergeSummary) {
+        cache.prepared.as_ref().unwrap().1.as_ref().unwrap()
+    }
+
+    #[test]
+    fn preview_reuses_unchanged_input_and_refreshes_every_import_input() {
+        crate::i18n::set(crate::i18n::Lang::En);
+        let source = "Name\tOther\nPerson 1\tABC";
+        let mut project = crate::import::prepare(
+            &Project::new(),
+            &crate::import::parse_sheet("Name\nPerson 1").unwrap(),
+            ImportMode::Add,
+        )
+        .unwrap()
+        .0;
+        let mut cache = ImportCache::default();
+        let mut mapping = ImportMapping::default();
+        refresh(
+            &mut cache,
+            &mut mapping,
+            source,
+            &project,
+            0,
+            ImportMode::Add,
+        );
+        assert_eq!(prepared(&cache).0.attendees.len(), 2);
+        assert_eq!(prepared(&cache).0.attendees[1].extra["Other"], "ABC");
+        refresh(
+            &mut cache,
+            &mut mapping,
+            source,
+            &project,
+            0,
+            ImportMode::Add,
+        );
+        assert_eq!((cache.parses, cache.preparations), (1, 1));
+
+        mapping.columns[1] = Column::Food;
+        refresh(
+            &mut cache,
+            &mut mapping,
+            source,
+            &project,
+            0,
+            ImportMode::Add,
+        );
+        assert_eq!(prepared(&cache).0.attendees[1].food, "ABC");
+        assert!(prepared(&cache).0.attendees[1].extra.is_empty());
+        assert_eq!((cache.parses, cache.preparations), (1, 2));
+
+        let changed = "Name\tOther\nPerson 1\tXYZ";
+        refresh(
+            &mut cache,
+            &mut mapping,
+            changed,
+            &project,
+            0,
+            ImportMode::Add,
+        );
+        assert_eq!(prepared(&cache).0.attendees[1].food, "XYZ");
+        assert_eq!((cache.parses, cache.preparations), (2, 3));
+
+        refresh(
+            &mut cache,
+            &mut mapping,
+            changed,
+            &project,
+            0,
+            ImportMode::UpdateMatching,
+        );
+        assert_eq!(prepared(&cache).0.attendees.len(), 1);
+        assert_eq!(prepared(&cache).0.attendees[0].food, "XYZ");
+        assert_eq!((cache.parses, cache.preparations), (2, 4));
+
+        project.attendees.clear();
+        refresh(
+            &mut cache,
+            &mut mapping,
+            changed,
+            &project,
+            1,
+            ImportMode::UpdateMatching,
+        );
+        assert_eq!(
+            (prepared(&cache).1.added, prepared(&cache).1.updated),
+            (1, 0)
+        );
+        assert_eq!((cache.parses, cache.preparations), (2, 5));
+
+        mapping.columns[0] = Column::Ignore;
+        refresh(
+            &mut cache,
+            &mut mapping,
+            changed,
+            &project,
+            1,
+            ImportMode::Add,
+        );
+        assert!(cache.prepared.is_none(), "a missing name disables Apply");
+    }
+
+    #[test]
+    fn preview_refreshes_localized_errors_and_clear_releases_cached_projects() {
+        let project = Project::new();
+        let mut cache = ImportCache::default();
+        let mut mapping = ImportMapping::default();
+        for language in crate::i18n::Lang::ALL {
+            crate::i18n::set(language);
+            refresh(
+                &mut cache,
+                &mut mapping,
+                "Name\n",
+                &project,
+                0,
+                ImportMode::Add,
+            );
+            let actual = cache.prepared.as_ref().unwrap().1.as_ref().unwrap_err();
+            let expected = crate::import::prepare(
+                &project,
+                &crate::import::parse_sheet("Name\n").unwrap(),
+                ImportMode::Add,
+            )
+            .unwrap_err();
+            assert_eq!(actual, &format!("{expected:#}"));
+        }
+        assert_eq!((cache.parses, cache.preparations), (2, 2));
+        let mut state = PeopleState {
+            import_cache: cache,
+            ..Default::default()
+        };
+        state.clear_import();
+        assert!(state.import_cache.parsed.is_none());
+        assert!(state.import_cache.prepared.is_none());
+    }
 }

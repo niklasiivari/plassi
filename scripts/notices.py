@@ -79,7 +79,7 @@ def main():
         out.append("## Additional notices\n")
         out.append("NOTICE files shipped with the crates above.\n")
         out += notices
-    sys.stdout.write("\n".join(out))
+    sys.stdout.write("\n".join(line.rstrip() for line in "\n".join(out).splitlines()) + "\n")
 
 
 main()

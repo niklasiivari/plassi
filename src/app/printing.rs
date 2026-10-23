@@ -9,22 +9,35 @@ use crate::print::PrintKind;
 use super::PlassiApp;
 use super::theme::{self, Palette};
 
-/// PDFs being typeset: whether to open them afterwards, and each PDF.
-pub(super) type PrintJob = (bool, crate::platform::PdfJob<PrintKind>);
+/// Output destinations belong to the project and option printed, even if the
+/// user edits or switches projects before the background renderer finishes.
+pub(super) struct PrintTarget {
+    project: String,
+    store: crate::platform::Store,
+    revision: u64,
+    option: usize,
+    names: std::collections::HashMap<PrintKind, String>,
+    archive: String,
+}
+
+pub(super) struct PrintJob {
+    target: PrintTarget,
+    open: bool,
+    runner: crate::platform::PdfJob<PrintKind>,
+}
 
 /// State of the Print page.
 #[derive(Default)]
 pub(super) struct PrintState {
     pub(super) job: Option<PrintJob>,
-    /// Last saved PDF per print kind, and the project revision it shows.
-    pub(super) saved: std::collections::HashMap<PrintKind, (String, u64)>,
+    /// Last saved PDF per print kind, its project revision and option.
+    pub(super) saved: std::collections::HashMap<PrintKind, (String, u64, usize)>,
     /// File, project revision and selected option of the last Excel snapshot.
     pub(super) spreadsheet: Option<(String, u64, usize)>,
 }
 
 impl PlassiApp {
     pub(super) fn print_page(&mut self, ui: &mut egui::Ui, p: Palette) {
-        self.poll_print();
         crate::app::help::page_header(
             ui,
             p,
@@ -311,12 +324,13 @@ impl PlassiApp {
                     request = Some(true);
                 }
             });
-            if let Some((path, revision)) = self.printing.saved.get(&kind) {
-                let (text, color) = if *revision == self.file.revision {
-                    (path.clone(), p.muted)
-                } else {
-                    (fill("{} · out of date", &[path]), p.warn)
-                };
+            if let Some((path, revision, option)) = self.printing.saved.get(&kind) {
+                let (text, color) =
+                    if *revision == self.file.revision && *option == self.selected_candidate {
+                        (path.clone(), p.muted)
+                    } else {
+                        (fill("{} · out of date", &[path]), p.warn)
+                    };
                 ui.label(RichText::new(text).size(theme::text::CAPTION).color(color));
             }
         });
@@ -339,6 +353,7 @@ impl PlassiApp {
     }
 
     fn start_print(&mut self, kinds: Vec<PrintKind>, open: bool) {
+        let target = self.print_target(&kinds);
         let prints = kinds
             .into_iter()
             .map(|kind| {
@@ -349,7 +364,30 @@ impl PlassiApp {
                 )
             })
             .collect();
-        self.printing.job = Some((open, crate::platform::PdfJob::start(prints)));
+        self.printing.job = Some(PrintJob {
+            target,
+            open,
+            runner: crate::platform::PdfJob::start(prints),
+        });
+    }
+
+    pub(super) fn print_target(&self, kinds: &[PrintKind]) -> PrintTarget {
+        PrintTarget {
+            project: self.file.name.clone(),
+            store: self.file.store.clone(),
+            revision: self.file.revision,
+            option: self.selected_candidate,
+            names: kinds
+                .iter()
+                .map(|&kind| {
+                    (
+                        kind,
+                        crate::print::file_name(&self.project, &self.file.name, kind),
+                    )
+                })
+                .collect(),
+            archive: format!("{} - PDFs.zip", self.file.name),
+        }
     }
 
     /// Opens a file or folder with the system's default app.
@@ -359,16 +397,23 @@ impl PlassiApp {
         }
     }
 
-    fn poll_print(&mut self) {
-        let Some((open, pdfs)) = self
-            .printing
-            .job
-            .as_mut()
-            .and_then(|(open, job)| Some((*open, job.poll()?)))
-        else {
+    pub(super) fn poll_print(&mut self) {
+        let Some(pdfs) = self.printing.job.as_mut().and_then(|job| job.runner.poll()) else {
             return;
         };
-        self.printing.job = None;
+        let job = self.printing.job.take().expect("completed print job");
+        self.finish_print(job.target, job.open, pdfs);
+    }
+
+    pub(super) fn finish_print(
+        &mut self,
+        target: PrintTarget,
+        open: bool,
+        pdfs: crate::platform::Pdfs<PrintKind>,
+    ) {
+        let same_option =
+            self.file.name == target.project && self.selected_candidate == target.option;
+        let current = same_option && self.file.revision == target.revision;
         // Browsers can silently block all but the first automatic download.
         // Offer one archive for a batch, while keeping individual PDFs direct.
         if cfg!(target_arch = "wasm32") && pdfs.len() > 1 {
@@ -377,25 +422,30 @@ impl PlassiApp {
                     .iter()
                     .map(|(kind, pdf)| {
                         Ok((
-                            crate::print::file_name(&self.project, &self.file.name, *kind),
-                            pdf.as_deref().map_err(|error| anyhow::anyhow!("{error}"))?,
+                            target.names[kind].clone(),
+                            pdf.as_ref().map_err(|error| anyhow::anyhow!("{error}"))?,
                         ))
                     })
                     .collect::<anyhow::Result<Vec<_>>>()?;
-                let bytes = crate::print::pdf_archive(&files)?;
-                let name = format!("{} - PDFs.zip", self.file.name);
-                crate::platform::save_file(&self.file.store, &name, &bytes)
+                crate::platform::save_pdf_archive(&target.store, &target.archive, &files)
             })();
             match result {
                 Ok(file) => {
-                    for (kind, _) in pdfs {
-                        self.printing
-                            .saved
-                            .insert(kind, (file.description.clone(), self.file.revision));
+                    if same_option {
+                        for (kind, _) in &pdfs {
+                            self.printing.saved.insert(
+                                *kind,
+                                (file.description.clone(), target.revision, target.option),
+                            );
+                        }
                     }
-                    self.status = fill("Downloaded {}", &[&file.description]);
+                    if current {
+                        self.status = fill("Downloaded {}", &[&file.description]);
+                    }
                 }
-                Err(error) => self.status = format!("{error:#}"),
+                Err(error) => {
+                    self.status = fill("{} failed: {}", &[&target.project, &format!("{error:#}")])
+                }
             }
             return;
         }
@@ -403,34 +453,38 @@ impl PlassiApp {
         let mut failed = Vec::new();
         for (kind, pdf) in pdfs {
             let result = pdf.and_then(|bytes| {
-                let name = crate::print::file_name(&self.project, &self.file.name, kind);
-                crate::platform::save_file(&self.file.store, &name, &bytes)
+                crate::platform::save_pdf(&target.store, &target.names[&kind], &bytes)
                     .map_err(|e| format!("{e:#}"))
             });
             match result {
                 Ok(file) => {
-                    if open && let Some(path) = &file.location {
+                    if open
+                        && current
+                        && let Some(path) = &file.location
+                    {
                         self.open_file(path);
                     }
                     saved.push(kind.title());
-                    self.printing
-                        .saved
-                        .insert(kind, (file.description, self.file.revision));
+                    if same_option {
+                        self.printing
+                            .saved
+                            .insert(kind, (file.description, target.revision, target.option));
+                    }
                 }
                 Err(error) => failed.push(fill("{} failed: {}", &[&kind.title(), &error])),
             }
         }
-        self.status = match (saved.is_empty(), failed.is_empty()) {
-            (_, false) => failed.join("; "),
-            (false, true) => fill(
+        if !failed.is_empty() {
+            self.status = fill("{} failed: {}", &[&target.project, &failed.join("; ")]);
+        } else if current && !saved.is_empty() {
+            self.status = fill(
                 if cfg!(target_arch = "wasm32") {
                     "Downloaded {}"
                 } else {
                     "Saved {}"
                 },
                 &[&saved.join(", ")],
-            ),
-            (true, true) => String::new(),
-        };
+            );
+        }
     }
 }

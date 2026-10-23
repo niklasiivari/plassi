@@ -61,8 +61,10 @@ fn civil_date(days: i64) -> (i64, u32, u32) {
 impl PlassiApp {
     /// Keeps the last saved state as a backup, e.g. before a risky operation.
     pub(super) fn backup_now(&mut self) {
-        if let Some(bytes) = self.file.last_bytes.clone() {
-            self.backup_bytes(&bytes);
+        if let Some(bytes) = &self.file.last_bytes
+            && self.file.library.backup(&self.file.name, bytes).is_ok()
+        {
+            self.backups.last_auto = Some(Instant::now());
         }
     }
 

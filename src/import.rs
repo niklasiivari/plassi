@@ -11,7 +11,7 @@ pub use workbook::read_sheets;
 
 use crate::catalog::normalize;
 use crate::i18n::{fill, tr};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
@@ -367,25 +367,93 @@ fn apply(project: &mut Project, sheet: &Sheet, mode: ImportMode) -> Result<Merge
         bail!(tr("No people in the sheet"));
     }
     let mut summary = MergeSummary::default();
-    let mut claimed = HashSet::new();
+    let mut attendees = AttendeeIndex::new(project);
     let ids: Vec<usize> = rows
         .iter()
-        .map(|row| upsert_attendee(project, row, mode, &mut claimed, &mut summary))
+        .map(|row| upsert_attendee(project, row, mode, &mut attendees, &mut summary))
         .collect();
     let mut name_map: HashMap<String, Vec<usize>> = HashMap::new();
     for p in &project.attendees {
         name_map.entry(normalize(&p.name)).or_default().push(p.id);
     }
+    let mut notes = NoteIndex::new(project);
     for (row, &person) in rows.iter().zip(&ids) {
         for (field, text) in [
             (ImportField::Avec, &row.avec),
             (ImportField::Wish, &row.wish),
         ] {
-            add_note(project, &name_map, person, field, text.trim(), &mut summary);
+            add_note(
+                project,
+                &name_map,
+                &mut notes,
+                person,
+                field,
+                text.trim(),
+                &mut summary,
+            );
         }
     }
     project.validate()?;
     Ok(summary)
+}
+
+/// Existing same-named attendees stay in their original order. A row claims
+/// one of them at most once, including when several spellings normalize alike.
+struct AttendeeIndex {
+    unmatched: HashMap<String, VecDeque<usize>>,
+    claimed_names: HashSet<String>,
+    next_id: usize,
+}
+
+impl AttendeeIndex {
+    fn new(project: &Project) -> Self {
+        let mut unmatched: HashMap<String, VecDeque<usize>> = HashMap::new();
+        for (index, attendee) in project.attendees.iter().enumerate() {
+            unmatched
+                .entry(normalize(&attendee.name))
+                .or_default()
+                .push_back(index);
+        }
+        Self {
+            unmatched,
+            claimed_names: HashSet::new(),
+            next_id: project
+                .attendees
+                .iter()
+                .map(|a| a.id.saturating_add(1))
+                .max()
+                .unwrap_or(0),
+        }
+    }
+}
+
+/// Deduplication and ID allocation shared by every note in one import.
+struct NoteIndex {
+    // The boolean distinguishes the two ImportField variants.
+    texts: HashMap<(usize, bool), HashSet<String>>,
+    next_rule_id: u64,
+}
+
+impl NoteIndex {
+    fn new(project: &Project) -> Self {
+        let mut texts: HashMap<(usize, bool), HashSet<String>> = HashMap::new();
+        for note in &project.notes {
+            texts
+                .entry((note.person, note.field == ImportField::Avec))
+                .or_default()
+                .insert(note.text.clone());
+        }
+        Self {
+            texts,
+            next_rule_id: project
+                .rules
+                .iter()
+                .map(|rule| rule.id)
+                .max()
+                .unwrap_or(0)
+                .saturating_add(1),
+        }
+    }
 }
 
 /// Updates the attendee with the row's name, or adds one; returns their ID.
@@ -395,24 +463,19 @@ fn upsert_attendee(
     project: &mut Project,
     row: &Row,
     mode: ImportMode,
-    claimed: &mut HashSet<usize>,
+    attendees: &mut AttendeeIndex,
     summary: &mut MergeSummary,
 ) -> usize {
     let name = normalize(&row.name);
-    let same_name = |a: &Attendee| normalize(&a.name) == name;
-    if project
-        .attendees
-        .iter()
-        .any(|a| same_name(a) && claimed.contains(&a.id))
-    {
+    if !attendees.claimed_names.insert(name.clone()) {
         summary.duplicate_names.push(row.name.clone());
     }
     let existing = (mode == ImportMode::UpdateMatching)
         .then(|| {
-            project
-                .attendees
-                .iter()
-                .position(|a| same_name(a) && !claimed.contains(&a.id))
+            attendees
+                .unmatched
+                .get_mut(&name)
+                .and_then(VecDeque::pop_front)
         })
         .flatten();
     let index = match existing {
@@ -421,12 +484,8 @@ fn upsert_attendee(
             index
         }
         None => {
-            let id = project
-                .attendees
-                .iter()
-                .map(|a| a.id + 1)
-                .max()
-                .unwrap_or(0);
+            let id = attendees.next_id;
+            attendees.next_id = attendees.next_id.saturating_add(1);
             project.attendees.push(Attendee {
                 id,
                 name: row.name.clone(),
@@ -443,7 +502,6 @@ fn upsert_attendee(
             project.attendees.len() - 1
         }
     };
-    claimed.insert(project.attendees[index].id);
     let a = &mut project.attendees[index];
     for (field, value) in [
         (&mut a.organization, &row.organization),
@@ -465,16 +523,18 @@ fn upsert_attendee(
 fn add_note(
     project: &mut Project,
     name_map: &HashMap<String, Vec<usize>>,
+    notes: &mut NoteIndex,
     person: usize,
     field: ImportField,
     text: &str,
     summary: &mut MergeSummary,
 ) {
     if text.is_empty()
-        || project
-            .notes
-            .iter()
-            .any(|n| n.person == person && n.field == field && n.text == text)
+        || !notes
+            .texts
+            .entry((person, field == ImportField::Avec))
+            .or_default()
+            .insert(text.to_string())
     {
         return;
     }
@@ -484,12 +544,13 @@ fn add_note(
         .filter(|id| *id != person);
     if let Some(target) = exact {
         project.rules.push(wish_rule(
-            project.next_rule_id(),
+            notes.next_rule_id,
             person,
             vec![target],
             field.wish(),
             text,
         ));
+        notes.next_rule_id = notes.next_rule_id.saturating_add(1);
         summary.new_rules += 1;
     }
     project.notes.push(ImportNote {
@@ -586,4 +647,122 @@ fn csv_text<S: AsRef<str>>(rows: &[Vec<S>]) -> String {
     }
     let bytes = writer.into_inner().unwrap_or_default();
     format!("\u{feff}{}", String::from_utf8_lossy(&bytes))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn attendee(id: usize, name: &str) -> Attendee {
+        Attendee {
+            id,
+            name: name.into(),
+            organization: String::new(),
+            participant_group: String::new(),
+            tags: Vec::new(),
+            food: String::new(),
+            drink: String::new(),
+            allergies: String::new(),
+            price_override_cents: None,
+            extra: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn indexed_import_matches_same_names_once_in_attendee_order() {
+        let mut project = Project::new();
+        project.attendees = vec![
+            attendee(42, "Person 1"),
+            attendee(3, "PERSON 1"),
+            attendee(19, "Person 2"),
+        ];
+        let before = serde_json::to_value(&project).unwrap();
+        let sheet = parse_sheet(
+            "Name\tFood\nPerson 1\tABC\nPERSON 1\tXYZ\nPerson 1\tABC / XYZ\nPerson 2\tXYZ",
+        )
+        .unwrap();
+        let (next, summary) = prepare(&project, &sheet, ImportMode::UpdateMatching).unwrap();
+        assert_eq!((summary.added, summary.updated), (1, 3));
+        assert_eq!(summary.duplicate_names, ["PERSON 1", "Person 1"]);
+        let actual: Vec<_> = next
+            .attendees
+            .iter()
+            .map(|a| (a.id, a.name.as_str(), a.food.as_str()))
+            .collect();
+        assert_eq!(
+            actual,
+            [
+                (42, "Person 1", "ABC"),
+                (3, "PERSON 1", "XYZ"),
+                (19, "Person 2", "XYZ"),
+                (43, "Person 1", "ABC / XYZ"),
+            ]
+        );
+        assert_eq!(serde_json::to_value(&project).unwrap(), before);
+    }
+
+    #[test]
+    fn indexed_add_keeps_existing_names_and_reports_only_repeated_rows() {
+        let mut project = Project::new();
+        project.attendees = vec![attendee(42, "Person 1")];
+        let sheet = parse_sheet("Name\tFood\nPERSON 1\tABC\nPerson 1\tXYZ").unwrap();
+        let (next, summary) = prepare(&project, &sheet, ImportMode::Add).unwrap();
+        assert_eq!((summary.added, summary.updated), (2, 0));
+        assert_eq!(summary.duplicate_names, ["Person 1"]);
+        assert_eq!(next.attendees[0].food, "");
+        assert_eq!(next.attendees[1].id, 43);
+        assert_eq!(next.attendees[1].food, "ABC");
+        assert_eq!(next.attendees[2].id, 44);
+        assert_eq!(next.attendees[2].food, "XYZ");
+    }
+
+    #[test]
+    fn indexed_notes_keep_fields_separate_and_allocate_after_existing_rules() {
+        let mut project = Project::new();
+        project.attendees = vec![attendee(3, "Person 1"), attendee(42, "Person 2")];
+        project.notes.push(ImportNote {
+            person: 3,
+            field: ImportField::Avec,
+            text: "Person 2".into(),
+            reviewed: true,
+        });
+        project
+            .rules
+            .push(wish_rule(99, 3, vec![42], WishKind::Avec, "Person 2"));
+        let sheet = parse_sheet(
+            "Name\tAvec\tSeating wish\nPerson 1\tPerson 2\tPerson 2\nPerson 2\t\tPerson 1",
+        )
+        .unwrap();
+        let (next, summary) = prepare(&project, &sheet, ImportMode::UpdateMatching).unwrap();
+        assert_eq!((summary.new_notes, summary.new_rules), (2, 2));
+        assert_eq!(next.notes.len(), 3);
+        assert_eq!(next.notes[0].field, ImportField::Avec);
+        assert_eq!(next.notes[1].field, ImportField::Wish);
+        assert!(next.notes.iter().all(|n| n.reviewed));
+        assert_eq!(
+            next.rules.iter().map(|r| r.id).collect::<Vec<_>>(),
+            [99, 100, 101]
+        );
+        let (again, repeated) = prepare(&next, &sheet, ImportMode::UpdateMatching).unwrap();
+        assert_eq!((repeated.new_notes, repeated.new_rules), (0, 0));
+        assert_eq!(
+            serde_json::to_value(&again).unwrap(),
+            serde_json::to_value(&next).unwrap()
+        );
+    }
+
+    #[test]
+    fn indexed_id_allocation_leaves_invalid_projects_to_validation() {
+        let mut project = Project::new();
+        project.attendees = vec![attendee(0, "Person 1"), attendee(1, "Person 2")];
+        project
+            .rules
+            .push(wish_rule(u64::MAX, 0, vec![1], WishKind::Seating, ""));
+        let sheet = parse_sheet("Name\nPerson 1").unwrap();
+        assert!(prepare(&project, &sheet, ImportMode::UpdateMatching).is_err());
+
+        project.rules.clear();
+        project.attendees[1].id = usize::MAX;
+        assert!(prepare(&project, &sheet, ImportMode::Add).is_err());
+    }
 }

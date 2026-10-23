@@ -8,11 +8,12 @@ impl PlassiApp {
     pub(super) fn suggestions_ui(&mut self, ui: &mut egui::Ui, p: Palette, person: usize) {
         let seated = self.seat_in_option(person).is_some();
         let key = (self.file.revision, person, self.selected_candidate);
+        let scorer = self.scorer();
         let project = &self.project;
         let moves = self
             .chart
             .suggestions
-            .get(key, || best_moves(project, key.2, person));
+            .get(key, || best_moves(&scorer, project, key.2, person));
         if moves.is_empty() {
             return;
         }
@@ -71,7 +72,7 @@ impl PlassiApp {
 
     /// The selected person's wish group and places the whole group could move to.
     pub(super) fn group_ui(&mut self, ui: &mut egui::Ui, p: Palette, person: usize) {
-        let Some(group) = crate::groups::group_of(&self.project, person) else {
+        let Some(group) = self.wish_group(person) else {
             return;
         };
         ui.add_space(theme::space::XL);
@@ -88,8 +89,8 @@ impl PlassiApp {
                 .on_hover_text(tr("Swap the group with people in nearby seats"))
                 .clicked()
             {
+                let scorer = self.scorer();
                 let project = &self.project;
-                let scorer = crate::seating::Scorer::new(project);
                 let moves = project
                     .candidates
                     .get(self.selected_candidate)
@@ -99,7 +100,7 @@ impl PlassiApp {
                         })
                     })
                     .unwrap_or_default();
-                self.chart.group_moves.set(key, moves);
+                self.chart.group_moves.set(key, std::rc::Rc::new(moves));
             }
             return;
         };
@@ -139,7 +140,7 @@ impl PlassiApp {
         }
         if let Some(index) = apply {
             let mv = moves[index].clone();
-            let scorer = crate::seating::Scorer::new(&self.project);
+            let scorer = self.scorer();
             let polished = crate::groups::polish(&mv, |a| total_score(&scorer, &self.project, a));
             let before = self
                 .project

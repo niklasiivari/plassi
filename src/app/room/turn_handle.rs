@@ -17,9 +17,10 @@ impl PlassiApp {
         &self,
         ui: &egui::Ui,
         view: &Viewport,
+        geometry: &super::geometry::RoomGeometry,
     ) -> Option<(String, TablePosition)> {
         let id = self.room.canvas.turning.as_ref()?;
-        let frame = *self.project.layout.table_frames().get(id)?;
+        let frame = geometry.table(id)?.base;
         let pointer = view.world(ui.input(|i| i.pointer.interact_pos())?);
         let rotation = pointer_rotation(frame, pointer, self.room.canvas.snap);
         Some((id.clone(), TablePosition { rotation, ..frame }))

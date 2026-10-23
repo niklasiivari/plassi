@@ -15,6 +15,7 @@ mod options;
 mod person;
 mod pins;
 mod preferences;
+mod presentation;
 mod scene;
 mod setup;
 mod shortcuts;
@@ -28,6 +29,7 @@ use card::*;
 pub(in crate::app) use colors::COLOR_SETTING;
 use colors::*;
 use edits::*;
+use presentation::*;
 use scene::*;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -126,7 +128,12 @@ pub(in crate::app) struct ChartState {
     /// Best swaps for the selected person, keyed by (revision, person, option).
     pub(in crate::app) suggestions: Memo<(u64, usize, usize), Vec<Suggestion>>,
     /// Group-move suggestions keyed by (revision, option, person).
-    pub(in crate::app) group_moves: Memo<(u64, usize, usize), Vec<crate::groups::GroupMove>>,
+    pub(in crate::app) group_moves:
+        Memo<(u64, usize, usize), std::rc::Rc<Vec<crate::groups::GroupMove>>>,
+    /// Attendee text and catalog memberships, shared by options of this revision.
+    presentation: Memo<u64, Presentation>,
+    /// Wish components and membership, independent of the selected option.
+    groups: Memo<u64, WishGroups>,
     /// People picked with Ctrl/Shift-click, for a new preference.
     pub(in crate::app) multi: std::collections::BTreeSet<usize>,
     /// Preference under the pointer in the side panel; its members are outlined.
@@ -174,6 +181,13 @@ impl PlassiApp {
                 .min(self.project.candidates.len() - 1);
         }
         let candidate = (!self.project.candidates.is_empty()).then_some(self.selected_candidate);
+        let project = &self.project;
+        self.chart
+            .presentation
+            .get(self.file.revision, || Presentation::new(project));
+        self.chart
+            .groups
+            .get(self.file.revision, || WishGroups::new(project));
         self.chart.group_preview = None;
         // However someone was selected (the list, search, the issue list,
         // another page), they replace the table, which must not come back
@@ -322,6 +336,23 @@ impl PlassiApp {
     fn coloring(&self) -> Option<&Coloring> {
         let kind = self.chart.color_by?;
         self.chart.coloring.peek(&(self.file.revision, kind))
+    }
+
+    fn card_metadata(&self, person: usize) -> Option<&CardMetadata> {
+        self.chart
+            .presentation
+            .peek(&self.file.revision)?
+            .people
+            .get(&person)
+    }
+
+    fn wish_group(&self, person: usize) -> Option<std::rc::Rc<Vec<usize>>> {
+        let Some(groups) = self.chart.groups.peek(&self.file.revision) else {
+            return crate::groups::group_of(&self.project, person).map(std::rc::Rc::new);
+        };
+        Some(std::rc::Rc::clone(
+            &groups.groups[*groups.membership.get(&person)?],
+        ))
     }
 
     /// Pans the canvas so the person's card is centred on the next frame,

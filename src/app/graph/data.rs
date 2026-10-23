@@ -7,18 +7,16 @@ use crate::model::{Project, RuleKind, Target, WishKind};
 use crate::score::Outcome;
 
 impl Graph {
-    pub(super) fn build(project: &Project, candidate: Option<usize>, everyone: bool) -> Self {
-        let evaluation = candidate
-            .and_then(|i| project.candidates.get(i))
-            .map(|c| crate::score::evaluate(project, &c.assignment));
-        let outcome_of = |rule_id: u64| {
-            evaluation
-                .as_ref()?
-                .results
-                .iter()
-                .find(|r| r.rule_id == rule_id)
-                .map(|r| r.outcome())
-        };
+    pub(super) fn build(
+        project: &Project,
+        evaluation: Option<&crate::score::Evaluation>,
+        everyone: bool,
+    ) -> Self {
+        let outcomes: HashMap<_, _> = evaluation
+            .into_iter()
+            .flat_map(|e| &e.results)
+            .map(|r| (r.rule_id, r.outcome()))
+            .collect();
         let mut pairs: Vec<(usize, usize, bool, Option<Outcome>)> = Vec::new();
         for rule in project.rules.iter().filter(|r| r.enabled) {
             if let RuleKind::Proximity {
@@ -29,7 +27,12 @@ impl Graph {
             } = &rule.kind
             {
                 for &to in ids {
-                    pairs.push((*requester, to, *wish == WishKind::Avec, outcome_of(rule.id)));
+                    pairs.push((
+                        *requester,
+                        to,
+                        *wish == WishKind::Avec,
+                        outcomes.get(&rule.id).copied(),
+                    ));
                 }
             }
         }
@@ -61,10 +64,26 @@ impl Graph {
             }
         }
         let mut degree = vec![0; people.len()];
+        let mut neighbours = vec![HashSet::new(); people.len()];
         for e in &edges {
             degree[e.from] += 1;
             degree[e.to] += 1;
+            neighbours[e.from].insert(e.to);
+            neighbours[e.to].insert(e.from);
         }
+        let attendee_indexes: Vec<_> = project
+            .attendees
+            .iter()
+            .enumerate()
+            .filter(|(_, a)| index.contains_key(&a.id))
+            .map(|(i, _)| i)
+            .collect();
+        let color_keys = attendee_indexes
+            .iter()
+            .map(|&i| {
+                project.category_key(crate::catalog::Kind::Organization, &project.attendees[i])
+            })
+            .collect();
         let components = crate::groups::wish_groups(project);
         Self {
             groups: components.len(),
@@ -73,6 +92,9 @@ impl Graph {
             index,
             edges,
             degree,
+            attendee_indexes,
+            color_keys,
+            neighbours,
         }
     }
 }

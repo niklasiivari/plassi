@@ -45,7 +45,7 @@ impl TableSpec {
 
     /// A seat relative to the table centre before turning, and the direction
     /// away from the table.
-    pub(super) fn local_seat(&self, side: Side, index: usize) -> (f32, f32, f32) {
+    pub(crate) fn local_seat(&self, side: Side, index: usize) -> (f32, f32, f32) {
         match self.shape {
             TableShape::Long => {
                 let (across, along) = self.half_size();

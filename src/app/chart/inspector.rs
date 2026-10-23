@@ -64,23 +64,8 @@ pub(super) fn stat_tile(
 }
 
 /// Wishes met, as on the option chips, and the other headline counts.
-fn stat_grid(
-    ui: &mut egui::Ui,
-    p: Palette,
-    project: &Project,
-    scene: &Scene,
-    evaluation: &Evaluation,
-) {
-    let wishes: Vec<_> = evaluation
-        .results
-        .iter()
-        .filter(|r| project.is_wish(r.rule_id))
-        .collect();
-    let total = wishes.len();
-    let met = wishes
-        .iter()
-        .filter(|r| r.outcome() == Outcome::Met)
-        .count();
+fn stat_grid(ui: &mut egui::Ui, p: Palette, scene: &Scene, evaluation: &Evaluation) {
+    let (met, total) = scene.wishes;
     let alone = scene.policy().map_or(0, |p| p.isolated.len());
     let good_if = |ok: bool| if ok { p.good } else { p.bad };
     ui.columns(2, |cols| {
@@ -232,7 +217,7 @@ impl PlassiApp {
             unseated_card(ui, p, scene);
         }
         ui.add_space(theme::space::L);
-        stat_grid(ui, p, &self.project, scene, evaluation);
+        stat_grid(ui, p, scene, evaluation);
         self.warnings(ui, p, scene, evaluation);
         ui.add_space(theme::space::XL);
         self.issue_list(ui, p, scene, evaluation);
@@ -364,28 +349,15 @@ impl PlassiApp {
         evaluation: &Evaluation,
     ) {
         theme::section_title(ui, p, tr("Needs attention"));
-        let owner_of = |result: &RuleResult| {
-            self.project
-                .rules
-                .iter()
-                .find(|r| r.id == result.rule_id)
-                .map(crate::model::Rule::owner)
-        };
-        let mut issues: Vec<_> = evaluation
-            .results
-            .iter()
-            .filter(|r| r.outcome() != crate::score::Outcome::Met && !scene.pending(r))
-            .map(|r| (owner_of(r), r))
-            .filter(|(owner, _)| owner.is_none_or(|id| scene.seat_of.contains_key(&id)))
-            .collect();
-        issues.sort_by_key(|(_, r)| (!r.hard_violation, -r.penalty));
+        let issues = &scene.issues;
         if issues.is_empty() && !scene.unseated.is_empty() {
             theme::hint(ui, p, tr("Nothing for the people seated so far"));
         } else if issues.is_empty() {
             ui.label(RichText::new(tr("All wishes met")).color(p.good));
         }
         let mut select = None;
-        for (owner, result) in issues {
+        for &(owner, index) in issues {
+            let result = &evaluation.results[index];
             let name = owner
                 .and_then(|id| self.project.person(id))
                 .map_or("?", |a| a.name.as_str());

@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use rand::Rng;
 use rand::seq::{IndexedRandom, SliceRandom};
 
-use crate::model::Project;
+use crate::model::{DistanceClass, Project};
 
 use super::problem::{NONE, Problem, Scratch};
 
@@ -23,6 +23,30 @@ pub(super) struct State {
     pub(super) occupant: Vec<usize>,
     pub(super) cost: i64,
     changed: usize,
+    /// Outcomes for the current seating, retained across candidate probes.
+    outcomes: Vec<(DistanceClass, i64)>,
+    /// Number of nearby wishes per fairness group.
+    near: Vec<usize>,
+}
+
+impl State {
+    fn refresh(&mut self, pr: &Problem) {
+        let mut scratch = Scratch::default();
+        self.outcomes = (0..pr.terms.len())
+            .map(|t| pr.term_outcome(t, &self.seat_of, &mut scratch))
+            .collect();
+        self.near = pr
+            .fairness
+            .groups
+            .iter()
+            .map(|terms| {
+                terms
+                    .iter()
+                    .filter(|&&t| self.outcomes[t].0 <= DistanceClass::Diagonal)
+                    .count()
+            })
+            .collect();
+    }
 }
 
 struct Evaluator {
@@ -31,6 +55,9 @@ struct Evaluator {
     terms: Vec<usize>,
     seats: Vec<usize>,
     scratch: Scratch,
+    outcomes: Vec<(DistanceClass, i64)>,
+    groups: Vec<usize>,
+    near_delta: Vec<isize>,
 }
 
 impl Evaluator {
@@ -41,6 +68,9 @@ impl Evaluator {
             terms: Vec::new(),
             seats: Vec::new(),
             scratch: Scratch::default(),
+            outcomes: Vec::new(),
+            groups: Vec::new(),
+            near_delta: vec![0; problem.fairness.groups.len()],
         }
     }
 
@@ -60,37 +90,28 @@ impl Evaluator {
         first
     }
 
-    /// Cost of everything that swapping the contents of seats x and y can change.
-    fn local(&mut self, pr: &Problem, st: &State, x: usize, y: usize) -> i64 {
-        let (a, b) = (st.occupant[x], st.occupant[y]);
-        let mut total = 0;
-        for (p, s) in [(a, x), (b, y)] {
-            if p != NONE {
-                total += pr.placement_cost(p, s);
-            }
-        }
-        // Wish terms touching either person.
+    /// Terms touching either occupant; this set is the same before and after a swap.
+    fn affected(&mut self, pr: &Problem, st: &State, x: usize, y: usize) {
         self.next_round();
         self.terms.clear();
-        for p in [a, b].into_iter().filter(|p| *p != NONE) {
+        for p in [st.occupant[x], st.occupant[y]]
+            .into_iter()
+            .filter(|p| *p != NONE)
+        {
             for &t in &pr.terms_of[p] {
                 if self.fresh(t) {
                     self.terms.push(t);
                 }
             }
         }
-        for i in 0..self.terms.len() {
-            total += pr.term_cost(self.terms[i], &st.seat_of, &mut self.scratch);
-        }
-        // "Nobody loses every wish" for the requesters of those terms.
-        if !pr.fairness.groups.is_empty() {
-            self.next_round();
-            for i in 0..self.terms.len() {
-                if let Some(g) = pr.fairness.of_term[self.terms[i]]
-                    && self.fresh(g)
-                {
-                    total += pr.left_out_cost(g, &st.seat_of, &mut self.scratch);
-                }
+    }
+
+    /// Local costs other than wishes, whose current outcomes are cached in the state.
+    fn local_policy(&mut self, pr: &Problem, st: &State, x: usize, y: usize) -> i64 {
+        let mut total = 0;
+        for (p, s) in [(st.occupant[x], x), (st.occupant[y], y)] {
+            if p != NONE {
+                total += pr.placement_cost(p, s);
             }
         }
         // Neighbour pairs at x and y (the x–y pair once).
@@ -161,12 +182,59 @@ fn swap(pr: &Problem, st: &mut State, x: usize, y: usize) {
     st.changed += changed_before(a, y) + changed_before(b, x);
 }
 
+/// Evaluates a swap against cached current outcomes. With `keep`, updates
+/// those caches and leaves the swap in place; probes restore the seating.
+fn evaluate_swap(
+    pr: &Problem,
+    st: &mut State,
+    ev: &mut Evaluator,
+    x: usize,
+    y: usize,
+    keep: bool,
+) -> i64 {
+    ev.affected(pr, st, x, y);
+    let before = ev.local_policy(pr, st, x, y) + pr.diversity_cost(st.changed);
+    swap(pr, st, x, y);
+    let after = ev.local_policy(pr, st, x, y) + pr.diversity_cost(st.changed);
+    let mut change = after - before;
+    ev.outcomes.clear();
+    ev.groups.clear();
+    ev.next_round();
+    for i in 0..ev.terms.len() {
+        let t = ev.terms[i];
+        let outcome = pr.term_outcome(t, &st.seat_of, &mut ev.scratch);
+        change += pr.cost_from_outcome(t, outcome) - pr.cost_from_outcome(t, st.outcomes[t]);
+        ev.outcomes.push(outcome);
+        if let Some(g) = pr.fairness.of_term[t] {
+            if ev.fresh(g) {
+                ev.groups.push(g);
+                ev.near_delta[g] = 0;
+            }
+            ev.near_delta[g] += isize::from(outcome.0 <= DistanceClass::Diagonal)
+                - isize::from(st.outcomes[t].0 <= DistanceClass::Diagonal);
+        }
+    }
+    for &g in &ev.groups {
+        let after = st.near[g]
+            .checked_add_signed(ev.near_delta[g])
+            .expect("nearby wish count");
+        change += (i64::from(after == 0) - i64::from(st.near[g] == 0)) * pr.fairness.penalty;
+        if keep {
+            st.near[g] = after;
+        }
+    }
+    if keep {
+        for (&t, &outcome) in ev.terms.iter().zip(&ev.outcomes) {
+            st.outcomes[t] = outcome;
+        }
+    } else {
+        swap(pr, st, x, y);
+    }
+    change
+}
+
 fn delta(pr: &Problem, st: &mut State, ev: &mut Evaluator, x: usize, y: usize) -> i64 {
-    let before = ev.local(pr, st, x, y) + pr.diversity_cost(st.changed);
-    swap(pr, st, x, y);
-    let after = ev.local(pr, st, x, y) + pr.diversity_cost(st.changed);
-    swap(pr, st, x, y);
-    after - before
+    evaluate_swap(pr, st, ev, x, y, false)
 }
 
 /// Two row blocks of the same height: (table, first row) each, and the height.
@@ -175,21 +243,102 @@ type RowBlocks = ((usize, usize), (usize, usize), usize);
 /// Most rows a block swap moves at once.
 const MAX_BLOCK_ROWS: usize = 4;
 
-/// Every pair of non-overlapping row blocks up to `MAX_BLOCK_ROWS` high.
-fn row_block_pairs(pr: &Problem) -> impl Iterator<Item = RowBlocks> + '_ {
-    let starts = |k: usize| {
+/// Row blocks depend only on table geometry. Keeping their row starts lets
+/// a paused scan resume without rebuilding or walking earlier candidates.
+struct RowBlockPairs {
+    starts: [Vec<(usize, usize)>; MAX_BLOCK_ROWS],
+    height: usize,
+    a: usize,
+    b: usize,
+    remaining: usize,
+}
+
+impl RowBlockPairs {
+    fn first_partner(starts: &[(usize, usize)], a: usize, height: usize) -> usize {
+        let (table, row) = starts[a];
+        starts.partition_point(|&b| b < (table, row + height))
+    }
+
+    fn next_start(&mut self) {
+        self.a += 1;
+        while self.height < MAX_BLOCK_ROWS && self.a >= self.starts[self.height].len() {
+            self.height += 1;
+            self.a = 0;
+        }
+        if self.height < MAX_BLOCK_ROWS {
+            self.b = Self::first_partner(&self.starts[self.height], self.a, self.height + 1);
+        }
+    }
+}
+
+impl Iterator for RowBlockPairs {
+    type Item = RowBlocks;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.nth(0)
+    }
+
+    fn nth(&mut self, mut n: usize) -> Option<Self::Item> {
+        if n >= self.remaining {
+            self.remaining = 0;
+            return None;
+        }
+        loop {
+            let starts = &self.starts[self.height];
+            let available = starts.len() - self.b;
+            if n < available {
+                let pair = (starts[self.a], starts[self.b + n], self.height + 1);
+                self.b += n + 1;
+                self.remaining -= n + 1;
+                return Some(pair);
+            }
+            n -= available;
+            self.remaining -= available;
+            self.next_start();
+        }
+    }
+
+    fn count(self) -> usize {
+        self.remaining
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl ExactSizeIterator for RowBlockPairs {}
+
+/// Every pair of non-overlapping row blocks, in the original height/table/row order.
+fn row_block_pairs(pr: &Problem) -> RowBlockPairs {
+    let starts: [Vec<_>; MAX_BLOCK_ROWS] = std::array::from_fn(|k| {
         pr.table_rows
             .iter()
             .enumerate()
-            .flat_map(move |(t, rows)| (0..(rows.len() + 1).saturating_sub(k)).map(move |r| (t, r)))
-    };
-    (1..=MAX_BLOCK_ROWS).flat_map(move |k| {
-        starts(k).flat_map(move |a| {
-            starts(k)
-                .filter(move |&b| b > a && (b.0 != a.0 || b.1 >= a.1 + k))
-                .map(move |b| (a, b, k))
+            .flat_map(|(t, rows)| (0..rows.len().saturating_sub(k)).map(move |r| (t, r)))
+            .collect()
+    });
+    let remaining = starts
+        .iter()
+        .enumerate()
+        .map(|(k, starts)| {
+            (0..starts.len())
+                .map(|a| starts.len() - RowBlockPairs::first_partner(starts, a, k + 1))
+                .sum::<usize>()
         })
-    })
+        .sum();
+    let b = if starts[0].is_empty() {
+        0
+    } else {
+        RowBlockPairs::first_partner(&starts[0], 0, 1)
+    };
+    RowBlockPairs {
+        starts,
+        height: 0,
+        a: 0,
+        b,
+        remaining,
+    }
 }
 
 /// Seats that trade places in a row block swap: same row offset, same side.
@@ -309,15 +458,43 @@ pub(super) fn construct(pr: &Problem, rng: &mut impl Rng, start: Option<&[usize]
     }
     let changed = pr.changed(&seat_of);
     let cost = pr.cost(&seat_of, &occupant);
-    State {
+    let mut state = State {
         seat_of,
         occupant,
         cost,
         changed,
-    }
+        outcomes: Vec::new(),
+        near: Vec::new(),
+    };
+    state.refresh(pr);
+    state
 }
 
-/// One tabu search run with breakout perturbations.
+type SingleMove = (i64, usize, usize);
+type BlockMove = (i64, [(usize, usize); 2]);
+
+struct SwapScan {
+    i: usize,
+    j: usize,
+    best: Option<SingleMove>,
+    ties: u32,
+}
+
+enum Pending {
+    Swaps(SwapScan),
+    Blocks {
+        sample: usize,
+        single: Option<SingleMove>,
+        best: Option<BlockMove>,
+    },
+    Rows {
+        pairs: RowBlockPairs,
+        best: Option<(i64, RowBlocks)>,
+    },
+}
+
+/// One tabu search run with breakout perturbations. A pending neighborhood
+/// retains its exact candidate order and tie-breaking RNG state across yields.
 pub(super) struct Run {
     state: State,
     pub(super) best: State,
@@ -329,6 +506,7 @@ pub(super) struct Run {
     moves: Vec<usize>,
     /// Swaps made while scoring a row block swap, to undo them.
     swapped: Vec<(usize, usize)>,
+    pending: Option<Pending>,
 }
 
 impl Run {
@@ -345,65 +523,180 @@ impl Run {
             evaluator: Evaluator::new(pr),
             moves,
             swapped: Vec::new(),
+            pending: None,
             state,
         }
     }
 
+    #[cfg(test)]
     pub(super) fn step(&mut self, pr: &Problem, rng: &mut impl Rng) {
-        self.iteration += 1;
-        let it = self.iteration;
-        let n_seats = pr.n_seats;
-        let mut best_move: Option<(i64, usize, usize)> = None;
-        let mut ties = 0u32;
-        for i in 0..self.moves.len() {
-            for j in (i + 1)..self.moves.len() {
-                let (x, y) = (self.moves[i], self.moves[j]);
-                if !valid_swap(pr, &self.state, x, y) {
-                    continue;
+        assert!(self.advance(pr, rng, || true));
+    }
+
+    /// Evaluates complete neighborhoods, yielding between small batches of
+    /// candidates. A yield never selects a move from an incomplete sample.
+    pub(super) fn advance(
+        &mut self,
+        pr: &Problem,
+        rng: &mut impl Rng,
+        mut keep_going: impl FnMut() -> bool,
+    ) -> bool {
+        const BATCH: usize = 32;
+        if !keep_going() {
+            return false;
+        }
+        let mut pending = self.pending.take().unwrap_or_else(|| {
+            self.iteration += 1;
+            Pending::Swaps(SwapScan {
+                i: 0,
+                j: 1,
+                best: None,
+                ties: 0,
+            })
+        });
+        let mut work = 0;
+        loop {
+            if work == BATCH {
+                if !keep_going() {
+                    self.pending = Some(pending);
+                    return false;
                 }
-                let d = delta(pr, &mut self.state, &mut self.evaluator, x, y);
-                let (a, b) = (self.state.occupant[x], self.state.occupant[y]);
-                let tabu = (a != NONE && self.tabu[a * n_seats + y] > it)
-                    || (b != NONE && self.tabu[b * n_seats + x] > it);
-                if tabu && self.state.cost + d >= self.best.cost {
-                    continue;
-                }
-                match best_move {
-                    Some((bd, _, _)) if d > bd => {}
-                    Some((bd, _, _)) if d == bd => {
-                        ties += 1;
-                        if rng.random_range(0..=ties) == 0 {
-                            best_move = Some((d, x, y));
+                work = 0;
+            }
+            work += 1;
+            pending = match pending {
+                Pending::Swaps(mut scan) => {
+                    if scan.i + 1 >= self.moves.len() {
+                        Pending::Blocks {
+                            sample: 0,
+                            single: scan.best,
+                            best: None,
                         }
+                    } else {
+                        let (x, y) = (self.moves[scan.i], self.moves[scan.j]);
+                        scan.j += 1;
+                        if scan.j == self.moves.len() {
+                            scan.i += 1;
+                            scan.j = scan.i + 1;
+                        }
+                        self.consider_swap(pr, rng, &mut scan, x, y);
+                        Pending::Swaps(scan)
                     }
-                    _ => {
-                        ties = 0;
-                        best_move = Some((d, x, y));
+                }
+                Pending::Blocks {
+                    sample,
+                    single,
+                    mut best,
+                } => {
+                    if sample < self.moves.len() {
+                        if let Some(candidate) = self.sample_block_move(pr, rng)
+                            && best.is_none_or(|(cost, _)| candidate.0 < cost)
+                        {
+                            best = Some(candidate);
+                        }
+                        Pending::Blocks {
+                            sample: sample + 1,
+                            single,
+                            best,
+                        }
+                    } else if self.apply_best_move(pr, rng, single, best) {
+                        self.state = self.best.clone();
+                        Pending::Rows {
+                            pairs: row_block_pairs(pr),
+                            best: None,
+                        }
+                    } else {
+                        return true;
                     }
+                }
+                Pending::Rows {
+                    mut pairs,
+                    mut best,
+                } => {
+                    if let Some(blocks) = pairs.next() {
+                        if let Some(d) = self.row_block_delta(pr, blocks, false)
+                            && best.is_none_or(|(cost, _)| d < cost)
+                        {
+                            best = Some((d, blocks));
+                        }
+                        Pending::Rows { pairs, best }
+                    } else {
+                        if let Some((d, blocks)) = best.filter(|(d, _)| *d < 0) {
+                            self.row_block_delta(pr, blocks, true);
+                            self.state.cost += d;
+                            self.best = self.state.clone();
+                            self.stall = 0;
+                        } else {
+                            self.breakout(pr, rng);
+                        }
+                        return true;
+                    }
+                }
+            };
+        }
+    }
+
+    fn consider_swap(
+        &mut self,
+        pr: &Problem,
+        rng: &mut impl Rng,
+        scan: &mut SwapScan,
+        x: usize,
+        y: usize,
+    ) {
+        if !valid_swap(pr, &self.state, x, y) {
+            return;
+        }
+        let d = delta(pr, &mut self.state, &mut self.evaluator, x, y);
+        let (a, b) = (self.state.occupant[x], self.state.occupant[y]);
+        let tabu = (a != NONE && self.tabu[a * pr.n_seats + y] > self.iteration)
+            || (b != NONE && self.tabu[b * pr.n_seats + x] > self.iteration);
+        if tabu && self.state.cost + d >= self.best.cost {
+            return;
+        }
+        match scan.best {
+            Some((bd, _, _)) if d > bd => {}
+            Some((bd, _, _)) if d == bd => {
+                scan.ties += 1;
+                if rng.random_range(0..=scan.ties) == 0 {
+                    scan.best = Some((d, x, y));
                 }
             }
+            _ => {
+                scan.ties = 0;
+                scan.best = Some((d, x, y));
+            }
         }
-        let block = self.best_block_move(pr, rng);
-        let swaps: Vec<(usize, usize)> = match (best_move, block) {
-            (Some((d, _, _)), Some((bd, pairs))) if bd < d => pairs.to_vec(),
-            (None, Some((_, pairs))) => pairs.to_vec(),
-            (Some((_, x, y)), _) => vec![(x, y)],
+    }
+
+    /// Applies the selected single or pair move. Returns whether stalled
+    /// progress needs an exhaustive row-block scan from the best seating.
+    fn apply_best_move(
+        &mut self,
+        pr: &Problem,
+        rng: &mut impl Rng,
+        single: Option<SingleMove>,
+        block: Option<BlockMove>,
+    ) -> bool {
+        let (swaps, count) = match (single, block) {
+            (Some((d, _, _)), Some((bd, pairs))) if bd < d => (pairs, 2),
+            (None, Some((_, pairs))) => (pairs, 2),
+            (Some((_, x, y)), _) => ([(x, y), (0, 0)], 1),
             (None, None) => {
                 self.breakout(pr, rng);
-                return;
+                return false;
             }
         };
         let tenure = 5 + rng.random_range(0..=(pr.people.len() as u64 / 8).max(3));
-        for (x, y) in swaps {
+        for &(x, y) in &swaps[..count] {
             let (a, b) = (self.state.occupant[x], self.state.occupant[y]);
             if a != NONE {
-                self.tabu[a * n_seats + x] = it + tenure;
+                self.tabu[a * pr.n_seats + x] = self.iteration + tenure;
             }
             if b != NONE {
-                self.tabu[b * n_seats + y] = it + tenure;
+                self.tabu[b * pr.n_seats + y] = self.iteration + tenure;
             }
-            let d = delta(pr, &mut self.state, &mut self.evaluator, x, y);
-            swap(pr, &mut self.state, x, y);
+            let d = evaluate_swap(pr, &mut self.state, &mut self.evaluator, x, y, true);
             self.state.cost += d;
         }
         if self.state.cost < self.best.cost {
@@ -413,32 +706,7 @@ impl Run {
         } else {
             self.stall += 1;
         }
-        if self.stall > (pr.people.len() as u64 / 2).max(60) && !self.improve_by_row_blocks(pr) {
-            self.breakout(pr, rng);
-        }
-    }
-
-    /// From the best seating, swaps the row block that improves it most, if
-    /// any. Single swaps can't move a whole group: on the way it is torn
-    /// apart, which costs more than the move gains.
-    fn improve_by_row_blocks(&mut self, pr: &Problem) -> bool {
-        self.state = self.best.clone();
-        let mut best: Option<(i64, RowBlocks)> = None;
-        for blocks in row_block_pairs(pr) {
-            if let Some(d) = self.row_block_delta(pr, blocks, false)
-                && best.is_none_or(|(b, _)| d < b)
-            {
-                best = Some((d, blocks));
-            }
-        }
-        let Some((d, blocks)) = best.filter(|(d, _)| *d < 0) else {
-            return false;
-        };
-        self.row_block_delta(pr, blocks, true);
-        self.state.cost += d;
-        self.best = self.state.clone();
-        self.stall = 0;
-        true
+        self.stall > (pr.people.len() as u64 / 2).max(60)
     }
 
     /// Score change of swapping two row blocks, or `None` if someone in them
@@ -459,52 +727,36 @@ impl Run {
                 total = None;
                 break;
             }
-            let d = delta(pr, &mut self.state, &mut self.evaluator, x, y);
-            swap(pr, &mut self.state, x, y);
+            let d = evaluate_swap(pr, &mut self.state, &mut self.evaluator, x, y, true);
             self.swapped.push((x, y));
             total = total.map(|t| t + d);
         }
         if total.is_none() || !keep {
             for &(x, y) in self.swapped.iter().rev() {
-                swap(pr, &mut self.state, x, y);
+                evaluate_swap(pr, &mut self.state, &mut self.evaluator, x, y, true);
             }
         }
         total
     }
 
-    /// The best of a sample of block moves: two neighbouring seats swap
-    /// contents with two other neighbouring seats, so pairs (couples, small
-    /// groups) move together instead of being torn apart on the way.
-    fn best_block_move(
-        &mut self,
-        pr: &Problem,
-        rng: &mut impl Rng,
-    ) -> Option<(i64, [(usize, usize); 2])> {
-        let mut best: Option<(i64, [(usize, usize); 2])> = None;
-        for _ in 0..self.moves.len() {
-            let x1 = self.moves[rng.random_range(0..self.moves.len())];
-            let y1 = self.moves[rng.random_range(0..self.moves.len())];
-            let (Some(&x2), Some(&y2)) =
-                (pr.neighbours[x1].choose(rng), pr.neighbours[y1].choose(rng))
-            else {
-                continue;
-            };
-            let distinct = x1 != y1 && x1 != y2 && x2 != y1 && x2 != y2 && x1 != x2 && y1 != y2;
-            if !distinct || !valid_swap(pr, &self.state, x1, y1) {
-                continue;
-            }
-            let d1 = delta(pr, &mut self.state, &mut self.evaluator, x1, y1);
-            swap(pr, &mut self.state, x1, y1);
-            let total = valid_swap(pr, &self.state, x2, y2)
-                .then(|| d1 + delta(pr, &mut self.state, &mut self.evaluator, x2, y2));
-            swap(pr, &mut self.state, x1, y1);
-            if let Some(total) = total
-                && best.is_none_or(|(b, _)| total < b)
-            {
-                best = Some((total, [(x1, y1), (x2, y2)]));
-            }
+    /// One sample of a neighbouring-pair move, in the same random draw order
+    /// whether the surrounding neighborhood scan is paused or uninterrupted.
+    fn sample_block_move(&mut self, pr: &Problem, rng: &mut impl Rng) -> Option<BlockMove> {
+        let x1 = self.moves[rng.random_range(0..self.moves.len())];
+        let y1 = self.moves[rng.random_range(0..self.moves.len())];
+        let (Some(&x2), Some(&y2)) = (pr.neighbours[x1].choose(rng), pr.neighbours[y1].choose(rng))
+        else {
+            return None;
+        };
+        let distinct = x1 != y1 && x1 != y2 && x2 != y1 && x2 != y2 && x1 != x2 && y1 != y2;
+        if !distinct || !valid_swap(pr, &self.state, x1, y1) {
+            return None;
         }
-        best
+        let d1 = evaluate_swap(pr, &mut self.state, &mut self.evaluator, x1, y1, true);
+        let total = valid_swap(pr, &self.state, x2, y2)
+            .then(|| d1 + delta(pr, &mut self.state, &mut self.evaluator, x2, y2));
+        evaluate_swap(pr, &mut self.state, &mut self.evaluator, x1, y1, true);
+        total.map(|cost| (cost, [(x1, y1), (x2, y2)]))
     }
 
     /// Restarts from the best solution with a growing number of random swaps,
@@ -534,6 +786,7 @@ impl Run {
             }
         }
         self.state.cost = pr.cost(&self.state.seat_of, &self.state.occupant);
+        self.state.refresh(pr);
         self.stall = 0;
     }
 }
@@ -568,7 +821,10 @@ pub fn move_deltas(
         occupant,
         cost: 0,
         changed: 0,
+        outcomes: Vec::new(),
+        near: Vec::new(),
     };
+    st.refresh(&pr);
     let mut ev = Evaluator::new(&pr);
     let mut deltas: Vec<_> = (0..pr.n_seats)
         .filter_map(|s| {
@@ -598,12 +854,215 @@ pub(crate) fn check_deltas(project: &Project) {
             continue;
         }
         let d = delta(&pr, &mut st, &mut ev, x, y);
-        swap(&pr, &mut st, x, y);
+        let committed = evaluate_swap(&pr, &mut st, &mut ev, x, y, true);
+        assert_eq!(d, committed);
         st.cost += d;
         assert_eq!(
             st.cost,
             pr.cost(&st.seat_of, &st.occupant),
             "incremental delta drifted"
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{Importance, Layout, Rule, RuleKind, Target, WishKind};
+    use crate::preferences::{Preference, PreferenceKind, Strength};
+    use rand::{SeedableRng, rngs::StdRng};
+
+    fn project() -> Project {
+        let mut project = crate::tests::synthetic_project(24, 36);
+        project.layout = Layout::simple(2, 8);
+        project.preferences.push(Preference {
+            id: 1,
+            kind: PreferenceKind::Together {
+                people: vec![0, 1, 2, 3, 4, 5],
+            },
+            strength: Strength::Important,
+            enabled: true,
+        });
+        project.rules.push(Rule {
+            id: 100,
+            label: String::new(),
+            source: String::new(),
+            enabled: true,
+            kind: RuleKind::Proximity {
+                requester: 0,
+                target: Target::Organization { name: "ABC".into() },
+                wish: WishKind::Seating,
+                importance: Importance::Normal,
+                max_class: Some(DistanceClass::SameTable),
+            },
+        });
+        project.rules.push(Rule {
+            id: 101,
+            label: String::new(),
+            source: String::new(),
+            enabled: true,
+            kind: RuleKind::AvoidTableEnd {
+                person: 1,
+                end_penalty: 40,
+                near_end_penalty: 10,
+            },
+        });
+        project
+    }
+
+    fn assert_cache(pr: &Problem, state: &State) {
+        let mut scratch = Scratch::default();
+        for (t, &cached) in state.outcomes.iter().enumerate() {
+            assert_eq!(cached, pr.term_outcome(t, &state.seat_of, &mut scratch));
+        }
+        for (g, terms) in pr.fairness.groups.iter().enumerate() {
+            assert_eq!(
+                state.near[g],
+                terms
+                    .iter()
+                    .filter(|&&t| state.outcomes[t].0 <= DistanceClass::Diagonal)
+                    .count()
+            );
+        }
+    }
+
+    #[test]
+    fn cached_deltas_match_full_scores_and_preserve_probed_state() {
+        let project = project();
+        let mut rng = StdRng::seed_from_u64(5);
+        let first = Problem::new(&project, &Default::default(), None, None);
+        let start = construct(&first, &mut rng, None);
+        let assignment: BTreeMap<_, _> = first
+            .people
+            .iter()
+            .zip(&start.seat_of)
+            .map(|(&p, &s)| (p, first.seat_ids[s].clone()))
+            .collect();
+        let pr = Problem::new(
+            &project,
+            &Default::default(),
+            Some((&assignment, 5)),
+            Some(&assignment),
+        );
+        let mut state = construct(&pr, &mut rng, None);
+        let mut evaluator = Evaluator::new(&pr);
+        for _ in 0..500 {
+            let (x, y) = (
+                rng.random_range(0..pr.n_seats),
+                rng.random_range(0..pr.n_seats),
+            );
+            if !valid_swap(&pr, &state, x, y) {
+                continue;
+            }
+            let before = state.clone();
+            let d = delta(&pr, &mut state, &mut evaluator, x, y);
+            assert_eq!(state.seat_of, before.seat_of);
+            assert_eq!(state.occupant, before.occupant);
+            assert_eq!(state.outcomes, before.outcomes);
+            assert_eq!(state.near, before.near);
+            assert_eq!(state.changed, before.changed);
+            let old = pr.cost(&state.seat_of, &state.occupant);
+            swap(&pr, &mut state, x, y);
+            let new = pr.cost(&state.seat_of, &state.occupant);
+            swap(&pr, &mut state, x, y);
+            assert_eq!(d, new - old);
+            let committed = evaluate_swap(&pr, &mut state, &mut evaluator, x, y, true);
+            assert_eq!(d, committed);
+            state.cost += committed;
+            assert_eq!(state.cost, new);
+            assert_cache(&pr, &state);
+        }
+    }
+
+    #[test]
+    fn row_block_probes_restore_all_caches() {
+        let mut project = project();
+        project.layout.rows[0].tables[1].right = 5;
+        let pr = Problem::new(&project, &std::collections::HashSet::from([0]), None, None);
+        let mut rng = StdRng::seed_from_u64(19);
+        let state = construct(&pr, &mut rng, None);
+        let mut run = Run::new(&pr, state);
+        for blocks in row_block_pairs(&pr).take(200) {
+            let before = run.state.clone();
+            let delta = run.row_block_delta(&pr, blocks, false);
+            assert_eq!(run.state.seat_of, before.seat_of);
+            assert_eq!(run.state.outcomes, before.outcomes);
+            assert_eq!(run.state.near, before.near);
+            assert_cache(&pr, &run.state);
+            if let Some(delta) = delta {
+                run.row_block_delta(&pr, blocks, true);
+                run.state.cost += delta;
+                assert_eq!(
+                    run.state.cost,
+                    pr.cost(&run.state.seat_of, &run.state.occupant)
+                );
+                assert_cache(&pr, &run.state);
+            }
+        }
+    }
+
+    #[test]
+    fn sliced_scans_preserve_moves_and_random_draws() {
+        let project = project();
+        let pr = Problem::new(&project, &Default::default(), None, None);
+        let mut rng = StdRng::seed_from_u64(41);
+        let state = construct(&pr, &mut rng, None);
+        let mut whole = Run::new(&pr, state.clone());
+        let mut sliced = Run::new(&pr, state);
+        let mut sliced_rng = rng.clone();
+        let mut yields = 0;
+        for _ in 0..160 {
+            whole.step(&pr, &mut rng);
+            loop {
+                let mut checks = 0;
+                if sliced.advance(&pr, &mut sliced_rng, || {
+                    checks += 1;
+                    checks == 1
+                }) {
+                    break;
+                }
+                yields += 1;
+            }
+            assert_eq!(whole.state.seat_of, sliced.state.seat_of);
+            assert_eq!(whole.state.cost, sliced.state.cost);
+            assert_eq!(whole.best.seat_of, sliced.best.seat_of);
+            assert_eq!(whole.tabu, sliced.tabu);
+            assert_eq!(whole.stall, sliced.stall);
+            assert_eq!(whole.breakouts, sliced.breakouts);
+            assert_cache(&pr, &sliced.state);
+        }
+        assert!(yields > 160);
+        assert_eq!(rng.random::<u64>(), sliced_rng.random::<u64>());
+    }
+
+    #[test]
+    fn indexed_row_block_enumeration_preserves_order_and_sampling() {
+        let project = project();
+        let pr = Problem::new(&project, &Default::default(), None, None);
+        let mut expected = Vec::new();
+        for k in 1..=MAX_BLOCK_ROWS {
+            let starts: Vec<_> = pr
+                .table_rows
+                .iter()
+                .enumerate()
+                .flat_map(|(t, rows)| (0..(rows.len() + 1).saturating_sub(k)).map(move |r| (t, r)))
+                .collect();
+            for &a in &starts {
+                for &b in &starts {
+                    if b > a && (b.0 != a.0 || b.1 >= a.1 + k) {
+                        expected.push((a, b, k));
+                    }
+                }
+            }
+        }
+        assert_eq!(row_block_pairs(&pr).collect::<Vec<_>>(), expected);
+        assert_eq!(row_block_pairs(&pr).count(), expected.len());
+        for (n, &pair) in expected.iter().enumerate() {
+            let mut pairs = row_block_pairs(&pr);
+            assert_eq!(pairs.nth(n), Some(pair));
+            assert_eq!(pairs.len(), expected.len() - n - 1);
+            assert_eq!(pairs.collect::<Vec<_>>(), expected[n + 1..]);
+        }
+        assert!(row_block_pairs(&pr).nth(expected.len()).is_none());
     }
 }

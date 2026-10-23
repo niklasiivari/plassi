@@ -585,13 +585,6 @@ impl Project {
     }
 
     /// The person's name, or "?" for an unknown ID.
-    /// Whether a rule is a wish to sit near someone.
-    pub fn is_wish(&self, rule_id: u64) -> bool {
-        self.rules
-            .iter()
-            .any(|r| r.id == rule_id && matches!(r.kind, RuleKind::Proximity { .. }))
-    }
-
     pub fn person_name(&self, id: usize) -> &str {
         self.person(id).map_or("?", |a| a.name.as_str())
     }
@@ -644,12 +637,10 @@ impl Project {
     /// A seating wish is divided by the square root of how many seating
     /// wishes its requester has: four wishes count half each, so a long
     /// list is damped without making each wish cheap to give up.
+    #[cfg(test)]
     pub fn wish_costs(&self, rule: &Rule) -> Option<[i64; CLASSES]> {
         let RuleKind::Proximity {
-            requester,
-            wish,
-            importance,
-            ..
+            requester, wish, ..
         } = &rule.kind
         else {
             return None;
@@ -669,6 +660,27 @@ impl Project {
                 })
                 .count()
                 .max(1),
+        };
+        self.wish_costs_with_count(rule, wishes)
+    }
+
+    /// As `wish_costs`, with the requester's enabled seating wishes counted once
+    /// by a caller compiling many rules.
+    pub(crate) fn wish_costs_with_count(
+        &self,
+        rule: &Rule,
+        seating_wishes: usize,
+    ) -> Option<[i64; CLASSES]> {
+        let RuleKind::Proximity {
+            wish, importance, ..
+        } = rule.kind
+        else {
+            return None;
+        };
+        let wishes = if wish == WishKind::Avec {
+            1
+        } else {
+            seating_wishes.max(1)
         };
         // In thousandths, so the square root stays exact enough.
         let share = ((wishes as f64).sqrt() * 1000.0).round() as i64;
