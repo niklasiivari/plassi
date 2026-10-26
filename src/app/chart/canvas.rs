@@ -262,23 +262,17 @@ impl PlassiApp {
             Some(_) => ui.input(|i| i.pointer.interact_pos()),
             None => centre_of(selected),
         };
-        for rule in self.project.rules.iter().filter(|r| r.enabled) {
-            let RuleKind::Proximity {
-                requester, target, ..
-            } = &rule.kind
-            else {
-                continue;
-            };
-            let outgoing = *requester == selected;
-            let targets = self.project.target_ids(*requester, target);
-            if !outgoing && !targets.contains(&selected) {
-                continue;
-            }
+        let connections = &scene.connections;
+        for (wish, outgoing) in connections
+            .outgoing(selected)
+            .map(|w| (w, true))
+            .chain(connections.incoming(selected).map(|w| (w, false)))
+        {
             let result = scene
                 .own
-                .get(requester)
-                .and_then(|rs| rs.iter().find(|(id, _)| *id == rule.id))
-                .filter(|(_, r)| scene.judged(*requester, r))
+                .get(&wish.requester)
+                .and_then(|rs| rs.iter().find(|(id, _)| *id == wish.rule))
+                .filter(|(_, r)| scene.judged(wish.requester, r))
                 .map(|(_, r)| r.outcome());
             let color = theme::outcome_color(p, result);
             let stroke = if outgoing {
@@ -286,8 +280,10 @@ impl PlassiApp {
             } else {
                 Stroke::new(1.5, color.gamma_multiply(0.55))
             };
-            let others = if outgoing { targets } else { vec![*requester] };
-            for card in others.into_iter().filter_map(|p| scene.card_of(p)) {
+            let draw = |person| {
+                let Some(card) = scene.card_of(person) else {
+                    return;
+                };
                 let to = view.point(card.centre);
                 match from {
                     Some(from) => {
@@ -296,6 +292,13 @@ impl PlassiApp {
                     }
                     None => outline_card(painter, view, card, stroke),
                 }
+            };
+            if outgoing {
+                for &person in &wish.targets {
+                    draw(person);
+                }
+            } else {
+                draw(wish.requester);
             }
         }
     }

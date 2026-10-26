@@ -312,7 +312,13 @@ mod tests {
             layout: Layout::simple(2, 3),
             ..Project::new()
         };
-        Scene::build(&project, None, None, None)
+        Scene::build(
+            &project,
+            None,
+            None,
+            None,
+            &crate::seating::Scorer::new(&project),
+        )
     }
 
     fn loose(at: Pos2) -> Spot {

@@ -675,7 +675,10 @@ impl Project {
         seating_wishes: usize,
     ) -> Option<[i64; CLASSES]> {
         let RuleKind::Proximity {
-            wish, importance, ..
+            wish,
+            importance,
+            ref target,
+            ..
         } = rule.kind
         else {
             return None;
@@ -687,10 +690,10 @@ impl Project {
         };
         // In thousandths, so the square root stays exact enough.
         let share = ((wishes as f64).sqrt() * 1000.0).round() as i64;
-        Some(
-            wish.costs()
-                .shared(wish.weight() * importance.factor() * 1000, share),
-        )
+        Some(wish.costs().shared(
+            wish.weight() * importance.factor() * self.policy.wish_priority.factor(target) * 1000,
+            share,
+        ))
     }
 
     pub fn active_people(&self) -> HashSet<usize> {

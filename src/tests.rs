@@ -2147,3 +2147,54 @@ fn confirmed_organization_wishes_preserve_combined_mappings_and_require_unambigu
             .all(|s| s.is_confirmed_organization())
     );
 }
+
+#[test]
+fn wish_priority_changes_conflicting_seating_rankings_and_keeps_hard_rules_first() {
+    let mut project = fixture();
+    project.layout = Layout::simple(2, 2);
+    project.policy = SeatingPolicy::none();
+    project.attendees[2].organization = "ABC".into();
+    project.rules.push(crate::import::wish_rule(
+        1,
+        0,
+        vec![1],
+        WishKind::Seating,
+        "",
+    ));
+    project.rules.push(organization_wish(2, 0, "ABC", None));
+    let people_first: BTreeMap<usize, String> = BTreeMap::from([
+        (0, "table-1:left:0".into()),
+        (1, "table-1:right:0".into()),
+        (2, "table-2:left:0".into()),
+        (3, "table-2:right:0".into()),
+    ]);
+    let mut organization_first = people_first.clone();
+    organization_first.insert(1, people_first[&2].clone());
+    organization_first.insert(2, people_first[&1].clone());
+    let scores = |project: &Project| {
+        let scorer = crate::seating::Scorer::new(project);
+        (scorer.cost(&people_first), scorer.cost(&organization_first))
+    };
+    let balanced = scores(&project);
+    assert_eq!(balanced.0, balanced.1);
+    project.policy.wish_priority = WishPriority::People;
+    let people = scores(&project);
+    assert!(people.0 < people.1);
+    project.policy.wish_priority = WishPriority::Organizations;
+    let organizations = scores(&project);
+    assert!(organizations.1 < organizations.0);
+    let display = crate::score::evaluate(&project, &organization_first);
+    assert_eq!(display.penalty(), organizations.1);
+    // Preference weighting cannot outweigh a hard distance restriction.
+    if let RuleKind::Proximity { max_class, .. } = &mut project.rules[0].kind {
+        *max_class = Some(DistanceClass::Diagonal);
+    }
+    let hard = scores(&project);
+    assert!(hard.0 < hard.1);
+    project.validate().unwrap();
+    project.policy.wish_priority = WishPriority::Balanced;
+    if let RuleKind::Proximity { max_class, .. } = &mut project.rules[0].kind {
+        *max_class = None;
+    }
+    assert_eq!(scores(&project), balanced);
+}

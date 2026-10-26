@@ -158,23 +158,14 @@ impl PlassiApp {
     fn wished_by_list(&self, ui: &mut egui::Ui, p: Palette, scene: &Scene, id: usize) {
         theme::section_title(ui, p, tr("Wished for by"));
         let mut any = false;
-        for rule in self.project.rules.iter().filter(|r| r.enabled) {
-            let RuleKind::Proximity {
-                requester, target, ..
-            } = &rule.kind
-            else {
-                continue;
-            };
-            if !self.project.target_ids(*requester, target).contains(&id) {
-                continue;
-            }
+        for wish in scene.connections.incoming(id) {
             any = true;
-            let name = self.project.person_name(*requester);
+            let name = self.project.person_name(wish.requester);
             let result = scene
                 .own
-                .get(requester)
-                .and_then(|rs| rs.iter().find(|(r, _)| *r == rule.id))
-                .filter(|(_, r)| scene.judged(*requester, r));
+                .get(&wish.requester)
+                .and_then(|rs| rs.iter().find(|(r, _)| *r == wish.rule))
+                .filter(|(_, r)| scene.judged(wish.requester, r));
             let color = theme::outcome_color(p, result.map(|(_, r)| r.outcome()));
             ui.horizontal(|ui| {
                 theme::status_dot(ui, color);
