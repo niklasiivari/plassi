@@ -125,3 +125,146 @@ fn sidebar_wish_form_fits_docked_floating_and_phone_layouts() {
     ui.click("Add wish");
     assert!(ui.app().page == Page::Chart);
 }
+
+#[test]
+fn confirmed_organization_wishes_bulk_add_separately_deduplicate_and_undo_on_all_widths() {
+    use crate::catalog::Kind;
+    use crate::model::{ImportField, ImportNote};
+    for width in [1440.0, 768.0, 390.0, 320.0] {
+        let mut ui = Ui::with_example();
+        let mut project = crate::example::project();
+        project.attendees.truncate(4);
+        project.rules.clear();
+        project.catalog = Default::default();
+        for (id, organization) in ["ABC", "ABC", "XYZ", "XYZ"].into_iter().enumerate() {
+            project.attendees[id].organization = organization.into();
+        }
+        let abc = project
+            .catalog
+            .create_named(Kind::Organization, "ABC")
+            .unwrap();
+        project.catalog.assign(Kind::Organization, "AB-C", abc);
+        project.notes = [
+            (0, "AB-C and Guest 02", false),
+            (0, "ABC", false),
+            (2, "AB-C", false),
+            (3, "XYZ", false),
+            (1, "ABC", true),
+        ]
+        .into_iter()
+        .map(|(person, text, reviewed)| ImportNote {
+            person,
+            field: ImportField::Wish,
+            text: text.into(),
+            reviewed,
+        })
+        .collect();
+        ui.app_mut().replace_project(project);
+        ui.app_mut().commit("Saved changes");
+        ui.go_to("People & wishes");
+        ui.h.set_size(egui::vec2(width, 900.0));
+        ui.settle();
+        assert!(
+            ui.has("2 confirmed organization matches"),
+            "width={width}: {:?}",
+            ui.dump()
+        );
+        assert!(ui.has("1 full-name matches"));
+        // The count represents distinct wishes, even across several notes.
+        ui.node("Add 2 organization wishes").scroll_to_me();
+        ui.settle();
+        let button = ui.node("Add 2 organization wishes").rect();
+        assert!(
+            button.left() >= 0.0 && button.right() <= width,
+            "width={width}: {button:?}"
+        );
+        let notes = serde_json::to_value(&ui.app().project.notes).unwrap();
+        ui.click("Add 2 organization wishes");
+        assert_eq!(ui.app().project.rules.len(), 2);
+        for requester in [0, 2] {
+            assert_eq!(
+                ui.app()
+                    .project
+                    .rules
+                    .iter()
+                    .filter(|rule| matches!(&rule.kind,
+                RuleKind::Proximity { requester: q, target: Target::Organization { name }, .. }
+                    if *q == requester && name == "ABC"))
+                    .count(),
+                1
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(&ui.app().project.notes).unwrap(),
+            notes
+        );
+        assert!(!ui.has("Add 2 organization wishes"));
+        assert!(ui.has("1 full-name matches"));
+        ui.key(Modifiers::COMMAND, Key::Z);
+        assert!(ui.app().project.rules.is_empty());
+        assert!(ui.has("Add 2 organization wishes"));
+        ui.key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z);
+        assert_eq!(ui.app().project.rules.len(), 2);
+        // The full-name action still adds only a person wish.
+        ui.click("Add 1");
+        assert_eq!(ui.app().project.rules.len(), 3);
+        assert!(
+            ui.app()
+                .project
+                .rules
+                .iter()
+                .any(|rule| matches!(&rule.kind,
+            RuleKind::Proximity { requester: 0, target: Target::People { ids }, .. }
+                if ids == &[1]))
+        );
+        let ui = ui.reopen();
+        assert_eq!(ui.app().project.rules.len(), 3);
+        assert_eq!(
+            serde_json::to_value(&ui.app().project.notes).unwrap(),
+            notes
+        );
+    }
+}
+
+#[test]
+fn confirming_a_category_refreshes_the_overview_and_individual_wish_badge() {
+    use crate::catalog::Kind;
+    use crate::model::{ImportField, ImportNote};
+    let mut ui = Ui::with_example();
+    let mut project = crate::example::project();
+    project.rules.clear();
+    project.catalog = Default::default();
+    for person in &mut project.attendees {
+        person.organization = "AB-C".into();
+    }
+    project.notes = vec![ImportNote {
+        person: 0,
+        field: ImportField::Wish,
+        text: "AB-C".into(),
+        reviewed: false,
+    }];
+    ui.app_mut().replace_project(project);
+    ui.app_mut().commit("Saved changes");
+    ui.go_to("People & wishes");
+    assert!(!ui.has("1 confirmed organization matches"));
+    ui.go_to("Categories");
+    ui.click("Organization name");
+    ui.type_text("ABC");
+    ui.choose("Create organization");
+    ui.open_combo("Choose organizations…");
+    ui.choose("ABC");
+    ui.key(Modifiers::NONE, Key::Escape);
+    assert!(
+        ui.app()
+            .project
+            .catalog
+            .find(Kind::Organization, "AB-C")
+            .is_some()
+    );
+    ui.go_to("People & wishes");
+    assert!(ui.has("1 confirmed organization matches"));
+    ui.app_mut().selected_person = Some(0);
+    ui.settle();
+    assert!(ui.has("Confirmed category"));
+    assert!(ui.has("Sit near people from ABC"));
+}

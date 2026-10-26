@@ -133,7 +133,7 @@ impl PlassiApp {
                 Confidence::Medium => p.accent,
                 Confidence::Low => p.muted,
             };
-            theme::status_pill(ui, p, suggestion.confidence.label(), color);
+            theme::status_pill(ui, p, suggestion.label(), color);
             ui.label(RichText::new(self.suggestion_text(suggestion)).strong());
             theme::hint(ui, p, &suggestion.reason);
             ui.add(theme::small_button(tr("+ Add"))).clicked()

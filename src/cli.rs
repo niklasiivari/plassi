@@ -147,7 +147,7 @@ fn list_suggestions(path: &str) -> Result<()> {
         println!(
             "{} → {target} [{}: {}] from “{}”",
             name(s.requester),
-            s.confidence.label(),
+            s.label(),
             s.reason,
             project.notes[s.note].text
         );

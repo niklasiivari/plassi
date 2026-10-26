@@ -2009,3 +2009,141 @@ fn round_tables_print_on_the_room_map_even_in_rows() {
     let data = crate::print::data(&project, 0, crate::print::PrintKind::Chart).unwrap();
     assert!(data["room_map"].is_null());
 }
+
+#[test]
+fn confirmed_organization_wishes_reuse_aliases_own_membership_and_category_edits() {
+    use crate::catalog::Kind;
+    use crate::suggest::{Confidence, SuggestedTarget, Suggester};
+    let mut project = fixture();
+    for id in [0, 1] {
+        project.attendees[id].organization = "ABC".into();
+    }
+    project.attendees[2].organization = "XYZ".into();
+    project.notes.push(ImportNote {
+        person: 0,
+        field: ImportField::Wish,
+        text: "ABC and XYZ".into(),
+        reviewed: false,
+    });
+    let mut suggester = Suggester::default();
+    assert!(
+        suggester
+            .for_note(&project, 0)
+            .iter()
+            .all(|s| !s.is_confirmed_organization())
+    );
+    let abc = project
+        .catalog
+        .create_named(Kind::Organization, "ABC")
+        .unwrap();
+    for alias in ["AB-C", "A B C"] {
+        project.catalog.assign(Kind::Organization, alias, abc);
+    }
+    for text in ["abc and XYZ", "With AB-C, please", "a   b c; ABC"] {
+        project.notes[0].text = text.into();
+        let found = suggester.for_note(&project, 0);
+        let confirmed: Vec<_> = found
+            .iter()
+            .filter(|s| s.is_confirmed_organization())
+            .collect();
+        assert_eq!(confirmed.len(), 1, "{text}: {found:?}");
+        assert_eq!(
+            confirmed[0].target,
+            SuggestedTarget::Organization("ABC".into())
+        );
+        assert!(
+            found
+                .iter()
+                .filter(|s| s.target == SuggestedTarget::Organization("XYZ".into()))
+                .all(|s| s.confidence != Confidence::High)
+        );
+    }
+    for text in ["ABCD", "XAB-C", "A B CX"] {
+        project.notes[0].text = text.into();
+        assert!(suggester.for_note(&project, 0).is_empty(), "{text}");
+    }
+    project.notes[0].text = "AB-C".into();
+    project.catalog.organizations[abc].aliases.clear();
+    assert!(suggester.for_note(&project, 0).is_empty());
+    project.catalog.assign(Kind::Organization, "AB-C", abc);
+    let found = suggester.for_note(&project, 0);
+    assert!(found[0].is_confirmed_organization());
+    crate::suggest::accept(&mut project, &found[0]);
+    crate::suggest::accept(&mut project, &found[0]);
+    assert_eq!(project.rules.len(), 1);
+    assert!(suggester.for_note(&project, 0).is_empty());
+    assert!(!project.notes[0].reviewed);
+    project.validate().unwrap();
+    project.rules.clear();
+    project.attendees[1].organization.clear();
+    assert!(
+        suggester
+            .for_note(&project, 0)
+            .iter()
+            .all(|s| !s.is_confirmed_organization())
+    );
+}
+
+#[test]
+fn confirmed_organization_wishes_preserve_combined_mappings_and_require_unambiguous_text() {
+    use crate::catalog::Kind;
+    use crate::suggest::{SuggestedTarget, for_note};
+    let mut project = fixture();
+    project.attendees[1].organization = "ABC".into();
+    project.attendees[2].organization = "XYZ".into();
+    let abc = project
+        .catalog
+        .create_named(Kind::Organization, "ABC")
+        .unwrap();
+    let xyz = project
+        .catalog
+        .create_named(Kind::Organization, "XYZ")
+        .unwrap();
+    for category in [abc, xyz] {
+        project
+            .catalog
+            .assign(Kind::Organization, "ABC / XYZ", category);
+    }
+    project.notes.push(ImportNote {
+        person: 0,
+        field: ImportField::Avec,
+        text: "With ABC / XYZ".into(),
+        reviewed: false,
+    });
+    let found = for_note(&project, 0);
+    assert_eq!(found.len(), 2);
+    assert!(
+        found
+            .iter()
+            .all(|s| s.is_confirmed_organization() && s.wish == WishKind::Seating)
+    );
+    for suggestion in &found {
+        crate::suggest::accept(&mut project, suggestion);
+    }
+    assert_eq!(project.rules.len(), 2);
+    project.validate().unwrap();
+    project.rules.clear();
+    // A complete saved name wins over a shorter category name inside it.
+    project.catalog.organizations[abc].aliases.clear();
+    project.catalog.organizations[xyz].aliases.clear();
+    project.catalog.assign(Kind::Organization, "ABC XYZ", xyz);
+    project.notes[0].text = "With ABC XYZ".into();
+    let found = for_note(&project, 0);
+    assert_eq!(found.len(), 1);
+    assert!(found[0].is_confirmed_organization());
+    assert_eq!(found[0].target, SuggestedTarget::Organization("XYZ".into()));
+    // Different saved spellings that fold to the same words remain manual.
+    project.catalog.assign(Kind::Organization, "ABC, XYZ", abc);
+    let found = for_note(&project, 0);
+    assert_eq!(found.len(), 2);
+    assert!(found.iter().all(|s| !s.is_confirmed_organization()));
+    // Separate mentions remain independent, even when words touch in padding.
+    project.catalog.organizations[abc].aliases.clear();
+    project.catalog.organizations[xyz].aliases.clear();
+    project.notes[0].text = "ABC XYZ".into();
+    assert!(
+        for_note(&project, 0)
+            .iter()
+            .all(|s| s.is_confirmed_organization())
+    );
+}
