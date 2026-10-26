@@ -126,8 +126,8 @@ impl PlassiApp {
         });
     }
 
-    /// Wishes found in sign-up text, with a one-click add for full-name matches.
-    fn suggestions_card(&mut self, ui: &mut egui::Ui, p: Palette) {
+    /// Separate bulk actions for full names and confirmed organization spellings.
+    pub(super) fn suggestions_card(&mut self, ui: &mut egui::Ui, p: Palette) {
         let (project, people) = (&self.project, &mut self.people);
         let suggestions = people
             .suggest_cache
@@ -138,8 +138,22 @@ impl PlassiApp {
         }
         let sure: Vec<_> = suggestions
             .iter()
-            .filter(|s| s.confidence == crate::suggest::Confidence::High)
+            .filter(|s| {
+                s.confidence == crate::suggest::Confidence::High
+                    && matches!(s.target, crate::suggest::SuggestedTarget::People(_))
+            })
             .cloned()
+            .collect();
+        let mut seen = std::collections::BTreeSet::new();
+        let organizations: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.is_confirmed_organization())
+            .filter(|s| {
+                let crate::suggest::SuggestedTarget::Organization(name) = &s.target else {
+                    return false;
+                };
+                seen.insert((s.requester, name.clone()))
+            })
             .collect();
         theme::card(p).show(ui, |ui| {
             ui.set_width(ui.available_width());
@@ -173,6 +187,34 @@ impl PlassiApp {
                     });
                 });
             });
+            if !organizations.is_empty() {
+                ui.separator();
+                theme::hint(
+                    ui,
+                    p,
+                    fill("{} confirmed organization matches", &[&organizations.len()]),
+                );
+                theme::hint(
+                    ui,
+                    p,
+                    tr("Uses organization names and spellings saved in Categories. Notes stay unreviewed."),
+                );
+                if ui
+                    .add(theme::primary_button(
+                        &fill("Add {} organization wishes", &[&organizations.len()]),
+                        p,
+                    ))
+                    .clicked()
+                {
+                    for s in &organizations {
+                        crate::suggest::accept(&mut self.project, s);
+                    }
+                    self.commit(&fill(
+                        "Added {} wishes from confirmed organizations",
+                        &[&organizations.len()],
+                    ));
+                }
+            }
         });
         ui.add_space(theme::space::L);
     }

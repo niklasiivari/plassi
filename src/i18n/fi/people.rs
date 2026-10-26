@@ -203,6 +203,24 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ),
     ("Review notes", "Tarkista ilmoittautumistoiveet"),
     ("{} suggested wishes", "{} ehdotettua toivetta"),
+    ("Confirmed category", "Vahvistettu luokka"),
+    (
+        "spelling confirmed in Categories ({} attending)",
+        "kirjoitusasu vahvistettu luokissa ({} osallistujaa)",
+    ),
+    (
+        "{} confirmed organization matches",
+        "{} vahvistettua järjestöosumaa",
+    ),
+    (
+        "Uses organization names and spellings saved in Categories. Notes stay unreviewed.",
+        "Käyttää Luokat-osiossa tallennettuja järjestöjen nimiä ja kirjoitusasuja. Ilmoittautumistoiveet jäävät tarkistamatta.",
+    ),
+    ("Add {} organization wishes", "Lisää {} järjestötoivetta"),
+    (
+        "Added {} wishes from confirmed organizations",
+        "Lisätty {} toivetta vahvistettujen järjestöjen perusteella",
+    ),
     ("Add {}", "Lisää {}"),
     (
         "Add wishes for all full-name matches",

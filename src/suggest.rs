@@ -41,6 +41,21 @@ pub struct Suggestion {
     pub reason: String,
 }
 
+impl Suggestion {
+    pub fn is_confirmed_organization(&self) -> bool {
+        self.confidence == Confidence::High
+            && matches!(self.target, SuggestedTarget::Organization(_))
+    }
+
+    pub fn label(&self) -> &'static str {
+        if self.is_confirmed_organization() {
+            tr("Confirmed category")
+        } else {
+            self.confidence.label()
+        }
+    }
+}
+
 fn fold(text: &str) -> String {
     text.to_lowercase()
         .chars()
@@ -222,16 +237,8 @@ fn suggest(project: &Project, note_index: usize, found: &Found) -> Vec<Suggestio
             )
         })
         .collect();
-    let kind = Kind::Organization;
-    let has_rule = |name: &str| {
-        let key = project.category_key_of(kind, name);
-        project.rules.iter().any(|r| {
-            matches!(&r.kind, RuleKind::Proximity { requester: q, target: Target::Organization { name: n, .. }, .. }
-                if *q == requester && project.category_key_of(kind, n) == key)
-        })
-    };
     for (org, confidence, reason) in &found.organizations {
-        if has_rule(org) {
+        if wishes_organization(project, requester, org) {
             continue;
         }
         result.push(Suggestion {
@@ -252,7 +259,7 @@ struct Index<'a> {
     counts: NameCounts,
     names: Vec<(usize, Name)>,
     /// Folded, padded organization spellings with the category they mean.
-    organizations: Vec<(String, String)>,
+    organizations: Vec<OrganizationSpelling>,
     /// Attendees per organization category key.
     members: HashMap<String, usize>,
 }
@@ -285,11 +292,7 @@ impl<'a> Index<'a> {
             .iter()
             .filter_map(|a| Some((a.id, Name::new(&a.name)?)))
             .collect();
-        let organizations = organization_spellings(project)
-            .into_iter()
-            .map(|(spelling, category)| (padded_words(&fold(&spelling)), category))
-            .filter(|(needle, _)| !needle.trim().is_empty())
-            .collect();
+        let organizations = organization_spellings(project);
         let mut members = HashMap::new();
         for attendee in &project.attendees {
             for key in project.category_keys(Kind::Organization, attendee) {
@@ -332,7 +335,8 @@ impl<'a> Index<'a> {
         found
     }
 
-    /// Organizations named as whole words, the requester's own counting as less likely.
+    /// Saved spellings can be accepted together when their matches do not
+    /// overlap a different spelling for another organization.
     fn mentioned_organizations(
         &self,
         requester: usize,
@@ -340,31 +344,84 @@ impl<'a> Index<'a> {
     ) -> Vec<(String, Confidence, String)> {
         let project = self.project;
         let kind = Kind::Organization;
+        let own = project
+            .person(requester)
+            .map(|a| project.category_keys(kind, a))
+            .unwrap_or_default();
+        let matches: Vec<_> = self
+            .organizations
+            .iter()
+            .filter_map(|spelling| {
+                let ranges: Vec<_> = text
+                    .padded
+                    .match_indices(spelling.needle.as_str())
+                    // Exclude the padding shared by adjacent whole words.
+                    .map(|(start, _)| (start + 1, start + spelling.needle.len() - 1))
+                    .collect();
+                (!ranges.is_empty()).then_some((spelling, ranges))
+            })
+            .collect();
+        // A complete saved spelling takes precedence over words inside it.
+        // This also keeps an explicitly mapped combined entry together.
+        let matches: Vec<_> = matches
+            .iter()
+            .filter_map(|(spelling, ranges)| {
+                let ranges: Vec<_> = ranges
+                    .iter()
+                    .copied()
+                    .filter(|&(start, end)| {
+                        !matches.iter().any(|(other, other_ranges)| {
+                            other.confirmed
+                                && other_ranges
+                                    .iter()
+                                    .any(|&(a, b)| a <= start && end <= b && (a < start || end < b))
+                        })
+                    })
+                    .collect();
+                (!ranges.is_empty()).then_some((*spelling, ranges))
+            })
+            .collect();
         let mut found: Vec<(String, Confidence, String)> = Vec::new();
-        for (needle, category) in &self.organizations {
-            if !text.padded.contains(needle.as_str()) {
-                continue;
-            }
-            if found.iter().any(|(c, _, _)| c == category) {
-                continue;
-            }
-            let own = project
-                .person(requester)
-                .map(|a| project.category_keys(kind, a))
-                .unwrap_or_default();
-            let key = project.category_key_of(kind, category);
+        for (spelling, ranges) in &matches {
+            let key = project.category_key_of(kind, &spelling.category);
             let members = self.members.get(&key).copied().unwrap_or(0);
-            let confidence = if own.contains(&key) {
+            let confirmed = spelling.confirmed
+                && members > usize::from(own.contains(&key))
+                && ranges.iter().any(|&(start, end)| {
+                    !matches.iter().any(|(other, other_ranges)| {
+                        other.category != spelling.category
+                            // One explicitly mapped spelling may mean several
+                            // categories; preserve that confirmed membership.
+                            && other.key != spelling.key
+                            && other_ranges
+                                .iter()
+                                .any(|&(a, b)| a < end && start < b)
+                    })
+                });
+            let confidence = if confirmed {
+                Confidence::High
+            } else if own.contains(&key) {
                 Confidence::Low
             } else {
                 Confidence::Medium
             };
-            found.push((
-                category.clone(),
-                confidence,
-                fill("mentions the organization ({} attending)", &[&members]),
-            ));
+            let reason = fill(
+                if confirmed {
+                    "spelling confirmed in Categories ({} attending)"
+                } else {
+                    "mentions the organization ({} attending)"
+                },
+                &[&members],
+            );
+            if let Some(existing) = found.iter_mut().find(|(c, _, _)| c == &spelling.category) {
+                if confidence < existing.1 {
+                    *existing = (spelling.category.clone(), confidence, reason);
+                }
+            } else {
+                found.push((spelling.category.clone(), confidence, reason));
+            }
         }
+        found.sort_by_key(|(_, confidence, _)| *confidence);
         found
     }
 }
@@ -492,28 +549,67 @@ fn wished_people(project: &Project, requester: usize) -> BTreeSet<usize> {
 
 /// Every way an organization can be written, with the category it means:
 /// catalog names and aliases, plus spellings not in the catalog yet.
-fn organization_spellings(project: &Project) -> Vec<(String, String)> {
+struct OrganizationSpelling {
+    needle: String,
+    key: String,
+    category: String,
+    confirmed: bool,
+}
+
+impl OrganizationSpelling {
+    fn new(spelling: &str, category: &str, confirmed: bool) -> Option<Self> {
+        let needle = padded_words(&fold(spelling));
+        if spelling.chars().count() < 2 || needle.trim().is_empty() {
+            return None;
+        }
+        Some(Self {
+            needle,
+            key: crate::catalog::normalize(spelling),
+            category: category.into(),
+            confirmed,
+        })
+    }
+}
+
+fn organization_spellings(project: &Project) -> Vec<OrganizationSpelling> {
     let kind = Kind::Organization;
-    let mut result: Vec<(String, String)> = project
+    let mut result: Vec<_> = project
         .catalog
         .list(kind)
         .iter()
         .flat_map(|c| {
             std::iter::once(&c.name)
                 .chain(&c.aliases)
-                .map(move |s| (s.clone(), c.name.clone()))
+                .filter_map(move |s| OrganizationSpelling::new(s, &c.name, true))
         })
         .collect();
     for (spelling, _) in project.spellings(kind) {
-        if project.catalog.find(kind, &spelling).is_none() {
-            result.push((spelling.clone(), spelling));
+        if project.catalog.find(kind, &spelling).is_none()
+            && !project.catalog.is_ignored(kind, &spelling)
+            && let Some(entry) = OrganizationSpelling::new(&spelling, &spelling, false)
+        {
+            result.push(entry);
         }
     }
-    result.retain(|(s, _)| s.chars().count() >= 2);
     result
 }
 
+fn wishes_organization(project: &Project, requester: usize, name: &str) -> bool {
+    let kind = Kind::Organization;
+    let key = project.category_key_of(kind, name);
+    project.rules.iter().any(|r| {
+        matches!(&r.kind, RuleKind::Proximity { requester: q, target: Target::Organization { name: n }, .. }
+            if *q == requester && project.category_key_of(kind, n) == key)
+    })
+}
+
 pub fn accept(project: &mut Project, suggestion: &Suggestion) {
+    // Several notes or spellings can propose the same organization wish.
+    if let SuggestedTarget::Organization(name) = &suggestion.target
+        && wishes_organization(project, suggestion.requester, name)
+    {
+        return;
+    }
     let id = project.next_rule_id();
     let source = project
         .notes

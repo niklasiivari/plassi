@@ -139,6 +139,9 @@ impl PlassiApp {
             self.start_review();
         }
         ui.add_space(theme::space::S);
+        if !scroll_rows {
+            self.suggestions_card(ui, p);
+        }
         let search_field = ui.add(
             theme::field(&mut self.people.search)
                 .hint_text(tr("Search name or organization"))

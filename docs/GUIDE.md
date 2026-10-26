@@ -29,6 +29,12 @@ Only a name mapping is required; separate first and last names are also supporte
 
 Review wish suggestions before accepting them. Exact full-name matches can be added together; ambiguous matches need individual review. Imported text remains available with the person.
 
+Organization names and spellings already saved in **Categories** are reused in
+wish suggestions. **Add … organization wishes** adds confirmed matches together,
+including wishes for the person's own organization. Unmapped spellings,
+conflicting matches and organizations with no other attendees still need review.
+Adding wishes leaves the original notes unreviewed so other requests can be checked.
+
 ## Set up tables
 
 Open **Room layout**. Quick setup creates tables in rows; set how many tables belong in each row. A table's row selector moves it to another row without changing its seats or guests.
