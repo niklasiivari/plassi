@@ -78,13 +78,16 @@ impl Project {
                     soft = soft.saturating_add(i128::from((*end_penalty).max(*near_end_penalty)));
                 }
                 RuleKind::Proximity {
+                    target,
                     wish,
                     importance,
                     max_class,
                     ..
                 } => {
-                    soft =
-                        soft.saturating_add(i128::from(wish.far_penalty() * importance.factor()));
+                    soft = soft.saturating_add(
+                        i128::from(wish.far_penalty() * importance.factor())
+                            * i128::from(self.policy.wish_priority.factor(target)),
+                    );
                     if max_class.is_some() {
                         hard += 1;
                     }

@@ -111,6 +111,9 @@ fn issue_row(ui: &mut egui::Ui, p: Palette, name: &str, result: &RuleResult) -> 
     let color = if result.hard_violation { p.bad } else { p.warn };
     let (rect, response) =
         ui.allocate_exact_size(Vec2::new(ui.available_width(), 42.0), Sense::click());
+    if !ui.is_rect_visible(rect) {
+        return response;
+    }
     let painter = ui.painter();
     if response.hovered() {
         painter.rect_filled(rect, theme::radius::SM, p.surface_hi);

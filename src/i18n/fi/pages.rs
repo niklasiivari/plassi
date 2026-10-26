@@ -234,6 +234,26 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("+ Add spelling", "+ Lisää kirjoitusasu"),
     // Seating policy
     ("Seating policy", "Istumaperiaatteet"),
+    ("Wish priority", "Toiveiden painotus"),
+    (
+        "No organization preference for people without wishes.",
+        "Järjestö ei ohjaa sellaisten henkilöiden sijoittelua, joilla ei ole toiveita.",
+    ),
+    ("Balanced", "Tasapainoinen"),
+    ("Person wishes first", "Henkilötoiveet etusijalla"),
+    ("Organization wishes first", "Järjestötoiveet etusijalla"),
+    (
+        "Keep the usual wish weights.",
+        "Käytä toiveiden tavallisia painoja.",
+    ),
+    (
+        "Give person and Avec wishes three times their usual weight.",
+        "Anna henkilö- ja avec-toiveille kolminkertainen paino.",
+    ),
+    (
+        "Give organization wishes three times their usual weight.",
+        "Anna järjestötoiveille kolminkertainen paino.",
+    ),
     (
         "Rules for the whole event.",
         "Koko tapahtumaa koskevat säännöt.",

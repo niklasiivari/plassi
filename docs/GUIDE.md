@@ -61,6 +61,12 @@ Pins apply to the project, across its seating options. A seat pin fixes a guest 
 
 **Seating policy** sets plain choices for the whole event: organization mixing, where people without wishes sit, sitting alone, at least one wish nearby, table ends and spare seats. Group preferences are separate from attendees' wishes. **Connections** shows who wished to sit together; **Arrange by table** helps spot wishes split across tables.
 
+**Wish priority** keeps the usual weights with **Balanced**, or gives named-person
+and Avec wishes or organization wishes three times their usual weight. Choose
+**Organization wishes first** to emphasize committee groups, or **Person wishes first**
+for individual requests. Solve or improve the seating after changing it. Hard
+restrictions and pins still apply.
+
 ## Categories and prices
 
 Use **Categories** to group different spellings of organizations, ticket types, meals and drinks. One imported value can belong to several categories. Categories affect organization wishes, chart colors and print totals.

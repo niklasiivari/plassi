@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(default)]
 pub struct SeatingPolicy {
+    /// Relative importance of named-person and organization wishes.
+    pub wish_priority: WishPriority,
     /// Whether unconstrained attendees should sit with their own organization.
     pub organization: OrganizationMixing,
     /// Whether people without wishes sit among wish groups or apart from them.
@@ -20,6 +22,24 @@ pub struct SeatingPolicy {
     /// Whether table ends are kept for groups.
     pub table_ends: TableEnds,
     pub empty_seats: EmptySeatPlacement,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub enum WishPriority {
+    #[default]
+    Balanced,
+    People,
+    Organizations,
+}
+
+impl WishPriority {
+    pub(crate) fn factor(self, target: &super::Target) -> i64 {
+        match (self, target) {
+            (Self::People, super::Target::People { .. })
+            | (Self::Organizations, super::Target::Organization { .. }) => 3,
+            _ => 1,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
@@ -125,6 +145,7 @@ impl SeatingPolicy {
     #[cfg(test)]
     pub fn none() -> Self {
         Self {
+            wish_priority: WishPriority::Balanced,
             organization: OrganizationMixing::Indifferent,
             without_wishes: WithoutWishes::Indifferent,
             sitting_alone: SittingAlone::Indifferent,

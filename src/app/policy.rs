@@ -3,7 +3,7 @@ use eframe::egui::{self, RichText};
 
 use crate::model::{
     EmptySeatPlacement, OneWish, OrganizationMixing, SeatingPolicy, SittingAlone, TableEnds,
-    WithoutWishes,
+    WishPriority, WithoutWishes,
 };
 
 use super::PlassiApp;
@@ -23,6 +23,29 @@ impl PlassiApp {
         choice(
             ui,
             p,
+            tr("Wish priority"),
+            &mut policy.wish_priority,
+            &[
+                (
+                    WishPriority::Balanced,
+                    tr("Balanced"),
+                    tr("Keep the usual wish weights."),
+                ),
+                (
+                    WishPriority::People,
+                    tr("Person wishes first"),
+                    tr("Give person and Avec wishes three times their usual weight."),
+                ),
+                (
+                    WishPriority::Organizations,
+                    tr("Organization wishes first"),
+                    tr("Give organization wishes three times their usual weight."),
+                ),
+            ],
+        );
+        choice(
+            ui,
+            p,
             tr("Organizations"),
             &mut policy.organization,
             &[
@@ -39,7 +62,7 @@ impl PlassiApp {
                 (
                     OrganizationMixing::Indifferent,
                     tr("Doesn't matter"),
-                    tr("Organizations do not affect the seating."),
+                    tr("No organization preference for people without wishes."),
                 ),
             ],
         );

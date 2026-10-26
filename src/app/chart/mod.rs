@@ -4,6 +4,7 @@ mod canvas;
 mod card;
 mod chips;
 mod colors;
+mod connections;
 mod drag;
 mod edits;
 mod inspector;
@@ -201,6 +202,7 @@ impl PlassiApp {
             self.chart.selected_table = None;
         }
         let key = (self.file.revision, candidate, self.chart.compare_with);
+        let scorer = self.scorer();
         let evaluation = self.evaluation();
         let scene = std::rc::Rc::clone(self.chart.scene.get(key, || {
             std::rc::Rc::new(Scene::build(
@@ -208,6 +210,7 @@ impl PlassiApp {
                 candidate,
                 self.chart.compare_with,
                 evaluation,
+                &scorer,
             ))
         }));
         self.chart.color_hover = None;

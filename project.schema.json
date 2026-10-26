@@ -60,6 +60,7 @@
         "organization": "Indifferent",
         "sitting_alone": "Avoid",
         "table_ends": "GroupsOnly",
+        "wish_priority": "Balanced",
         "without_wishes": "AmongGroups"
       }
     },
@@ -911,6 +912,11 @@
           "$ref": "#/$defs/TableEnds",
           "default": "GroupsOnly"
         },
+        "wish_priority": {
+          "description": "Relative importance of named-person and organization wishes.",
+          "$ref": "#/$defs/WishPriority",
+          "default": "Balanced"
+        },
         "without_wishes": {
           "description": "Whether people without wishes sit among wish groups or apart from them.",
           "$ref": "#/$defs/WithoutWishes",
@@ -1236,6 +1242,14 @@
           "type": "string",
           "const": "Seating"
         }
+      ]
+    },
+    "WishPriority": {
+      "type": "string",
+      "enum": [
+        "Balanced",
+        "People",
+        "Organizations"
       ]
     },
     "WithoutWishes": {

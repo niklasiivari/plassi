@@ -14,6 +14,7 @@ pub(super) struct Scene {
     pub(super) evaluation: Option<std::rc::Rc<Evaluation>>,
     /// Rule results owned by each requester (or placed person).
     pub(super) own: HashMap<usize, Vec<(u64, RuleResult)>>,
+    pub(super) connections: super::connections::WishConnections,
     pub(super) pins: HashMap<usize, Pin>,
     /// People off the seats but on the chart: their card's centre.
     pub(super) loose: BTreeMap<usize, Pos2>,
@@ -42,6 +43,7 @@ impl Scene {
         candidate: Option<usize>,
         compare: Option<usize>,
         evaluation: Option<std::rc::Rc<Evaluation>>,
+        scorer: &crate::seating::Scorer,
     ) -> Self {
         let seats = project.layout.seats();
         let tops = table_tops(project, &seats);
@@ -149,6 +151,7 @@ impl Scene {
             seat_of: assignment.into_iter().collect(),
             evaluation,
             own,
+            connections: super::connections::WishConnections::new(scorer),
             pins: project.pins(),
             loose,
             listed,

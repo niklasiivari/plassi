@@ -50,6 +50,22 @@ pub struct Scorer {
 }
 
 impl Scorer {
+    /// Enabled wish rules with attendee IDs already resolved by the solver.
+    /// Chart relationships reuse these without expanding organizations again.
+    pub(crate) fn resolved_wishes(&self) -> impl Iterator<Item = (u64, usize, Vec<usize>)> + '_ {
+        let problem = &self.problem;
+        problem.terms.iter().filter_map(|term| {
+            let Source::Rule(id) = term.source else {
+                return None;
+            };
+            Some((
+                id,
+                problem.people[term.requester],
+                term.targets.iter().map(|&i| problem.people[i]).collect(),
+            ))
+        })
+    }
+
     pub fn new(project: &Project) -> Self {
         let problem = Problem::new(project, &HashSet::new(), None, None);
         let preferences: HashMap<_, _> = project
