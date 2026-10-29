@@ -9,6 +9,8 @@ use rust_xlsxwriter::{Format, Workbook, Worksheet};
 use crate::catalog::Kind;
 use crate::model::{Attendee, Project, Side};
 
+mod layout;
+
 struct Labels(bool);
 
 impl Labels {
@@ -77,6 +79,8 @@ pub fn workbook(project: &Project, candidate: usize) -> Result<Vec<u8>> {
         })
         .collect();
     let mut book = Workbook::new();
+    layout::write(book.add_worksheet(), project, candidate, &labels, false)?;
+    layout::write(book.add_worksheet(), project, candidate, &labels, true)?;
     let sheet = book.add_worksheet();
     setup(
         sheet,
@@ -434,7 +438,15 @@ mod tests {
     fn workbook_preserves_seat_order_guest_data_and_catering_counts() {
         let p = fixture();
         let mut xlsx = Xlsx::new(Cursor::new(workbook(&p, 0).unwrap())).unwrap();
-        assert_eq!(xlsx.sheet_names(), ["Seating order", "Catering totals"]);
+        assert_eq!(
+            xlsx.sheet_names(),
+            [
+                "Table layout",
+                "Catering layout",
+                "Seating order",
+                "Catering totals"
+            ]
+        );
         let seats = xlsx.worksheet_range("Seating order").unwrap();
         let cell = |r, c| seats.get_value((r, c)).unwrap().to_string();
         assert_eq!(cell(5, 4), "Guest 02");
@@ -476,7 +488,15 @@ mod tests {
         p.candidates.push(p.empty_option("Unseated option".into()));
         p.event.print_language = PrintLanguage::Finnish;
         let mut xlsx = Xlsx::new(Cursor::new(workbook(&p, 1).unwrap())).unwrap();
-        assert_eq!(xlsx.sheet_names(), ["Istumajärjestys", "Tarjoilumäärät"]);
+        assert_eq!(
+            xlsx.sheet_names(),
+            [
+                "Pöytäkartta",
+                "Tarjoilukartta",
+                "Istumajärjestys",
+                "Tarjoilumäärät"
+            ]
+        );
         let seats = xlsx.worksheet_range("Istumajärjestys").unwrap();
         assert!(
             seats

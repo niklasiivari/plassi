@@ -198,6 +198,10 @@ pub struct EventInfo {
     pub subtitle: String,
     /// Language of the prints.
     pub print_language: PrintLanguage,
+    #[serde(default)]
+    pub hide_common_food: bool,
+    #[serde(default)]
+    pub hide_common_drink: bool,
 }
 
 /// The language prints are made in.

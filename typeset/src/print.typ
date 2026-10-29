@@ -269,7 +269,7 @@
 
 // ------------------------------------------------------- kitchen and bar --
 // Tables as on the wall chart, each seat with a short mark for the meal or
-// drink (none for the most common one) and its allergies; a legend and long
+// drink and its allergies; a legend and long
 // allergy notes below. The title line repeats on every page.
 #let mark-chip(mark, size: 7pt) = if mark != "" {
   box(fill: accent, radius: 2pt, inset: (x: size * 0.36, y: size * 0.2), text(size: size, weight: "bold", fill: white, mark))
@@ -277,20 +277,32 @@
 
 #let service-chart(service) = {
   let marks = data.marks
+  let combined = service == "both"
+  let choices(d, size: 7pt) = if combined {
+    let items = ()
+    if d.mark != "" { items.push(t("Food: ", "Ruoka: ") + d.mark) }
+    if d.drink_mark != "" { items.push(t("Drinks: ", "Juomat: ") + d.drink_mark) }
+    items.join(" · ")
+  } else { mark-chip(d.mark, size: size) }
+  let unmarked = marks.legend.filter(m => m.mark == "").map(m => if combined { m.type + ": " + m.name } else { m.name })
   let top = {
     grid(
       columns: (auto, 1fr, auto),
       align: horizon,
       column-gutter: 8pt,
-      eyebrow(if service == "food" { t("Kitchen", "Keittiö") } else { t("Bar", "Baari") }),
+      eyebrow(if combined { t("Food and drinks", "Ruoka ja juomat") } else if service == "food" { t("Kitchen", "Keittiö") } else { t("Bar", "Baari") }),
       [#text(font: serif, size: 14pt, weight: "semibold", data.title) #h(6pt) #text(font: serif, style: "italic", fill: muted, data.subtitle)],
-      text(size: 8pt, fill: muted, t("Unmarked: ", "Ilman merkintää: ") + if marks.plain != none { marks.plain.name } else { "" }),
+      [],
     )
+    if unmarked.len() > 0 {
+      linebreak()
+      text(size: 7.5pt, fill: muted, t("Unmarked: ", "Ilman merkintää: ") + unmarked.join(" · "))
+    }
     v(2pt)
     line(length: 100%, stroke: 0.5pt + hair)
   }
   set page(
-    paper: "a4", flipped: true, margin: (x: 10mm, top: 19mm, bottom: 11mm),
+    paper: "a4", flipped: true, margin: (x: 10mm, top: if unmarked.len() > 0 { 26mm } else { 19mm }, bottom: 11mm),
     header: top, header-ascent: 3mm, footer: pages-footer,
   )
 
@@ -299,9 +311,10 @@
     // The name, and under it the mark and the allergies.
     let draw(seat, width, height, side) = {
       let d = seat.service
-      let size = calc.min(9pt, height * 0.42)
-      let mark = mark-chip(d.mark, size: size * 0.72)
-      let room = width - if d.mark != "" { measure(mark).width + 3pt } else { 0pt }
+      let size = calc.min(9pt, height * if combined { 0.28 } else { 0.42 })
+      let mark = choices(d, size: size * 0.72)
+      let stacked = combined or measure(mark).width > width * 0.45
+      let room = if stacked { width } else { width - if d.mark != "" { measure(mark).width + 3pt } else { 0pt } }
       let allergy = if d.note != none {
         text(size: size * 0.8, fill: warn, weight: "bold", t("Allergy note ", "Allergia, ks. ") + str(d.note))
       } else if d.allergy != "" {
@@ -309,9 +322,12 @@
       }
       set par(leading: 0.25em)
       fit(seat.name, width, size)
-      if d.mark != "" or allergy != none {
+      if d.mark != "" or (combined and d.drink_mark != "") or allergy != none {
         linebreak()
-        if side == right [#allergy #mark] else [#mark #allergy]
+        if stacked {
+          fit(if combined { mark } else { d.mark }, width, size * 0.72)
+          if allergy != none { linebreak(); allergy }
+        } else if side == right [#allergy #mark] else [#mark #allergy]
       }
     }
     block(height: 1fr, layout(size => room-map(m, size.width, size.height, draw)))
@@ -319,27 +335,28 @@
   context {
     // The page inside its margins.
     let width = 277mm
-    let page-h = 180mm
+    let page-h = if unmarked.len() > 0 { 173mm } else { 180mm }
     // The legend and the allergy notes under the tables.
     let after = 10mm + if marks.notes.len() > 0 { 10mm + calc.ceil(marks.notes.len() / 3) * 4mm } else { 0mm }
     let gap = 8mm
     let band = 6mm
     let extra = line-extra(false)
-    let chip(p) = if p.service.mark != "" { measure(mark-chip(p.service.mark)).width + 4pt } else { 0pt }
-    let need = calc.min(55mm, names-width(9pt, extra: chip))
+    let chip(p) = if combined { 0pt } else if p.service.mark != "" { measure(mark-chip(p.service.mark)).width + 4pt } else { 0pt }
+    let need = if combined { 55mm } else { calc.min(55mm, names-width(9pt, extra: chip)) }
     let make(row-h) = {
       let row-h = calc.min(row-h, (page-h - 12mm) / calc.max(1, data.max_rows))
       plan(width, gap, 2 * (need + 1.5mm) + band, row-h, extra)
     }
-    let p = best(make, 11mm, 7mm, 3mm, page-h, page-h, after: after)
+    let p = best(make, if combined { 15mm } else { 11mm }, if combined { 11mm } else { 7mm }, 3mm, page-h, page-h, after: after)
     let row-h = p.row-h
     let name-w = (p.table-w - band) / 2 - 1.5mm
     let seat(p, side) = {
       if p == none { return text(size: 7pt, style: "italic", fill: muted, t("Empty", "tyhjä")) }
       let d = p.service
       let mark = mark-chip(d.mark)
-      let name = fit(p.name, name-w - if d.mark != "" { measure(mark).width + 4pt } else { 0pt }, 9pt)
-      let first = if side == "left" { [#name #mark] } else { [#mark #name] }
+      let stacked = combined or measure(mark).width > name-w * 0.45
+      let name = fit(p.name, name-w - if not stacked and d.mark != "" { measure(mark).width + 4pt } else { 0pt }, 9pt)
+      let first = if stacked { name } else if side == "left" { [#name #mark] } else { [#mark #name] }
       let second = if d.note != none {
         text(size: 6.5pt, fill: warn, weight: "bold", t("Allergy note ", "Allergia, ks. ") + str(d.note))
       } else if d.allergy != "" {
@@ -348,6 +365,7 @@
       block(width: name-w, {
         set par(leading: 0.25em)
         first
+        if stacked and (d.mark != "" or (combined and d.drink_mark != "")) { linebreak(); fit(if combined { choices(d) } else { d.mark }, name-w, 7pt) }
         if second != none { linebreak(); second }
       })
     }
@@ -359,8 +377,7 @@
   // Legend: each mark with its meal and count.
   let entry(mark, name, count) = box[#mark #text(size: 8pt)[#name] #text(size: 8pt, weight: "bold", str(count))]
   let items = ()
-  if marks.plain != none { items.push(entry(text(size: 7pt, fill: muted, "—"), marks.plain.name, marks.plain.count)) }
-  for m in marks.legend { items.push(entry(mark-chip(m.mark), m.name, m.count)) }
+  for m in marks.legend { items.push(entry(if m.mark == "" { text(size: 7pt, fill: muted, t("Unmarked", "Ilman merkintää")) } else { mark-chip(m.mark) }, if combined { m.type + ": " + m.name } else { m.name }, m.count)) }
   align(center, items.join(h(12pt)))
 
   if marks.notes.len() > 0 {
@@ -408,4 +425,5 @@
 #if data.kind == "chart" { chart() }
 #if data.kind == "kitchen" { service-chart("food") }
 #if data.kind == "bar" { service-chart("drink") }
+#if data.kind == "catering" { service-chart("both") }
 #if data.kind == "door" { door() }

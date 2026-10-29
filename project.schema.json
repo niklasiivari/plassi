@@ -30,6 +30,8 @@
     "event": {
       "$ref": "#/$defs/EventInfo",
       "default": {
+        "hide_common_drink": false,
+        "hide_common_food": false,
         "print_language": "same_as_app",
         "subtitle": "",
         "title": ""
@@ -420,6 +422,14 @@
       "description": "Printed on exported charts and lists.",
       "type": "object",
       "properties": {
+        "hide_common_drink": {
+          "type": "boolean",
+          "default": false
+        },
+        "hide_common_food": {
+          "type": "boolean",
+          "default": false
+        },
         "print_language": {
           "description": "Language of the prints.",
           "$ref": "#/$defs/PrintLanguage",

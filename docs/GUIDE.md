@@ -79,11 +79,16 @@ Choose a seating option on **Print** and review warnings about broken rules, uns
 
 - **Seating chart:** names at each table.
 - **Kitchen:** meal choices, allergies and totals.
+- **Food and drinks:** meals, drinks and allergy notes together at each seat, with separate food and drink totals.
 - **Bar:** drink choices, allergies and totals.
 - **Door list:** alphabetical names and prices.
 - **Excel:** seating details, extra imported columns and catering totals.
 
 Set the event title and print language on the Print page. Desktop exports are saved beside the project; browser exports are downloaded.
+
+**Export Excel (.xlsx)** opens on a compact names-only table plan made from worksheet cells. The matching **Catering layout** tab adds meals, drinks and allergy notes at the same seats. Long tables show facing seats; round tables retain the order around the table. Tables are shown upright, grouped by their room rows. The other tabs contain the full seating list and catering totals, including unseated guests.
+
+Under **PDF choices** on Print, choose independently whether to hide the most common food or drink choice. Both are shown by default. When hidden, the header and legend identify the unmarked choice and its count; allergies and missing choices (`?`) stay visible. These settings apply to Kitchen, Bar and Food and drinks PDFs and are saved with the project. Excel always includes the full choices. Category print marks control the abbreviations; the legend gives their full names. Unmapped choices print as entered. Long allergy notes appear in full below the tables, referenced from the seat.
 
 ## Smaller screens
 

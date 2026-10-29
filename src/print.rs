@@ -14,14 +14,16 @@ pub enum PrintKind {
     /// Wall chart of the tables.
     Chart,
     Kitchen,
+    Catering,
     Bar,
     Door,
 }
 
 impl PrintKind {
-    pub const ALL: [PrintKind; 4] = [
+    pub const ALL: [PrintKind; 5] = [
         PrintKind::Chart,
         PrintKind::Kitchen,
+        PrintKind::Catering,
         PrintKind::Bar,
         PrintKind::Door,
     ];
@@ -30,6 +32,7 @@ impl PrintKind {
         match self {
             PrintKind::Chart => "chart",
             PrintKind::Kitchen => "kitchen",
+            PrintKind::Catering => "catering",
             PrintKind::Bar => "bar",
             PrintKind::Door => "door",
         }
@@ -39,6 +42,7 @@ impl PrintKind {
         match self {
             PrintKind::Chart => tr("Seating chart"),
             PrintKind::Kitchen => tr("Kitchen"),
+            PrintKind::Catering => tr("Food and drinks"),
             PrintKind::Bar => tr("Bar"),
             PrintKind::Door => tr("Door list"),
         }
@@ -48,6 +52,7 @@ impl PrintKind {
         match self {
             PrintKind::Chart => tr("Table chart for the wall."),
             PrintKind::Kitchen => tr("Table chart with meals, allergies and totals."),
+            PrintKind::Catering => tr("Table chart with meals, drinks, allergies and totals."),
             PrintKind::Bar => tr("Table chart with drinks and totals."),
             PrintKind::Door => tr("Names and prices, alphabetically."),
         }
@@ -86,6 +91,7 @@ pub fn data(project: &Project, candidate: usize, kind: PrintKind) -> Result<Valu
     };
     let marks = match kind {
         PrintKind::Kitchen => Some(Marks::new(project, &option.assignment, Kind::Food)),
+        PrintKind::Catering => Some(Marks::combined(project, &option.assignment)),
         PrintKind::Bar => Some(Marks::new(project, &option.assignment, Kind::Drink)),
         _ => None,
     };
@@ -272,14 +278,12 @@ pub(crate) fn table_name(project: &Project, table_id: &str) -> String {
 const LONG_ALLERGY: usize = 48;
 
 /// What the kitchen or bar needs at each seat: a short mark for the meal or
-/// drink (none for the most common one), the allergies or a note number,
+/// drink, the allergies or a note number,
 /// and the legend and notes.
 struct Marks {
     /// Per attendee ID: `{mark, allergy, note}`.
     seat: HashMap<usize, Value>,
-    /// The unmarked choice and how many have it.
-    plain: Value,
-    /// Every other choice: `{mark, name, count}`, most common first.
+    /// Every choice: `{mark, name, count}`, most common first.
     legend: Vec<Value>,
     /// Long allergy texts: `{n, name, text}`, in seating order.
     notes: Vec<Value>,
@@ -294,27 +298,43 @@ impl Marks {
             .map(|a| (a.id, Choice::of(project, a, kind)))
             .collect();
         let mut counts: Vec<(&Choice, usize)> = Vec::new();
-        for choice in choices.values().filter(|c| !c.key.is_empty()) {
+        for choice in choices.values() {
             match counts.iter_mut().find(|(c, _)| c.key == choice.key) {
                 Some((_, count)) => *count += 1,
                 None => counts.push((choice, 1)),
             }
         }
-        counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.name.cmp(&b.0.name)));
-        let plain_key = counts
-            .first()
-            .map(|(c, _)| c.key.clone())
-            .unwrap_or_default();
+        counts.sort_by(|a, b| {
+            b.1.cmp(&a.1)
+                .then_with(|| a.0.name.cmp(&b.0.name))
+                .then_with(|| a.0.key.cmp(&b.0.key))
+        });
+        let hide_common = match kind {
+            Kind::Food => project.event.hide_common_food,
+            Kind::Drink => project.event.hide_common_drink,
+            _ => false,
+        };
+        // Missing information must stay visible even when it is the majority.
+        let hidden = hide_common
+            .then(|| {
+                counts
+                    .iter()
+                    .find(|(c, _)| c.key != "missing")
+                    .map(|(c, _)| c.key.as_str())
+            })
+            .flatten();
+        let mark_for = |choice: &Choice| {
+            if hidden == Some(choice.key.as_str()) {
+                String::new()
+            } else {
+                choice.mark.clone()
+            }
+        };
         let mut marks = Self {
             seat: HashMap::new(),
-            plain: counts
-                .first()
-                .map(|(c, n)| json!({ "name": c.name, "count": n }))
-                .unwrap_or(Value::Null),
             legend: counts
                 .iter()
-                .skip(1)
-                .map(|(c, n)| json!({ "mark": c.mark, "name": c.name, "count": n }))
+                .map(|(c, n)| json!({ "mark": mark_for(c), "name": c.name, "count": n }))
                 .collect(),
             notes: Vec::new(),
         };
@@ -326,11 +346,7 @@ impl Marks {
                 continue;
             };
             let choice = &choices[&id];
-            let mark = if choice.key == plain_key {
-                ""
-            } else {
-                choice.mark.as_str()
-            };
+            let mark = mark_for(choice);
             let allergy = allergy_text(&attendee.allergies);
             let note = (allergy.chars().count() > LONG_ALLERGY).then(|| {
                 marks.notes.push(json!({
@@ -352,8 +368,26 @@ impl Marks {
         marks
     }
 
+    fn combined(project: &Project, assignment: &BTreeMap<usize, String>) -> Self {
+        let mut food = Self::new(project, assignment, Kind::Food);
+        let drinks = Self::new(project, assignment, Kind::Drink);
+        for (id, seat) in &mut food.seat {
+            seat["drink_mark"] = drinks.seat[id]["mark"].clone();
+        }
+        let fi = project.event.print_language.code() == "fi";
+        for entry in &mut food.legend {
+            entry["type"] = json!(if fi { "Ruoka" } else { "Food" });
+        }
+        food.legend
+            .extend(drinks.legend.into_iter().map(|mut entry| {
+                entry["type"] = json!(if fi { "Juomat" } else { "Drinks" });
+                entry
+            }));
+        food
+    }
+
     fn summary(&self) -> Value {
-        json!({ "plain": self.plain, "legend": self.legend, "notes": self.notes })
+        json!({ "legend": self.legend, "notes": self.notes })
     }
 }
 
@@ -368,10 +402,22 @@ impl Choice {
     fn of(project: &Project, attendee: &crate::model::Attendee, kind: Kind) -> Self {
         let list = project.catalog.list(kind);
         let raw = kind.raw(attendee).trim();
+        if raw.is_empty() {
+            let name = if project.event.print_language.code() == "fi" {
+                "Ei ilmoitettu"
+            } else {
+                "Not specified"
+            };
+            return Self {
+                key: "missing".into(),
+                name: name.into(),
+                mark: "?".into(),
+            };
+        }
         let found = project.catalog.find_all(kind, raw);
         if found.is_empty() {
             return Self {
-                key: crate::catalog::normalize(raw),
+                key: format!("raw:{}", crate::catalog::normalize(raw)),
                 name: raw.to_string(),
                 mark: raw.to_string(),
             };
@@ -385,7 +431,7 @@ impl Choice {
             })
             .collect();
         Self {
-            key: names.join("\u{1f}"),
+            key: format!("categories:{}", names.join("\u{1f}")),
             name: names.join(" / "),
             mark: marks.join(" "),
         }
@@ -430,10 +476,12 @@ pub fn file_name(project: &Project, project_name: &str, kind: PrintKind) -> Stri
     let word = match (project.event.print_language.code(), kind) {
         ("fi", PrintKind::Chart) => "istumajärjestys",
         ("fi", PrintKind::Kitchen) => "keittiö",
+        ("fi", PrintKind::Catering) => "ruoka ja juomat",
         ("fi", PrintKind::Bar) => "baari",
         ("fi", PrintKind::Door) => "ovilista",
         (_, PrintKind::Chart) => "seating",
         (_, PrintKind::Kitchen) => "kitchen",
+        (_, PrintKind::Catering) => "food and drinks",
         (_, PrintKind::Bar) => "bar",
         (_, PrintKind::Door) => "door list",
     };

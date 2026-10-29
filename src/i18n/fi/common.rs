@@ -225,6 +225,20 @@ pub(super) const STRINGS: &[(&str, &str)] = &[
     ("Important", "Tärkeä"),
     ("Required", "Pakollinen"),
     ("Kitchen", "Keittiö"),
+    ("PDF choices", "PDF-valinnat"),
+    (
+        "Hide the most common food choice",
+        "Piilota yleisin ruokavalinta",
+    ),
+    (
+        "Hide the most common drink choice",
+        "Piilota yleisin juomavalinta",
+    ),
+    ("Food and drinks", "Ruoka ja juomat"),
+    (
+        "Table chart with meals, drinks, allergies and totals.",
+        "Pöytäkartta, jossa ruoat, juomat, allergiat ja yhteismäärät.",
+    ),
     ("Bar", "Baari"),
     ("Door list", "Ovilista"),
     ("Table chart for the wall.", "Pöytäkartta seinälle."),

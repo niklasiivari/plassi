@@ -891,8 +891,8 @@ fn kitchen_and_bar_prints_mark_choices_and_number_long_allergies() {
             }
         }
     }
-    // The most common meal is unmarked; "-" and "none" mean no allergies.
-    assert_eq!(seats["Person 0"]["mark"], "");
+    // Every meal is explicit; "-" and "none" mean no allergies.
+    assert_eq!(seats["Person 0"]["mark"], "Mixed");
     assert_eq!(seats["Person 0"]["allergy"], "");
     assert_eq!(seats["Person 1"]["allergy"], "Nuts");
     assert_eq!(seats["Person 3"]["mark"], "VG");
@@ -900,8 +900,8 @@ fn kitchen_and_bar_prints_mark_choices_and_number_long_allergies() {
     // A long allergy text becomes a numbered note under the chart.
     assert_eq!(seats["Person 2"]["note"], 1);
     assert_eq!(data["marks"]["notes"][0]["name"], "Person 2");
-    assert_eq!(data["marks"]["plain"]["name"], "Mixed");
-    assert_eq!(data["marks"]["legend"][0]["mark"], "VG");
+    assert_eq!(data["marks"]["legend"][0]["name"], "Mixed");
+    assert_eq!(data["marks"]["legend"][1]["mark"], "VG");
 
     // The bar marks drinks the same way and keeps the allergies.
     for a in &mut project.attendees {
@@ -921,6 +921,154 @@ fn kitchen_and_bar_prints_mark_choices_and_number_long_allergies() {
         marks
             .iter()
             .any(|m| m["mark"] == "0 %" && m["allergy"] == "Nuts")
+    );
+}
+
+#[test]
+fn common_choices_can_be_hidden_independently_without_hiding_allergies() {
+    use crate::print::PrintKind;
+    let mut p = fixture();
+    for a in &mut p.attendees {
+        a.food = "Mixed".into();
+        a.drink = "Water".into();
+        a.allergies = "Nuts".into();
+    }
+    p.attendees[3].food.clear();
+    p.attendees[3].drink.clear();
+    let mut option = p.empty_option("X".into());
+    option.assignment = p
+        .attendees
+        .iter()
+        .zip(p.layout.seats())
+        .map(|(a, s)| (a.id, s.id))
+        .collect();
+    p.candidates.push(option);
+    for (food, drink) in [(false, false), (true, false), (false, true), (true, true)] {
+        p.event.hide_common_food = food;
+        p.event.hide_common_drink = drink;
+        let p = crate::io::parse(&crate::io::encode(&p).unwrap()).unwrap();
+        assert_eq!(p.event.hide_common_food, food);
+        assert_eq!(p.event.hide_common_drink, drink);
+        let data = crate::print::data(&p, 0, PrintKind::Catering).unwrap();
+        let seat = &data["rows"][0]["tables"][0]["rows"][0]["left"]["service"];
+        assert_eq!(seat["mark"], if food { "" } else { "Mixed" });
+        assert_eq!(seat["drink_mark"], if drink { "" } else { "Water" });
+        assert_eq!(seat["allergy"], "Nuts");
+        let legend = data["marks"]["legend"].as_array().unwrap();
+        assert_eq!(
+            legend.iter().filter(|m| m["mark"] == "").count(),
+            usize::from(food) + usize::from(drink)
+        );
+        assert_eq!(legend.iter().filter(|m| m["mark"] == "?").count(), 2);
+        for kind in [PrintKind::Kitchen, PrintKind::Bar, PrintKind::Catering] {
+            let pdf = crate::print::render(&p, 0, kind).unwrap();
+            assert!(pdf.starts_with(b"%PDF"));
+            if food
+                && drink
+                && let Ok(dir) = std::env::var("PLASSI_EXPORT_PREVIEW_DIR")
+            {
+                std::fs::create_dir_all(&dir).unwrap();
+                std::fs::write(
+                    std::path::Path::new(&dir).join(format!("hidden-{}.pdf", kind.key())),
+                    pdf,
+                )
+                .unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn combined_catering_keeps_all_choices_diets_and_notes_at_the_seat() {
+    use crate::catalog::Kind;
+    use crate::print::PrintKind;
+    let mut project = crate::example::project();
+    project.layout = Layout::grid(2, 3, 2);
+    project.attendees.truncate(12);
+    project.attendees[0].food = "Mixed".into();
+    project.attendees[1].food = "Vegan and gluten-free".into();
+    project.attendees[2].food = "Other diet".into();
+    project.attendees[3].food.clear();
+    project.attendees[0].allergies =
+        "Avoid nuts and sesame; also avoid traces and shared preparation equipment".into();
+    for (kind, name, mark, alias) in [
+        (Kind::Food, "Mixed", "M", "Mixed"),
+        (Kind::Food, "Vegan", "VG", "Vegan and gluten-free"),
+        (Kind::Food, "Gluten-free", "GF", "Vegan and gluten-free"),
+        (Kind::Drink, "With alcohol", "A", "With alcohol"),
+        (Kind::Drink, "Without alcohol", "AF", "Without alcohol"),
+    ] {
+        let i = project.catalog.create(kind, name);
+        let category = &mut project.catalog.list_mut(kind)[i];
+        category.mark = mark.into();
+        category.aliases.push(alias.into());
+    }
+    let mut option = project.empty_option("Service option".into());
+    option.assignment = project
+        .attendees
+        .iter()
+        .zip(project.layout.seats())
+        .map(|(a, s)| (a.id, s.id))
+        .collect();
+    project.candidates = vec![option];
+    for language in [PrintLanguage::English, PrintLanguage::Finnish] {
+        project.event.print_language = language;
+        let data = crate::print::data(&project, 0, PrintKind::Catering).unwrap();
+        let rows = &data["rows"][0]["tables"][0]["rows"];
+        assert_eq!(rows[0]["left"]["service"]["mark"], "M");
+        assert_eq!(rows[0]["left"]["service"]["drink_mark"], "AF");
+        assert_eq!(rows[1]["left"]["service"]["mark"], "VG GF");
+        assert_eq!(rows[2]["left"]["service"]["mark"], "Other diet");
+        assert_eq!(rows[0]["right"]["service"]["mark"], "?");
+        assert_eq!(rows[0]["left"]["service"]["note"], 1);
+        assert_eq!(
+            data["marks"]["notes"][0]["text"],
+            project.attendees[0].allergies
+        );
+        assert!(
+            data["marks"]["legend"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|entry| entry["type"].is_string())
+        );
+        assert!(
+            crate::print::render(&project, 0, PrintKind::Catering)
+                .unwrap()
+                .starts_with(b"%PDF")
+        );
+    }
+    if let Ok(dir) = std::env::var("PLASSI_EXPORT_PREVIEW_DIR") {
+        std::fs::create_dir_all(&dir).unwrap();
+        let dir = std::path::Path::new(&dir);
+        std::fs::write(
+            dir.join("seating.xlsx"),
+            crate::export::workbook(&project, 0).unwrap(),
+        )
+        .unwrap();
+        for kind in [PrintKind::Kitchen, PrintKind::Catering] {
+            std::fs::write(
+                dir.join(format!("{}.pdf", kind.key())),
+                crate::print::render(&project, 0, kind).unwrap(),
+            )
+            .unwrap();
+        }
+    }
+    // The same combined fields reach the free/round room-map renderer.
+    project.layout.rows[0].tables[0].shape = TableShape::Round;
+    project.candidates[0].assignment.remove(&1);
+    let data = crate::print::data(&project, 0, PrintKind::Catering).unwrap();
+    let first = data["room_map"]["seats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == project.attendees[0].name)
+        .unwrap();
+    assert_eq!(first["service"]["drink_mark"], "AF");
+    assert!(
+        crate::print::render(&project, 0, PrintKind::Catering)
+            .unwrap()
+            .starts_with(b"%PDF")
     );
 }
 

@@ -61,7 +61,7 @@ cargo run -- import INPUT.tsv PROJECT.json
 cargo run -- validate PROJECT.json
 cargo run -- solve PROJECT.json
 cargo run -- suggest PROJECT.json
-cargo run -- export PROJECT.json         # four PDFs, latest seating option
+cargo run -- export PROJECT.json         # all PDFs, latest seating option
 cargo run -- export-xlsx PROJECT.json    # Excel workbook, latest option
 cargo run -- schema                     # project JSON Schema
 ```

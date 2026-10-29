@@ -249,7 +249,32 @@ fn print_page_exports_excel_without_running_pdf_jobs() {
 }
 
 #[test]
-fn print_page_saves_four_pdfs() {
+fn print_choice_visibility_is_independent_and_saved() {
+    let mut ui = Ui::with_example();
+    ui.go_to("Print");
+    ui.click("Hide the most common food choice");
+    assert!(ui.app().project.event.hide_common_food);
+    assert!(!ui.app().project.event.hide_common_drink);
+    ui.click("Hide the most common drink choice");
+    let mut ui = ui.reopen();
+    assert!(ui.app().project.event.hide_common_food);
+    assert!(ui.app().project.event.hide_common_drink);
+    ui.h.set_size(eframe::egui::vec2(390.0, 900.0));
+    ui.settle();
+    ui.click("Menu");
+    ui.go_to("Print");
+    ui.click("Hide the most common food choice");
+    assert!(!ui.app().project.event.hide_common_food);
+    assert!(ui.app().project.event.hide_common_drink);
+    ui.click("Menu");
+    ui.click("EN");
+    ui.click("Tulosta");
+    ui.click("Piilota yleisin juomavalinta");
+    assert!(!ui.app().project.event.hide_common_drink);
+}
+
+#[test]
+fn print_page_saves_all_pdfs() {
     let mut ui = Ui::with_example();
     ui.solve();
     ui.key(Modifiers::NONE, Key::Escape);
@@ -271,7 +296,12 @@ fn print_page_saves_four_pdfs() {
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
         .filter(|f| f.ends_with(".pdf"))
         .collect();
-    assert_eq!(pdfs.len(), 4, "{}", ui.app().status);
+    assert_eq!(
+        pdfs.len(),
+        crate::print::PrintKind::ALL.len(),
+        "{}",
+        ui.app().status
+    );
     assert!(
         pdfs.iter().all(|f| f.starts_with(&format!("{name} - "))),
         "{pdfs:?}"

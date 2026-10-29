@@ -1,4 +1,4 @@
-//! The Print page: event details and the four A4 PDFs, typeset in the background.
+//! The Print page: event details and A4 PDFs, typeset in the background.
 
 use crate::i18n::{fill, tr};
 use eframe::egui::{self, RichText};
@@ -237,6 +237,21 @@ impl PlassiApp {
                     });
                     ui.end_row();
                 });
+            ui.label(tr("PDF choices"));
+            for (value, label) in [
+                (
+                    &mut self.project.event.hide_common_food,
+                    "Hide the most common food choice",
+                ),
+                (
+                    &mut self.project.event.hide_common_drink,
+                    "Hide the most common drink choice",
+                ),
+            ] {
+                let edited = ui.checkbox(value, tr(label)).changed();
+                self.printing.details_dirty |= edited;
+                changed |= edited;
+            }
         });
         changed
     }
@@ -353,6 +368,11 @@ impl PlassiApp {
 
     /// The column a print relies on, if nobody has it filled in.
     fn missing_data(&self, kind: PrintKind) -> Option<&'static str> {
+        if kind == PrintKind::Catering {
+            return self
+                .missing_data(PrintKind::Kitchen)
+                .or_else(|| self.missing_data(PrintKind::Bar));
+        }
         let (field, get): (_, fn(&Attendee) -> &str) = match kind {
             PrintKind::Kitchen => ("food", |a| &a.food),
             PrintKind::Bar => ("drink", |a| &a.drink),
